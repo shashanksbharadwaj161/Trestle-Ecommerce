@@ -35,6 +35,7 @@ import {
   type ChainProfile,
   type RouteQuote,
 } from "@trestle/shared";
+import { trestleLoyaltyAbi } from "@trestle/shared/abis";
 import { prisma } from "./src/client";
 import { hashPassword } from "./src/password";
 import { applyChainEvents, fetchTrestleEvents } from "./src/sync";
@@ -728,9 +729,15 @@ async function main() {
       1n,
     ]);
 
-    // Ava stakes part of her earned TRST on chain B
+    // Ava stakes half of the TRST she actually earned on chain B (amount depends on catalogue prices)
     const bChain = actors[B.chain.id]!;
-    await bChain.loyaltyCall("ava", "stake", [50n * 10n ** 18n]);
+    const earned = (await bChain.public.readContract({
+      address: getDeployment(mode, B.chain.id)!.loyalty,
+      abi: trestleLoyaltyAbi,
+      functionName: "balanceOf",
+      args: [buyers.ava.address],
+    })) as bigint;
+    if (earned > 1n) await bChain.loyaltyCall("ava", "stake", [earned / 2n]);
   }
 
   // ---------------------------------------------------------------- ingest real chain events
