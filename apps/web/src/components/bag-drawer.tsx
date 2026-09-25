@@ -1,24 +1,20 @@
 "use client";
 import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
-import { SHIPPING_METHODS } from "@trestle/shared";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/hooks/use-cart";
 import { useUi } from "@/store/ui";
-import { usd } from "@/lib/format";
 import { BagLine } from "./bag-lines";
 import { Price } from "./price";
-
-const FREE_OVER_MICROS = BigInt(SHIPPING_METHODS.standard.freeOverCents) * 10_000n;
+import { FreeDeliveryMeter } from "./free-delivery-meter";
 
 export function BagDrawer() {
   const { bagOpen, setBag } = useUi();
   const cart = useCart();
   const data = cart.data;
   const subtotal = BigInt(data?.subtotalUsdMicros ?? "0");
-  const remaining = FREE_OVER_MICROS - subtotal;
   const count = cart.count;
   const close = () => setBag(false);
 
@@ -90,13 +86,13 @@ export function BagDrawer() {
           </div>
         ) : (
           <div className="px-5">
-            <p className="border-b border-border py-3 text-[0.8125rem] text-muted-foreground" aria-live="polite">
-              {remaining > 0n
-                ? `Spend ${usd(remaining)} more for free standard delivery.`
-                : "Your order qualifies for free standard delivery."}
-            </p>
+            <FreeDeliveryMeter subtotalMicros={subtotal} className="border-b border-border py-3" />
             {data.warnings.map((w) => (
-              <p key={w} className="mt-3 bg-warning-soft px-3 py-2 text-xs text-warning" role="status">
+              <p
+                key={w}
+                className="mt-3 bg-warning-soft px-3 py-2 text-xs text-warning"
+                role="status"
+              >
                 {w}
               </p>
             ))}

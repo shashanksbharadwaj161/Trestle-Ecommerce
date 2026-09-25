@@ -133,15 +133,18 @@ export function ProductCard({
           </span>
         </button>
         {!p.soldOut && (
-          <button
-            type="button"
-            onClick={() => setQuickOpen(true)}
-            className="absolute bottom-2 right-2 grid size-9 place-items-center rounded-full bg-background/90 text-foreground backdrop-blur transition-opacity md:bottom-3 md:left-3 md:right-3 md:h-10 md:w-auto md:rounded-none md:opacity-0 md:group-focus-within/card:opacity-100 md:group-hover/card:opacity-100"
-            aria-label={`Quick add ${p.title}`}
-          >
-            <Plus className="size-4 md:hidden" strokeWidth={1.5} />
-            <span className="hidden text-[0.8125rem] md:inline">Quick add</span>
-          </button>
+          <>
+            {/* touch: opens the size sheet. Mouse: hidden (sizes appear on hover) but still the keyboard route */}
+            <button
+              type="button"
+              onClick={() => setQuickOpen(true)}
+              className="quick-touch absolute bottom-2 right-2 grid size-9 place-items-center rounded-full bg-background/90 text-foreground backdrop-blur transition-[opacity,transform] active:scale-90"
+              aria-label={`Quick add ${p.title}`}
+            >
+              <Plus className="size-4" strokeWidth={1.5} />
+            </button>
+            <InlineSizes p={p} colourIdx={colourIdx} />
+          </>
         )}
       </div>
 
@@ -206,6 +209,78 @@ export function ProductCard({
   );
 }
 
+/** Adds one unit and opens the bag drawer — shared by the hover sizes and the size sheet. */
+function useQuickAdd(p: CardData, colourIdx: number) {
+  const cart = useCart();
+  const setBag = useUi((s) => s.setBag);
+  const colour = p.colours[colourIdx];
+  const [adding, setAdding] = useState<string | null>(null);
+  async function add(variantId: string, size: string) {
+    setAdding(variantId);
+    try {
+      await cart.add(variantId, 1);
+      toast.success(
+        `Added ${p.title}, ${colour?.name}${size === "One size" ? "" : `, size ${size}`}`,
+      );
+      setBag(true);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setAdding(null);
+    }
+  }
+  return { colour, adding, add };
+}
+
+/**
+ * Mouse users: the sizes of the shown colour slide up over the image on hover; one click adds to the bag.
+ * Hidden from assistive tech and the tab order — keyboard and screen-reader users use the "Quick add" button,
+ * which opens the same choice in an accessible sheet.
+ */
+function InlineSizes({ p, colourIdx }: { p: CardData; colourIdx: number }) {
+  const { colour, adding, add } = useQuickAdd(p, colourIdx);
+  const sizes = p.sizes
+    .map((s) => ({ size: s.size, v: s.variants.find((x) => x.colour === colour?.name) }))
+    .filter((s) => !!s.v);
+  if (!sizes.length) return null;
+  const oneSize = sizes.length === 1 && sizes[0]!.size === "One size";
+  return (
+    <div
+      aria-hidden="true"
+      className="quick-inline absolute inset-x-2 bottom-2 z-10 bg-background/92 px-3 py-2.5 backdrop-blur"
+    >
+      <p className="mb-1.5 flex items-center justify-between text-[0.6875rem] text-muted-foreground">
+        <span>{oneSize ? "Quick add" : "Add size"}</span>
+        <span className="truncate pl-2">{colour?.name}</span>
+      </p>
+      <div className="flex flex-wrap gap-1">
+        {sizes.map(({ size, v }) => {
+          const available = !!v && v.stock > 0;
+          return (
+            <button
+              key={size}
+              type="button"
+              tabIndex={-1}
+              disabled={!available || !!adding}
+              onClick={() => v && add(v.variantId, size)}
+              className={cn(
+                "h-8 min-w-8 border border-transparent px-2 text-[0.75rem] tabular transition-[border-color,background-color,color] duration-200 hover:border-foreground",
+                oneSize && "w-full border-border",
+                !available &&
+                  "cursor-not-allowed text-muted-foreground line-through hover:border-transparent",
+                adding === v?.variantId && "animate-pulse bg-foreground text-background",
+              )}
+            >
+              {oneSize ? "Add to bag" : size}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function QuickAdd({
   p,
   colourIdx,
@@ -219,21 +294,10 @@ function QuickAdd({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
-  const cart = useCart();
-  const setBag = useUi((s) => s.setBag);
-  const colour = p.colours[colourIdx];
-  const [adding, setAdding] = useState<string | null>(null);
-
+  const quick = useQuickAdd(p, colourIdx);
+  const { colour, adding } = quick;
   async function add(variantId: string, size: string) {
-    setAdding(variantId);
-    try {
-      await cart.add(variantId, 1);
-      onOpenChange(false);
-      toast.success(`Added ${p.title}, ${colour?.name}, size ${size}`);
-      setBag(true);
-    } finally {
-      setAdding(null);
-    }
+    if (await quick.add(variantId, size)) onOpenChange(false);
   }
 
   return (

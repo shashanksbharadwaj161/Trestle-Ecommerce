@@ -19,7 +19,13 @@ import { cn } from "@/lib/cn";
 interface Options {
   card: { enabled: boolean; mode: "test" | "mock" | null; reason: string | null };
   crypto: { enabled: boolean; chains: number[]; reason: string | null };
-  shippingMethods: { id: "standard" | "express"; label: string; detail: string; cents: number; freeOverCents: number | null }[];
+  shippingMethods: {
+    id: "standard" | "express";
+    label: string;
+    detail: string;
+    cents: number;
+    freeOverCents: number | null;
+  }[];
 }
 interface Totals {
   subtotalCents: number;
@@ -46,11 +52,17 @@ export function CheckoutView() {
   const [promo, setPromo] = useState<string | undefined>();
   const [promoError, setPromoError] = useState<string | null>(null);
 
-  const options = useQuery({ queryKey: ["checkout-options"], queryFn: () => api<Options>("/api/checkout/options") });
+  const options = useQuery({
+    queryKey: ["checkout-options"],
+    queryFn: () => api<Options>("/api/checkout/options"),
+  });
   const lineCount = cart.data?.lines.length ?? 0;
   const quote = useQuery({
     queryKey: ["card-quote", shipping, promo, cart.data?.subtotalUsdMicros, lineCount],
-    queryFn: () => api<QuoteResp>("/api/checkout/card/quote", { body: { shippingMethod: shipping, promoCode: promo } }),
+    queryFn: () =>
+      api<QuoteResp>("/api/checkout/card/quote", {
+        body: { shippingMethod: shipping, promoCode: promo },
+      }),
     enabled: lineCount > 0,
     retry: false,
   });
@@ -61,7 +73,8 @@ export function CheckoutView() {
     }
   }, [quote.error, promo]);
   useEffect(() => {
-    if (options.data && !options.data.card.enabled && options.data.crypto.enabled) setMethod("crypto");
+    if (options.data && !options.data.card.enabled && options.data.crypto.enabled)
+      setMethod("crypto");
   }, [options.data]);
 
   const pay = useMutation({
@@ -138,12 +151,20 @@ export function CheckoutView() {
             </h2>
             {user ? (
               <p className="mt-3 text-sm">
-                Signed in as <span className="font-medium">{user.email ?? user.displayName ?? "your account"}</span>. Your
-                order will appear in your account.
+                Signed in as{" "}
+                <span className="font-medium">
+                  {user.email ?? user.displayName ?? "your account"}
+                </span>
+                . Your order will appear in your account.
               </p>
             ) : (
               <div className="mt-4 space-y-3">
-                <Field label="Email" htmlFor="email" error={emailError ?? undefined} hint="For your order confirmation page and any questions about delivery.">
+                <Field
+                  label="Email"
+                  htmlFor="email"
+                  error={emailError ?? undefined}
+                  hint="For your order confirmation page and any questions about delivery."
+                >
                   <Input
                     id="email"
                     type="email"
@@ -156,7 +177,10 @@ export function CheckoutView() {
                 </Field>
                 <p className="text-[0.8125rem] text-muted-foreground">
                   Checking out as a guest.{" "}
-                  <Link href="/sign-in?next=/checkout" className="text-foreground underline underline-offset-4">
+                  <Link
+                    href="/sign-in?next=/checkout"
+                    className="text-foreground underline underline-offset-4"
+                  >
                     Sign in
                   </Link>{" "}
                   to save the order to your account.
@@ -172,13 +196,18 @@ export function CheckoutView() {
             </h2>
             <div className="mt-4 space-y-2" role="radiogroup" aria-labelledby="step-delivery">
               {(opts?.shippingMethods ?? []).map((m) => {
-                const free = m.freeOverCents !== null && t && t.subtotalCents - t.discountCents >= m.freeOverCents;
+                const free =
+                  m.freeOverCents !== null &&
+                  t &&
+                  t.subtotalCents - t.discountCents >= m.freeOverCents;
                 return (
                   <label
                     key={m.id}
                     className={cn(
                       "flex cursor-pointer items-center gap-4 border px-4 py-4 transition-colors",
-                      shipping === m.id ? "border-foreground" : "border-border hover:border-foreground/50",
+                      shipping === m.id
+                        ? "border-foreground"
+                        : "border-border hover:border-foreground/50",
                     )}
                   >
                     <input
@@ -191,7 +220,9 @@ export function CheckoutView() {
                     />
                     <span className="flex-1">
                       <span className="block text-sm">{m.label}</span>
-                      <span className="block text-[0.8125rem] text-muted-foreground">{m.detail}</span>
+                      <span className="block text-[0.8125rem] text-muted-foreground">
+                        {m.detail}
+                      </span>
                     </span>
                     <span className="tabular text-sm">{free ? "Free" : formatCents(m.cents)}</span>
                   </label>
@@ -258,7 +289,9 @@ export function CheckoutView() {
                 disabled={!opts?.card.enabled || !t || quote.isFetching}
               >
                 <Lock className="size-4" strokeWidth={1.5} />
-                {t ? `Continue to secure payment · ${formatCents(t.totalCents)}` : "Continue to secure payment"}
+                {t
+                  ? `Continue to secure payment · ${formatCents(t.totalCents)}`
+                  : "Continue to secure payment"}
               </Button>
               <p className="mt-3 text-center text-xs text-muted-foreground">
                 Your card details are entered on Stripe’s hosted page and never reach Trestle.
@@ -267,7 +300,8 @@ export function CheckoutView() {
           ) : (
             <div className="border border-border p-5">
               <p className="text-sm">
-                Stablecoin escrow pays each label separately, because each order has its own escrow contract.
+                Stablecoin escrow pays each label separately, because each order has its own escrow
+                contract.
               </p>
               <ul className="mt-4 divide-y divide-border border-y border-border">
                 {groups.map((g) => (
@@ -275,16 +309,22 @@ export function CheckoutView() {
                     <div className="text-sm">
                       <p>{g.seller.storefrontName}</p>
                       <p className="text-muted-foreground">
-                        {g.lines.length} item{g.lines.length === 1 ? "" : "s"} · <Price micros={g.subtotalUsdMicros} />
+                        {g.lines.length} item{g.lines.length === 1 ? "" : "s"} ·{" "}
+                        <Price micros={g.subtotalUsdMicros} />
                       </p>
                     </div>
                     <Button asChild variant="trust" size="sm" aria-disabled={!opts?.crypto.enabled}>
-                      <Link href={`/checkout/crypto?seller=${g.seller.id}`}>Pay with stablecoin</Link>
+                      <Link href={`/checkout/crypto?seller=${g.seller.id}`}>
+                        Pay with stablecoin
+                      </Link>
                     </Button>
                   </li>
                 ))}
               </ul>
-              <Link href="/payments" className="mt-4 inline-block text-[0.8125rem] underline underline-offset-4">
+              <Link
+                href="/payments"
+                className="mt-4 inline-block text-[0.8125rem] underline underline-offset-4"
+              >
                 How stablecoin escrow works
               </Link>
             </div>
@@ -293,7 +333,7 @@ export function CheckoutView() {
 
         {/* summary */}
         <aside aria-label="Order summary" className="md:col-span-5">
-          <div className="bg-muted/60 p-6 md:sticky md:top-24">
+          <div className="sticky-under-header bg-muted/60 p-6 md:sticky md:top-[calc(var(--header-offset)+2rem)]">
             <h2 className="text-[0.9375rem] font-medium">
               Order summary <span className="text-muted-foreground">({cart.count})</span>
             </h2>
@@ -301,7 +341,9 @@ export function CheckoutView() {
               {cart.data.lines.map((l) => (
                 <li key={l.variantId} className="flex gap-3">
                   <div className="relative aspect-[3/4] w-16 shrink-0 overflow-hidden bg-muted">
-                    {l.image && <Image src={l.image} alt="" fill sizes="64px" className="object-cover" />}
+                    {l.image && (
+                      <Image src={l.image} alt="" fill sizes="64px" className="object-cover" />
+                    )}
                     <span className="tabular absolute right-0 top-0 grid min-w-5 place-items-center bg-foreground px-1 text-[11px] text-background">
                       {l.quantity}
                     </span>
@@ -347,7 +389,9 @@ export function CheckoutView() {
                 {promoError}
               </p>
             )}
-            {quote.data?.promoNote && <p className="mt-2 text-xs text-muted-foreground">{quote.data.promoNote}</p>}
+            {quote.data?.promoNote && (
+              <p className="mt-2 text-xs text-muted-foreground">{quote.data.promoNote}</p>
+            )}
 
             <dl className="mt-6 space-y-2 border-t border-border pt-4 text-sm">
               {quote.isLoading || !t ? (
@@ -359,19 +403,31 @@ export function CheckoutView() {
                 <>
                   <Row label="Subtotal" value={formatCents(t.subtotalCents)} />
                   {t.discountCents > 0 && (
-                    <Row label={`Discount${quote.data?.promo ? ` (${quote.data.promo.code})` : ""}`} value={`−${formatCents(t.discountCents)}`} />
+                    <Row
+                      label={`Discount${quote.data?.promo ? ` (${quote.data.promo.code})` : ""}`}
+                      value={`−${formatCents(t.discountCents)}`}
+                    />
                   )}
-                  <Row label="Delivery" value={t.shippingCents === 0 ? "Free" : formatCents(t.shippingCents)} />
+                  <Row
+                    label="Delivery"
+                    value={t.shippingCents === 0 ? "Free" : formatCents(t.shippingCents)}
+                  />
                   <div className="flex justify-between border-t border-border pt-3 text-[0.9375rem] font-medium">
                     <dt>Total</dt>
                     <dd className="tabular">{formatCents(t.totalCents)}</dd>
                   </div>
-                  <p className="text-xs text-muted-foreground">Prices in USD. Taxes and duties are not calculated in this store.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Prices in USD. Taxes and duties are not calculated in this store.
+                  </p>
                 </>
               )}
             </dl>
             {quote.data?.warnings.map((w) => (
-              <p key={w} role="status" className="mt-3 bg-warning-soft px-3 py-2 text-xs text-warning">
+              <p
+                key={w}
+                role="status"
+                className="mt-3 bg-warning-soft px-3 py-2 text-xs text-warning"
+              >
                 {w}
               </p>
             ))}

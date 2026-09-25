@@ -56,7 +56,8 @@ function toUrl(basePath: string, q: ListingQuery) {
   return s ? `${basePath}?${s}` : basePath;
 }
 
-const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+const toggle = (list: string[], v: string) =>
+  list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 
 export function ListingControls({
   basePath,
@@ -87,20 +88,38 @@ export function ListingControls({
     router.push(url, { scroll: false });
   };
   const activeCount =
-    query.category.length + query.colour.length + query.size.length + (query.minPrice || query.maxPrice ? 1 : 0) + (query.inStock ? 1 : 0);
+    query.category.length +
+    query.colour.length +
+    query.size.length +
+    (query.minPrice || query.maxPrice ? 1 : 0) +
+    (query.inStock ? 1 : 0);
 
   const chips: { label: string; remove: ListingQuery }[] = [
-    ...query.category.map((c) => ({ label: CATEGORY_LABEL[c as Category] ?? c, remove: { ...query, category: query.category.filter((x) => x !== c) } })),
-    ...query.colour.map((c) => ({ label: c, remove: { ...query, colour: query.colour.filter((x) => x !== c) } })),
-    ...query.size.map((s) => ({ label: `Size ${s}`, remove: { ...query, size: query.size.filter((x) => x !== s) } })),
+    ...query.category.map((c) => ({
+      label: CATEGORY_LABEL[c as Category] ?? c,
+      remove: { ...query, category: query.category.filter((x) => x !== c) },
+    })),
+    ...query.colour.map((c) => ({
+      label: c,
+      remove: { ...query, colour: query.colour.filter((x) => x !== c) },
+    })),
+    ...query.size.map((s) => ({
+      label: `Size ${s}`,
+      remove: { ...query, size: query.size.filter((x) => x !== s) },
+    })),
     ...(query.minPrice || query.maxPrice
-      ? [{ label: priceLabel(query.minPrice, query.maxPrice), remove: { ...query, minPrice: "", maxPrice: "" } }]
+      ? [
+          {
+            label: priceLabel(query.minPrice, query.maxPrice),
+            remove: { ...query, minPrice: "", maxPrice: "" },
+          },
+        ]
       : []),
     ...(query.inStock ? [{ label: "In stock", remove: { ...query, inStock: false } }] : []),
   ];
 
   return (
-    <div className="sticky top-14 z-30 mt-6 border-y border-border bg-background/95 backdrop-blur md:top-16">
+    <div className="sticky-under-header sticky top-[var(--header-offset)] z-30 mt-6 border-y border-border bg-background/95 backdrop-blur">
       <div className="container-page flex min-h-13 items-center justify-between gap-4 py-2">
         <p className="tabular text-[0.8125rem] text-muted-foreground" aria-live="polite">
           {pending ? "Updating…" : `${total} product${total === 1 ? "" : "s"}`}
@@ -115,7 +134,12 @@ export function ListingControls({
               className="h-10 min-w-48 border-transparent bg-transparent hover:border-border"
             />
           </div>
-          <Button variant="outline" size="sm" className="h-10 gap-2 px-4" onClick={() => setOpen(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-10 gap-2 px-4"
+            onClick={() => setOpen(true)}
+          >
             <SlidersHorizontal className="size-4" strokeWidth={1.5} />
             Filter &amp; sort
             {activeCount > 0 && (
@@ -141,7 +165,17 @@ export function ListingControls({
           ))}
           <button
             type="button"
-            onClick={() => go({ ...query, category: [], colour: [], size: [], minPrice: "", maxPrice: "", inStock: false })}
+            onClick={() =>
+              go({
+                ...query,
+                category: [],
+                colour: [],
+                size: [],
+                minPrice: "",
+                maxPrice: "",
+                inStock: false,
+              })
+            }
             className="h-8 shrink-0 px-2 text-[0.8125rem] underline underline-offset-4"
           >
             Clear all
@@ -158,7 +192,17 @@ export function ListingControls({
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => setDraft({ ...draft, category: [], colour: [], size: [], minPrice: "", maxPrice: "", inStock: false })}
+                onClick={() =>
+                  setDraft({
+                    ...draft,
+                    category: [],
+                    colour: [],
+                    size: [],
+                    minPrice: "",
+                    maxPrice: "",
+                    inStock: false,
+                  })
+                }
               >
                 Clear
               </Button>
@@ -180,7 +224,10 @@ export function ListingControls({
               <legend className="mb-3 text-[0.875rem] font-medium">Sort by</legend>
               <div className="space-y-1">
                 {SORTS.map((s) => (
-                  <label key={s.value} className="flex h-10 cursor-pointer items-center gap-3 text-sm">
+                  <label
+                    key={s.value}
+                    className="flex h-10 cursor-pointer items-center gap-3 text-sm"
+                  >
                     <input
                       type="radio"
                       name="sort"
@@ -200,12 +247,19 @@ export function ListingControls({
                 <legend className="mb-3 text-[0.875rem] font-medium">Category</legend>
                 <div className="space-y-1">
                   {facets.categories.map((c) => (
-                    <label key={c.value} className="flex h-10 cursor-pointer items-center gap-3 text-sm">
+                    <label
+                      key={c.value}
+                      className="flex h-10 cursor-pointer items-center gap-3 text-sm"
+                    >
                       <Checkbox
                         checked={draft.category.includes(c.value)}
-                        onCheckedChange={() => setDraft({ ...draft, category: toggle(draft.category, c.value) })}
+                        onCheckedChange={() =>
+                          setDraft({ ...draft, category: toggle(draft.category, c.value) })
+                        }
                       />
-                      <span className="flex-1">{CATEGORY_LABEL[c.value as Category] ?? c.value}</span>
+                      <span className="flex-1">
+                        {CATEGORY_LABEL[c.value as Category] ?? c.value}
+                      </span>
                       <span className="tabular text-xs text-muted-foreground">{c.count}</span>
                     </label>
                   ))}
@@ -224,8 +278,13 @@ export function ListingControls({
                         key={c.value}
                         type="button"
                         aria-pressed={on}
-                        onClick={() => setDraft({ ...draft, colour: toggle(draft.colour, c.value) })}
-                        className={cn("flex h-10 items-center gap-2.5 text-left text-sm", on && "font-medium")}
+                        onClick={() =>
+                          setDraft({ ...draft, colour: toggle(draft.colour, c.value) })
+                        }
+                        className={cn(
+                          "flex h-10 items-center gap-2.5 text-left text-sm",
+                          on && "font-medium",
+                        )}
                       >
                         <span
                           className={cn(
@@ -246,7 +305,9 @@ export function ListingControls({
             {facets.sizes.length > 1 && (
               <fieldset className="py-5">
                 <legend className="mb-1 text-[0.875rem] font-medium">Size</legend>
-                <p className="mb-3 text-xs text-muted-foreground">Shows products in stock in the sizes you choose.</p>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Shows products in stock in the sizes you choose.
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {facets.sizes.map((s) => {
                     const on = draft.size.includes(s);
@@ -258,7 +319,9 @@ export function ListingControls({
                         onClick={() => setDraft({ ...draft, size: toggle(draft.size, s) })}
                         className={cn(
                           "h-10 min-w-12 rounded-full border px-3 text-sm transition-colors",
-                          on ? "border-foreground bg-foreground text-background" : "border-border hover:border-foreground",
+                          on
+                            ? "border-foreground bg-foreground text-background"
+                            : "border-border hover:border-foreground",
                         )}
                       >
                         {s}
@@ -280,11 +343,17 @@ export function ListingControls({
                       type="button"
                       aria-pressed={on}
                       onClick={() =>
-                        setDraft(on ? { ...draft, minPrice: "", maxPrice: "" } : { ...draft, minPrice: b.min, maxPrice: b.max })
+                        setDraft(
+                          on
+                            ? { ...draft, minPrice: "", maxPrice: "" }
+                            : { ...draft, minPrice: b.min, maxPrice: b.max },
+                        )
                       }
                       className={cn(
                         "h-10 rounded-full border px-4 text-sm transition-colors",
-                        on ? "border-foreground bg-foreground text-background" : "border-border hover:border-foreground",
+                        on
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border hover:border-foreground",
                       )}
                     >
                       {b.label}
@@ -294,14 +363,18 @@ export function ListingControls({
               </div>
               {BigInt(facets.price.max) > 0n && (
                 <p className="mt-3 text-xs text-muted-foreground">
-                  Prices here range from {usd(facets.price.min, { cents: false })} to {usd(facets.price.max, { cents: false })}.
+                  Prices here range from {usd(facets.price.min, { cents: false })} to{" "}
+                  {usd(facets.price.max, { cents: false })}.
                 </p>
               )}
             </fieldset>
 
             <div className="py-5">
               <label className="flex h-10 cursor-pointer items-center gap-3 text-sm">
-                <Checkbox checked={draft.inStock} onCheckedChange={(v) => setDraft({ ...draft, inStock: v === true })} />
+                <Checkbox
+                  checked={draft.inStock}
+                  onCheckedChange={(v) => setDraft({ ...draft, inStock: v === true })}
+                />
                 In stock only
               </label>
             </div>

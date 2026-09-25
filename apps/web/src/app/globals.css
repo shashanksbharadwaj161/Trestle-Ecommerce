@@ -141,7 +141,161 @@
   view-transition-name: site-header;
 }
 
+/* ---------------------------------------------------------------- campaign entrance (home hero) */
+/* each headline line rises out of its own mask; images are unveiled by a wipe so the image itself (the LCP
+   element) paints immediately underneath */
+.hero-line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.06em;
+  margin-bottom: -0.06em;
+}
+.hero-line > span {
+  display: block;
+}
+.hero-curtain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: var(--background);
+  transform: scaleY(0);
+  transform-origin: top;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-line > span {
+    animation: line-up 1100ms cubic-bezier(0.19, 1, 0.22, 1) backwards;
+    animation-delay: var(--d, 0ms);
+  }
+  .hero-in {
+    animation: fade-up 900ms cubic-bezier(0.19, 1, 0.22, 1) backwards;
+    animation-delay: var(--d, 0ms);
+  }
+  .hero-curtain::after {
+    animation: curtain 1150ms cubic-bezier(0.77, 0, 0.175, 1) backwards;
+    animation-delay: var(--d, 0ms);
+  }
+  .hero-curtain .hero-zoom {
+    animation: hero-zoom 2400ms cubic-bezier(0.19, 1, 0.22, 1) backwards;
+    animation-delay: var(--d, 0ms);
+  }
+}
+@keyframes line-up {
+  from {
+    transform: translateY(105%);
+  }
+}
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@keyframes curtain {
+  from {
+    transform: scaleY(1);
+  }
+}
+@keyframes hero-zoom {
+  from {
+    transform: scale(1.14);
+  }
+}
+
+/* primary button: a soft light sweep on hover */
+.btn-sheen {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.2) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 800ms cubic-bezier(0.19, 1, 0.22, 1);
+}
+.btn-sheen:hover::after {
+  transform: translateX(120%);
+}
+
+/* product card quick add: touch gets a "+" (size sheet); mouse gets the sizes on hover */
+.quick-inline {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .quick-touch {
+    opacity: 0;
+  }
+  .quick-touch:focus-visible {
+    opacity: 1;
+  }
+  .quick-inline {
+    display: block;
+    opacity: 0;
+    transform: translateY(12px);
+    pointer-events: none;
+    transition:
+      opacity 250ms ease,
+      transform 500ms cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  .group\/card:hover .quick-inline {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+}
+
+/* links whose underline draws in from the left */
+.link-draw {
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 100% / 0% 1px;
+  transition: background-size 450ms cubic-bezier(0.19, 1, 0.22, 1);
+  padding-bottom: 1px;
+}
+.link-draw:hover,
+.link-draw:focus-visible {
+  background-size: 100% 1px;
+}
+.link-draw-on {
+  background: linear-gradient(currentColor, currentColor) no-repeat 100% 100% / 100% 1px;
+  transition: background-size 450ms cubic-bezier(0.19, 1, 0.22, 1);
+  padding-bottom: 1px;
+}
+.link-draw-on:hover {
+  background-size: 0% 1px;
+}
+
+/* ---------------------------------------------------------------- header: hides on scroll down, returns on scroll up */
+:root {
+  --header-h: 3.5rem;
+  --header-offset: var(--header-h);
+}
+@media (min-width: 768px) {
+  :root {
+    --header-h: 4rem;
+  }
+}
+:root[data-header-hidden] {
+  --header-offset: 0px;
+}
+.vt-header {
+  transition: transform 420ms cubic-bezier(0.19, 1, 0.22, 1);
+}
+:root[data-header-hidden] .vt-header {
+  transform: translateY(-100%);
+}
+.sticky-under-header {
+  transition: top 420ms cubic-bezier(0.19, 1, 0.22, 1);
+}
+
 /* ---------------------------------------------------------------- scroll-driven reveals (progressive) */
+.parallax {
+  position: absolute;
+  inset: -8% 0;
+}
 @media (prefers-reduced-motion: no-preference) {
   @supports (animation-timeline: view()) {
     .reveal {
@@ -154,12 +308,32 @@
       animation-timeline: view();
       animation-range: entry 0% cover 45%;
     }
+    /* editorial images drift slower than the page (the wrapper is oversized so no edge ever shows) */
+    .parallax {
+      animation: parallax linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+    /* tiles rise in one after another as the row enters */
+    .reveal-stagger > * {
+      animation: reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry calc(var(--i, 0) * 6%) entry calc(50% + var(--i, 0) * 6%);
+    }
   }
 }
 @keyframes reveal-up {
   from {
     opacity: 0.001;
     transform: translateY(28px);
+  }
+}
+@keyframes parallax {
+  from {
+    transform: translateY(-6%);
+  }
+  to {
+    transform: translateY(6%);
   }
 }
 @keyframes reveal-zoom {
@@ -198,6 +372,7 @@
 html {
   color-scheme: light;
   -webkit-text-size-adjust: 100%;
+  scroll-padding-top: calc(var(--header-offset) + 1rem);
 }
 html.dark {
   color-scheme: dark;
@@ -236,6 +411,12 @@ p {
 ::selection {
   background: var(--foreground);
   color: var(--background);
+}
+
+/* toasts use the brand face */
+[data-sonner-toaster] {
+  --font-family: var(--font-sans);
+  font-family: var(--font-sans) !important;
 }
 
 .tabular {

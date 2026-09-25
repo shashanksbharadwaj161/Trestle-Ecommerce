@@ -552,7 +552,7 @@ function Flow({ sellerId }: { sellerId: string }) {
         </div>
 
         <aside aria-label="Order summary">
-          <Card className="lg:sticky lg:top-20">
+          <Card className="sticky-under-header lg:sticky lg:top-[calc(var(--header-offset)+1rem)]">
             <CardHeader>
               <CardTitle>Order summary</CardTitle>
               {quote.data && (

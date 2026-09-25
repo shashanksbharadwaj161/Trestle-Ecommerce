@@ -174,7 +174,7 @@ export function PurchasePanel({
       </div>
 
       <div className="container-page md:col-span-5 md:px-0">
-        <div className="pt-6 md:sticky md:top-24 md:pt-0">
+        <div className="sticky-under-header pt-6 md:sticky md:top-[calc(var(--header-offset)+2rem)] md:pt-0">
           <div className="flex items-start justify-between gap-4">
             <div>
               {product.isNew && <p className="eyebrow mb-2 text-accent">New</p>}

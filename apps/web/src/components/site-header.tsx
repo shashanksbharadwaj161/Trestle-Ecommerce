@@ -2,7 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import * as NM from "@radix-ui/react-navigation-menu";
 import { Heart, Menu, Search, ShoppingBag, User } from "lucide-react";
 import { NAV } from "@/lib/nav";
@@ -55,6 +55,43 @@ export function SiteHeader({ collections }: { collections: HeaderCollection[] })
     return () => window.removeEventListener("keydown", onKey);
   }, [setSearch]);
 
+  // the header slides away while reading down the page and returns on any upward scroll; it stays while it
+  // holds focus or an open menu. Sticky panels follow via the --header-offset CSS variable.
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    let last = window.scrollY;
+    let frame = 0;
+    const set = (hidden: boolean) => root.toggleAttribute("data-header-hidden", hidden);
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const dy = y - last;
+        if (Math.abs(dy) < 8 && y > 0) return;
+        last = y;
+        const h = headerRef.current;
+        const pinned =
+          !!h && (h.contains(document.activeElement) || !!h.querySelector('[data-state="open"]'));
+        set(dy > 0 && y > 240 && !pinned);
+      });
+    };
+    const onFocus = (e: FocusEvent) => {
+      if (headerRef.current?.contains(e.target as Node)) set(false);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("focusin", onFocus);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("focusin", onFocus);
+      set(false);
+    };
+  }, []);
+  useEffect(() => {
+    document.documentElement.removeAttribute("data-header-hidden");
+  }, [pathname]);
+
   const feature = collections[0];
 
   return (
@@ -67,7 +104,10 @@ export function SiteHeader({ collections }: { collections: HeaderCollection[] })
           </Link>
         </p>
       </div>
-      <header className="vt-header sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+      <header
+        ref={headerRef}
+        className="vt-header sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85"
+      >
         <div className="container-page grid h-14 grid-cols-[1fr_auto_1fr] items-center md:h-16">
           <div className="flex items-center">
             <button
