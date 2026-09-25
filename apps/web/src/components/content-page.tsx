@@ -22,7 +22,7 @@ export function ContentPage({
     <div className="container-page pt-6 md:pt-8">
       <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Help", href: "/help" }, { label: title }]} />
       <div className="mt-8 grid gap-10 md:mt-12 md:grid-cols-12">
-        <nav aria-label="Help topics" className="md:col-span-3">
+        <nav aria-label="Help topics" className="min-w-0 md:col-span-3">
           <ul className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:block md:space-y-1 md:px-0">
             {HELP_LINKS.map((l) => (
               <li key={l.href} className="shrink-0">
@@ -40,7 +40,7 @@ export function ContentPage({
             ))}
           </ul>
         </nav>
-        <article className="md:col-span-8 lg:col-span-7">
+        <article className="min-w-0 md:col-span-8 lg:col-span-7">
           <h1 className="text-[2rem] leading-tight tracking-[-0.03em] md:text-[2.5rem]">{title}</h1>
           {intro && <div className="mt-3 max-w-[60ch] text-[0.9375rem] text-muted-foreground">{intro}</div>}
           {ownerContent && (

@@ -71,7 +71,7 @@ export function ProductAdminList({
       ) : q.data!.items.length === 0 ? (
         <EmptyState title={term ? "No matching products" : "No products yet"} action={{ href: `${basePath}/new`, label: "Create a product" }} />
       ) : (
-        <div className="overflow-x-auto border border-border">
+        <div className="overflow-x-auto border border-border" tabIndex={0} role="region" aria-label="Table (scrolls horizontally)">
           <table className="w-full min-w-[760px] text-sm">
             <caption className="sr-only">Products</caption>
             <thead className="bg-muted/50 text-left text-xs text-muted-foreground">

@@ -480,7 +480,7 @@ function EditorForm({
                     <X />
                   </IconBtn>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Table (scrolls horizontally)">
                   <table className="w-full min-w-[520px] text-sm">
                     <thead className="text-left text-xs text-muted-foreground">
                       <tr>

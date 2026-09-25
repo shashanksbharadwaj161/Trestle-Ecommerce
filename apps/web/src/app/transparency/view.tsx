@@ -140,7 +140,7 @@ export function TransparencyView({ initial }: { initial: Stats }) {
             action={{ href: "/products", label: "Go shopping" }}
           />
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <div className="overflow-x-auto rounded-xl border border-border bg-card" tabIndex={0} role="region" aria-label="Recent escrow activity (scrolls horizontally)">
             <table className="w-full min-w-[900px] text-sm">
               <thead className="text-left text-xs text-muted-foreground">
                 <tr>

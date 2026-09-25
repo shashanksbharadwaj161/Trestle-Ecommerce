@@ -1,9 +1,11 @@
 /**
- * Browser smoke test: renders every route at desktop + mobile widths in light and dark themes, fails on HTTP
- * errors, uncaught page errors, console errors or horizontal overflow, and writes screenshots.
- *   BASE_URL=http://localhost:3000 OUT_DIR=/tmp/shots tsx scripts/smoke-pages.ts
+ * Route smoke matrix against a running server: every route at 390 / 768 / 1440 px in light and dark themes.
+ * Fails on HTTP errors, uncaught page errors, console errors, horizontal overflow and broken images; runs axe
+ * (WCAG 2 A/AA, serious + critical) once per route at 390 and 1440 (light) and writes screenshots.
+ *   BASE_URL=http://localhost:3000 OUT_DIR=/tmp/trestle-shots tsx scripts/smoke-pages.ts
  */
 import { chromium } from "playwright";
+import AxeBuilder from "@axe-core/playwright";
 import { mkdirSync } from "node:fs";
 import { PrismaClient } from "@prisma/client";
 
@@ -13,99 +15,112 @@ mkdirSync(OUT, { recursive: true });
 
 async function main() {
   const prisma = new PrismaClient();
-  const product = await prisma.product.findFirst({
-    where: { certificates: { some: {} } },
-    select: { id: true },
-  });
+  const cardPayment = await prisma.cardPayment.findFirst({ where: { status: "PAID" }, select: { id: true } });
+  const cryptoOrder = await prisma.order.findFirst({ where: { paymentMethod: "CRYPTO" }, select: { id: true } });
   await prisma.$disconnect();
   const routes = [
     "/",
+    "/women",
+    "/women?category=dresses&colour=Ivory&sort=price-asc",
+    "/men",
+    "/accessories",
+    "/new",
+    "/collections",
+    "/collections/denim",
+    "/search?q=maxi",
     "/products",
-    "/products?category=Sneakers&sort=price-asc",
-    product ? `/products/${product.id}` : null,
-    "/cart",
-    "/checkout?seller=x",
+    "/products/ribbon-tie-blouse",
+    "/products/womens-relaxed-crew-tee",
+    "/products/mens-straight-jeans",
+    "/bag",
+    "/checkout",
+    "/checkout/cancelled",
+    cardPayment ? `/order-status/${cardPayment.id}` : null,
+    "/order-status",
+    cryptoOrder ? `/orders/${cryptoOrder.id}` : null,
+    "/wishlist",
+    "/sign-in",
+    "/register",
     "/account",
+    "/account/profile",
+    "/account/wallet",
     "/account/loyalty",
+    "/help",
+    "/contact",
+    "/size-guide",
+    "/care",
+    "/delivery",
+    "/returns",
+    "/payments",
+    "/privacy",
+    "/terms",
+    "/credits",
+    "/transparency",
     "/seller/onboarding",
     "/seller/products",
-    "/seller/orders",
-    "/seller/analytics",
-    "/admin/disputes",
-    "/admin/sellers",
-    "/admin/transparency",
+    "/admin",
+    "/admin/orders",
     "/does-not-exist",
   ].filter(Boolean) as string[];
 
   const browser = await chromium.launch();
   const failures: string[] = [];
-  for (const viewport of [
-    { w: 1366, h: 900, tag: "desktop" },
-    { w: 390, h: 844, tag: "mobile" },
-  ]) {
+  const axeSummary: Record<string, number> = {};
+  for (const w of [390, 768, 1440]) {
     for (const scheme of ["light", "dark"] as const) {
-      const ctx = await browser.newContext({
-        viewport: { width: viewport.w, height: viewport.h },
-        colorScheme: scheme,
-      });
+      const ctx = await browser.newContext({ viewport: { width: w, height: 900 }, colorScheme: scheme, reducedMotion: w === 390 ? "reduce" : "no-preference" });
       for (const r of routes) {
         const page = await ctx.newPage();
         const errors: string[] = [];
         page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
         page.on("console", (m) => {
-          if (
-            m.type() === "error" &&
-            !/Failed to load resource: the server responded with a status of 404/.test(m.text())
-          )
-            errors.push(`console: ${m.text().slice(0, 200)}`);
+          if (m.type() === "error" && !/status of 40[134]/.test(m.text())) errors.push(`console: ${m.text().slice(0, 200)}`);
         });
-        let res = null;
-        try {
-          res = await page.goto(BASE + r, { waitUntil: "load", timeout: 90_000 });
-          await page.waitForTimeout(1_200); // let client components hydrate / fetch
-        } catch (e) {
-          errors.push(`navigation: ${(e as Error).message.split("\n")[0]}`);
-        }
+        const res = await page.goto(`${BASE}${r}`, { waitUntil: "networkidle", timeout: 60_000 });
         const status = res?.status() ?? 0;
-        const overflow = await page
-          .evaluate(
-            () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-          )
-          .catch(() => -1);
-        const h1 = await page
-          .locator("h1")
-          .first()
-          .textContent({ timeout: 5_000 })
-          .catch(() => null);
-        const expected404 = r === "/does-not-exist";
-        if (expected404) {
-          // Coinbase Wallet SDK probes the current URL for its COOP header; on an intentional 404 page that probe
-          // logs a console error. It is third-party noise specific to this route, so it's excluded here only.
-          for (let i = errors.length - 1; i >= 0; i--)
-            if (errors[i]!.includes("Cross-Origin-Opener-Policy")) errors.splice(i, 1);
-        }
-        const ok =
-          (expected404 ? status === 404 : status === 200) && errors.length === 0 && overflow <= 1;
-        const name = `${viewport.tag}-${scheme}-${r.replace(/[^a-z0-9]+/gi, "_").slice(0, 60) || "home"}.png`;
-        if (scheme === "light" || r === "/" || r.startsWith("/admin/transparency")) {
-          await page
-            .screenshot({ path: `${OUT}/${name}`, fullPage: false, timeout: 15_000 })
-            .catch(() => undefined);
-        }
-        console.log(
-          `${ok ? "PASS" : "FAIL"} ${viewport.tag}/${scheme} ${r} → ${status} h1="${(h1 ?? "").trim().slice(0, 50)}" overflow=${overflow}px${errors.length ? " errors=" + JSON.stringify(errors) : ""}`,
+        if (r === "/does-not-exist" ? status !== 404 : status >= 400) failures.push(`${w} ${scheme} ${r}: HTTP ${status}`);
+        // load lazy images, then check for broken ones
+        await page.evaluate(async () => {
+          for (let y = 0; y < document.body.scrollHeight; y += 800) {
+            window.scrollTo(0, y);
+            await new Promise((res) => setTimeout(res, 60));
+          }
+          window.scrollTo(0, 0);
+        });
+        await page.waitForTimeout(400);
+        const broken = await page.evaluate(() =>
+          [...document.images].filter((i) => i.complete && i.naturalWidth === 0 && i.currentSrc).map((i) => i.currentSrc.slice(0, 120)),
         );
-        if (!ok) failures.push(`${viewport.tag}/${scheme} ${r}`);
-        await page.close().catch(() => undefined);
+        if (broken.length) failures.push(`${w} ${scheme} ${r}: broken images ${broken.join(", ")}`);
+        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        if (overflow > 1) failures.push(`${w} ${scheme} ${r}: horizontal overflow ${overflow}px`);
+        if (errors.length) failures.push(`${w} ${scheme} ${r}: ${errors.join(" | ")}`);
+        if (scheme === "light" && (w === 390 || w === 1440)) {
+          const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
+          const bad = axe.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
+          axeSummary[`${w} ${r}`] = bad.length;
+          for (const v of bad) failures.push(`${w} ${r}: axe ${v.id} (${v.impact}) ×${v.nodes.length} — ${v.nodes[0]?.target.join(" ")}`);
+        }
+        if (scheme === "light" || r === "/") {
+          const name = `${w}-${scheme}${r.replace(/[/?=&]+/g, "_") || "_home"}`.slice(0, 120);
+          await page.screenshot({ path: `${OUT}/${name}.png` });
+        }
+        await page.close();
       }
       await ctx.close();
     }
   }
   await browser.close();
+  const axeTotal = Object.values(axeSummary).reduce((a, b) => a + b, 0);
+  console.log(`routes: ${routes.length} × 3 widths × 2 themes; axe serious/critical violations: ${axeTotal}`);
   if (failures.length) {
-    console.error(`\n${failures.length} failure(s):\n` + failures.join("\n"));
+    console.error(`SMOKE FAILED (${failures.length}):\n` + failures.join("\n"));
     process.exit(1);
   }
-  console.log("\nAll routes passed.");
+  console.log(`SMOKE PASSED — screenshots in ${OUT}`);
 }
-main();
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

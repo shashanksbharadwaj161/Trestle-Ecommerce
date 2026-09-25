@@ -25,7 +25,7 @@ export function SizeChartTable({ chart, highlight }: { chart: SizeChart; highlig
           ))}
         </div>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Table (scrolls horizontally)">
         <table className="w-full min-w-[320px] border-collapse text-sm">
           <caption className="sr-only">
             {chart.title} size chart in {unit === "cm" ? "centimetres" : "inches"}

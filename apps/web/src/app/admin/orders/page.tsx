@@ -97,7 +97,7 @@ function Inner() {
         <EmptyState title="No orders match" />
       ) : (
         <>
-          <div className="overflow-x-auto border border-border">
+          <div className="overflow-x-auto border border-border" tabIndex={0} role="region" aria-label="Table (scrolls horizontally)">
             <table className="w-full min-w-[900px] text-sm">
               <caption className="sr-only">Orders</caption>
               <thead className="bg-muted/50 text-left text-xs text-muted-foreground">

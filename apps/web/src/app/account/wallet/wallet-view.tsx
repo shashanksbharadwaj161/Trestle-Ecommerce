@@ -268,7 +268,7 @@ function Account({ user }: { user: SessionUser }) {
           <h2 id="rep-h" className="mb-3 text-xl font-semibold">
             Reputation history
           </h2>
-          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <div className="overflow-x-auto rounded-xl border border-border bg-card" tabIndex={0} role="region" aria-label="Table (scrolls horizontally)">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground">
                 <tr>

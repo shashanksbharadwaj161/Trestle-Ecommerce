@@ -143,7 +143,7 @@ function LoyaltyInner() {
         {data.history.length === 0 ? (
           <p className="text-sm text-muted-foreground">No loyalty activity yet.</p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <div className="overflow-x-auto rounded-xl border border-border bg-card" tabIndex={0} role="region" aria-label="Table (scrolls horizontally)">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground">
                 <tr>

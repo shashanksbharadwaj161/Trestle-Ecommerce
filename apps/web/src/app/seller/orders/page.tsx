@@ -77,7 +77,7 @@ function Inner() {
           description="Orders appear here as soon as a buyer's payment is initiated."
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="overflow-x-auto rounded-xl border border-border bg-card" tabIndex={0} role="region" aria-label="Table (scrolls horizontally)">
           <table className="w-full min-w-[720px] text-sm">
             <thead className="text-left text-xs text-muted-foreground">
               <tr>
