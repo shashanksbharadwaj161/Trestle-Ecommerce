@@ -1,6 +1,6 @@
 # Trestle — session handoff
 
-Branch `claude/festive-dirac-bk0eb4` (Vercel production). Latest fixes: `cb4930f`, `a1c3769`, `4004120` on top of
+Branch `claude/festive-dirac-bk0eb4` (Vercel production). Latest fixes: `cb4930f`, `a1c3769`, `4004120`, `7e27ceb` (diagnostics `c90c46f`, `127f863`) on top of
 Codex's `f750b3e` (Supabase integration mapping, private `trestle` schema, PostgreSQL KV, derived session key —
 preserved). Constraints in force: **nothing paid** (free tiers only); **card payments stay disabled** on the
 deployment by the user's choice (the code refuses live Stripe keys); crypto testnet/relayer not configured.
@@ -10,13 +10,15 @@ deployment by the user's choice (the code refuses live Stripe keys); crypto test
 Measured from this sandbox with curl (TTFB, two consecutive requests) and a real Chromium browser
 (`apps/web/scripts/journey-audit.ts`, read-only mode — no orders, payments, sign-ups or emails on production).
 
-|                                          | Before (`f750b3e`, functions in iad1)                                                                                                       | After (`a1c3769`, functions in icn1)                                                                     |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `/`, `/women`, `/men`, `/new`, `/search` | 6.4–7.3 s                                                                                                                                   | 0.43–0.67 s (first home hit 1.57 s)                                                                      |
-| PDP `/products/floral-maxi-dress`        | 5.9–6.1 s                                                                                                                                   | 0.35–0.45 s                                                                                              |
-| `/bag`, `/checkout`, `/sign-in`          | 1.1–1.3 s                                                                                                                                   | 0.34–0.74 s                                                                                              |
-| `/api/products?pageSize=6`               | 6.1–8.5 s                                                                                                                                   | 0.38–0.64 s                                                                                              |
-| Browser audit                            | 42 checks passed; 17× HTTP 500 (`/api/cart` ×13, `/accessories`, `/new`, `/men`, `/transparency`); rapid-navigation race; slowest step 21 s | 66 checks passed, **no 5xx**; only failures: 3 sign-in gate pages without an `<h1>` (fixed in `4004120`) |
+|                                                          | Before (`f750b3e`, functions in iad1)                                    | After (`7e27ceb`, functions in icn1)                                                                                |
+| -------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `/`, `/women`, `/men`, `/new`, `/accessories`, `/search` | 6.4–7.3 s (some 500 after ~10 s)                                         | 0.38–0.60 s                                                                                                         |
+| PDP `/products/floral-maxi-dress`                        | 5.9–6.1 s                                                                | 0.36–0.45 s                                                                                                         |
+| `/bag`, `/checkout`, `/account`, `/sign-in`              | 1.1–1.3 s                                                                | 0.37–0.45 s                                                                                                         |
+| `/api/products?pageSize=6`                               | 6.1–8.5 s                                                                | 0.42–0.66 s                                                                                                         |
+| API errors, 3 concurrent browsers × 8 pages              | 12 of 54 `/api/cart` → 500 (SQLSTATE 42P01)                              | 0 of 240 across 5 runs                                                                                              |
+| Browser audit, normal                                    | 42 checks passed; 17× HTTP 500; rapid-navigation race; slowest step 21 s | 69/70; only a wallet-SDK console error on `/seller/onboarding`; slowest step 2.2 s                                  |
+| Browser audit, Slow-4G                                   | not run                                                                  | 68/70; one transient 502 on `/transparency` (4/4 × 200 in ~0.6 s right after) and one React #418 on a `/women` load |
 
 Root causes found and fixed:
 
@@ -30,11 +32,24 @@ Root causes found and fixed:
    `catalog`, 60 s, BigInt/Date-safe); writes to product/stock API paths invalidate it. Personal data (sessions,
    bags, wishlists, orders) is never cached; stock is re-checked in the database on every bag add and checkout.
 5. **Rate limit** on the PostgreSQL KV is one atomic statement instead of two.
-6. **Dead-feeling clicks**: viewport prefetch fired ~20 dynamic server renders per page and caused an App Router
+6. **Intermittent `/api/cart` 500 (SQLSTATE 42P01)**: raw SQL used an unqualified `"AppKV"`; behind Supabase's
+   transaction pooler the backend `search_path` is not guaranteed to be `trestle`. All raw SQL now goes through
+   `table()` from `@trestle/db` (schema-qualified); `apps/web/test/raw-sql-schema.test.ts` guards it.
+7. **Dead-feeling clicks**: viewport prefetch fired ~20 dynamic server renders per page and caused an App Router
    race (URL changed, old page stayed). Links default to `prefetch={false}` (`src/components/link.tsx`). Product
    card View Transitions (froze input up to 1.2 s) and the hover size panel (intercepted Quick add clicks) were
    removed. A top progress bar now appears on click, with "Still loading…" after 6 s. Client API calls time out
    after 25 s with a message. Checkout says plainly that payments are switched off.
+
+Still open on the live site:
+
+- A rare React #418 hydration error: 2 in about 70 throttled (Slow-4G) live page loads of `/women`, none in 24
+  local throttled loads. React recovers by client-rendering, so the page still works; root cause not yet found.
+- The Coinbase wallet SDK (via RainbowKit) logs "Error checking Cross-Origin-Opener-Policy" on `/seller/onboarding`.
+- Mutating journeys (bag, wishlist, register/sign-in/out) were verified locally only (isolated DB); production got
+  read-only checks, per the no-real-orders constraint. Card payments remain disabled; crypto testnet is not deployed.
+- 500 responses carry `ref` (error class + Prisma/Postgres code) and `/api/health` reports `runtime` (region, pool)
+  for diagnosis without log access.
 
 Reproduce: `BASE_URL=https://trestle-ecommerce-web.vercel.app pnpm --filter @trestle/web exec tsx scripts/journey-audit.ts`
 (add `AUDIT_SLOW_NETWORK=1` / `AUDIT_REDUCED_MOTION=1`; `AUDIT_MUTATE=1` only against an isolated database).
@@ -48,7 +63,7 @@ From this sandbox, Chromium needs the proxy CA in its NSS store (`certutil -A -d
 | Types                                                                                                                                                            | `pnpm --filter @trestle/web exec tsc --noEmit`                                                        | 0 errors                                                                                                                            |
 | Lint                                                                                                                                                             | `pnpm --filter @trestle/web exec eslint src scripts`                                                  | clean                                                                                                                               |
 | Production build                                                                                                                                                 | `pnpm --filter @trestle/web build`                                                                    | passes                                                                                                                              |
-| Unit/contract tests                                                                                                                                              | `pnpm --filter @trestle/web test` · `pnpm --filter @trestle/shared test`                              | 51/51 · 16/16                                                                                                                       |
+| Unit/contract tests                                                                                                                                              | `pnpm --filter @trestle/web test` · `pnpm --filter @trestle/shared test`                              | 53/53 · 16/16                                                                                                                       |
 | Store browser E2E (card checkout, cancel, register + bag merge, wishlist, admin fulfilment, return + refund)                                                     | `pnpm --filter @trestle/web e2e:store` against `next start`                                           | passed 10/10 consecutive runs after the hydration fix, and every run since                                                          |
 | Crypto browser E2E (Add to bag → checkout → stablecoin escrow, cross-chain B→A, gasless confirm → COMPLETED)                                                     | `pnpm --filter @trestle/web e2e:ui`                                                                   | passed (local Anvil chains 31337/31338 + relayer)                                                                                   |
 | API crypto E2E (cross-chain, gasless, certificate transfer, dispute, orphan refund)                                                                              | `pnpm --filter @trestle/web e2e:local`                                                                | passed                                                                                                                              |
