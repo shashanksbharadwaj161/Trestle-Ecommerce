@@ -205,7 +205,7 @@ Step-by-step runbook with funding amounts, env tables, verification checklist an
    ```
    The script reuses the canonical EntryPoint v0.7 (`0x0000000071727De22E5E9d8BAf0edAc6f37da032`), wires both
    routers, mints demo tUSDC/tDAI to the relayer and deposits solver liquidity on both chains.
-2. **Render** – _New → Blueprint_ from this repo (`render.yaml`): managed Postgres `trestle-db` + background worker
+2. **Relayer** – no always-on worker in the free topology; see HANDOFF.md (Render workers are paid; `docs/optional/render-relayer-worker.PAID.example.yaml` is reference only)
    `trestle-relayer` (build runs `prisma migrate deploy` and bundles the worker; start `pnpm --filter @trestle/web
 relayer:start`). Fill the `sync: false` variables.
 3. **Upstash** – create a Redis database; copy `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`.
@@ -241,7 +241,7 @@ packages/contracts          Foundry project (src, test, script/Deploy.s.sol + de
 packages/db                 Prisma schema, migrations, idempotent chain-event sync, seed.ts
 packages/shared             chain profiles, token registry, exact pricing/quote math, EIP-712 types, ABIs, addresses
 docker-compose.yml          Postgres, Redis (+ REST facade), two Anvil nodes
-render.yaml                 Render blueprint (Postgres + relayer worker)
+docs/optional/              PAID Render worker example (not used; free-only deployment)
 ```
 
 ## Design decisions

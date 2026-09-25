@@ -40,7 +40,7 @@ B=$(node -p "require('./packages/shared/src/addresses/addresses.testnet.json').c
 ## 2. Render (Postgres + relayer worker)
 
 1. Dashboard → **New → Blueprint** → select this repository (branch with the committed testnet addresses).
-   `render.yaml` creates `trestle-db` (managed Postgres 16) and `trestle-relayer` (background worker).
+   SUPERSEDED: no Render database or paid worker. Postgres is Supabase; see HANDOFF.md for the free topology.
    Plans in the blueprint (`basic-256mb` DB, `starter` worker) are paid tiers — adjust to your budget.
 2. Fill the prompted variables for `trestle-relayer`:
    `SEPOLIA_RPC_URL`, `BASE_SEPOLIA_RPC_URL`, `RELAYER_PRIVATE_KEY`, `ATTESTER_PRIVATE_KEY` (optional),
