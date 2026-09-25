@@ -37,8 +37,24 @@ export async function GET() {
     detail: isDeployed(e.mode) ? "addresses loaded" : `no ${e.mode} deployment`,
   };
   const ok = checks.database!.ok && checks.kv!.ok;
+  // non-secret runtime facts for diagnosing speed issues (no hosts, users or credentials)
+  let pool: Record<string, string | null> = {};
+  try {
+    const u = new URL(process.env.DATABASE_URL ?? "");
+    pool = {
+      connectionLimit: u.searchParams.get("connection_limit"),
+      pgbouncer: u.searchParams.get("pgbouncer"),
+      port: u.port || null,
+    };
+  } catch {
+    /* no URL */
+  }
+  const runtime = {
+    region: process.env.VERCEL_REGION ?? null,
+    ...pool,
+  };
   return json(
-    { ok, network: e.mode, checks, time: new Date().toISOString() },
+    { ok, network: e.mode, checks, runtime, time: new Date().toISOString() },
     { status: ok ? 200 : 503 },
   );
 }

@@ -1,30 +1,61 @@
 # Trestle — session handoff
 
-Branch `claude/festive-dirac-bk0eb4`. The final SHA is the commit that adds this file (`git log -1`); the checkpoint before
-it is `4dec00e`. Constraint in force: **nothing paid** — free tiers only, Stripe **test mode only** (live keys are refused).
+Branch `claude/festive-dirac-bk0eb4` (Vercel production). Latest fixes: `cb4930f`, `a1c3769`, `4004120` on top of
+Codex's `f750b3e` (Supabase integration mapping, private `trestle` schema, PostgreSQL KV, derived session key —
+preserved). Constraints in force: **nothing paid** (free tiers only); **card payments stay disabled** on the
+deployment by the user's choice (the code refuses live Stripe keys); crypto testnet/relayer not configured.
 
-## Status in one paragraph
+## Live site: speed and reliability (https://trestle-ecommerce-web.vercel.app)
 
-The clothing store (storefront, accounts, card checkout via hosted Stripe Checkout in test mode, returns, admin, image
-upload, password reset) and the original stablecoin escrow flow are built and pass every local check listed below. What
-is **not** done: the designer-grade photography (the catalogue still uses a low-resolution resort set), and nothing has
-been run against the real external services (Stripe test account, Supabase project, Upstash, an email provider,
-WalletConnect, public testnets) because they are not reachable or not configured from this sandbox.
+Measured from this sandbox with curl (TTFB, two consecutive requests) and a real Chromium browser
+(`apps/web/scripts/journey-audit.ts`, read-only mode — no orders, payments, sign-ups or emails on production).
 
-## Verified in this session (local sandbox, production build)
+|                                          | Before (`f750b3e`, functions in iad1)                                                                                                       | After (`a1c3769`, functions in icn1)                                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `/`, `/women`, `/men`, `/new`, `/search` | 6.4–7.3 s                                                                                                                                   | 0.43–0.67 s (first home hit 1.57 s)                                                                      |
+| PDP `/products/floral-maxi-dress`        | 5.9–6.1 s                                                                                                                                   | 0.35–0.45 s                                                                                              |
+| `/bag`, `/checkout`, `/sign-in`          | 1.1–1.3 s                                                                                                                                   | 0.34–0.74 s                                                                                              |
+| `/api/products?pageSize=6`               | 6.1–8.5 s                                                                                                                                   | 0.38–0.64 s                                                                                              |
+| Browser audit                            | 42 checks passed; 17× HTTP 500 (`/api/cart` ×13, `/accessories`, `/new`, `/men`, `/transparency`); rapid-navigation race; slowest step 21 s | 66 checks passed, **no 5xx**; only failures: 3 sign-in gate pages without an `<h1>` (fixed in `4004120`) |
 
-| Check                                                                                                        | Command                                                                  | Result                                                                                                                              |
-| ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Types                                                                                                        | `pnpm --filter @trestle/web exec tsc --noEmit`                           | 0 errors                                                                                                                            |
-| Lint                                                                                                         | `pnpm --filter @trestle/web exec eslint src scripts`                     | clean                                                                                                                               |
-| Production build                                                                                             | `pnpm --filter @trestle/web build`                                       | passes                                                                                                                              |
-| Unit/contract tests                                                                                          | `pnpm --filter @trestle/web test` · `pnpm --filter @trestle/shared test` | 47/47 · 16/16                                                                                                                       |
-| Store browser E2E (card checkout, cancel, register + bag merge, wishlist, admin fulfilment, return + refund) | `pnpm --filter @trestle/web e2e:store` against `next start`              | passed 10/10 consecutive runs after the hydration fix, and every run since                                                          |
-| Crypto browser E2E (Add to bag → checkout → stablecoin escrow, cross-chain B→A, gasless confirm → COMPLETED) | `pnpm --filter @trestle/web e2e:ui`                                      | passed (local Anvil chains 31337/31338 + relayer)                                                                                   |
-| API crypto E2E (cross-chain, gasless, certificate transfer, dispute, orphan refund)                          | `pnpm --filter @trestle/web e2e:local`                                   | passed                                                                                                                              |
-| Responsive smoke + axe                                                                                       | `pnpm --filter @trestle/web smoke`                                       | 42 routes × 390/768/1440 × light/dark; 0 serious/critical axe violations; no broken images or horizontal overflow                   |
-| Lighthouse 12 (default mobile emulation, local `next start`)                                                 | `npx lighthouse@12 <url>`                                                | home, /women, a PDP, /bag: accessibility 100, best practices 100, SEO 100; performance 90–96 (LCP 2.5–3.2 s simulated, CLS ≤ 0.073) |
-| Contrast tokens                                                                                              | `node apps/web/scripts/check-contrast.mjs`                               | all AA                                                                                                                              |
+Root causes found and fixed:
+
+1. **Region**: functions ran in Washington (iad1) against the Seoul database — every query crossed the Pacific.
+   `apps/web/vercel.json` now pins `regions: ["icn1"]` (Hobby allows one region).
+2. **One pooled connection** (`connection_limit=1`): concurrent requests queued and failed after Prisma's 10 s pool
+   timeout (the live 500s). Integration URL now uses 5 connections, `pool_timeout`/`connect_timeout` 10 s.
+3. **Round trips**: Prisma loaded each relation separately (PDP 16 queries). `relationJoins` preview feature makes
+   each include one query.
+4. **No caching**: every page re-read the whole catalogue. Public catalogue reads now use the Next data cache (tag
+   `catalog`, 60 s, BigInt/Date-safe); writes to product/stock API paths invalidate it. Personal data (sessions,
+   bags, wishlists, orders) is never cached; stock is re-checked in the database on every bag add and checkout.
+5. **Rate limit** on the PostgreSQL KV is one atomic statement instead of two.
+6. **Dead-feeling clicks**: viewport prefetch fired ~20 dynamic server renders per page and caused an App Router
+   race (URL changed, old page stayed). Links default to `prefetch={false}` (`src/components/link.tsx`). Product
+   card View Transitions (froze input up to 1.2 s) and the hover size panel (intercepted Quick add clicks) were
+   removed. A top progress bar now appears on click, with "Still loading…" after 6 s. Client API calls time out
+   after 25 s with a message. Checkout says plainly that payments are switched off.
+
+Reproduce: `BASE_URL=https://trestle-ecommerce-web.vercel.app pnpm --filter @trestle/web exec tsx scripts/journey-audit.ts`
+(add `AUDIT_SLOW_NETWORK=1` / `AUDIT_REDUCED_MOTION=1`; `AUDIT_MUTATE=1` only against an isolated database).
+From this sandbox, Chromium needs the proxy CA in its NSS store (`certutil -A -d sql:$HOME/.pki/nssdb -n ccr-agent-proxy
+-t "C,," -i /root/.ccr/agent-proxy-ca.crt`); TLS verification stays on.
+
+## Verified locally (production build)
+
+| Check                                                                                                                                                            | Command                                                                                               | Result                                                                                                                              |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Types                                                                                                                                                            | `pnpm --filter @trestle/web exec tsc --noEmit`                                                        | 0 errors                                                                                                                            |
+| Lint                                                                                                                                                             | `pnpm --filter @trestle/web exec eslint src scripts`                                                  | clean                                                                                                                               |
+| Production build                                                                                                                                                 | `pnpm --filter @trestle/web build`                                                                    | passes                                                                                                                              |
+| Unit/contract tests                                                                                                                                              | `pnpm --filter @trestle/web test` · `pnpm --filter @trestle/shared test`                              | 51/51 · 16/16                                                                                                                       |
+| Store browser E2E (card checkout, cancel, register + bag merge, wishlist, admin fulfilment, return + refund)                                                     | `pnpm --filter @trestle/web e2e:store` against `next start`                                           | passed 10/10 consecutive runs after the hydration fix, and every run since                                                          |
+| Crypto browser E2E (Add to bag → checkout → stablecoin escrow, cross-chain B→A, gasless confirm → COMPLETED)                                                     | `pnpm --filter @trestle/web e2e:ui`                                                                   | passed (local Anvil chains 31337/31338 + relayer)                                                                                   |
+| API crypto E2E (cross-chain, gasless, certificate transfer, dispute, orphan refund)                                                                              | `pnpm --filter @trestle/web e2e:local`                                                                | passed                                                                                                                              |
+| Responsive smoke + axe                                                                                                                                           | `pnpm --filter @trestle/web smoke`                                                                    | 42 routes × 390/768/1440 × light/dark; 0 serious/critical axe violations; no broken images or horizontal overflow                   |
+| Lighthouse 12 (default mobile emulation, local `next start`)                                                                                                     | `npx lighthouse@12 <url>`                                                                             | home, /women, a PDP, /bag: accessibility 100, best practices 100, SEO 100; performance 90–96 (LCP 2.5–3.2 s simulated, CLS ≤ 0.073) |
+| Journey audit (every nav item, filters/sort/load more/density, search, PDP, bag qty/remove, quick add, wishlist, register/sign-in/out, admin gate; 1440/768/390) | `AUDIT_MUTATE=1 tsx scripts/journey-audit.ts` (also `AUDIT_REDUCED_MOTION=1`, `AUDIT_SLOW_NETWORK=1`) | 76/76 in normal, reduced-motion and Slow-4G modes (local, isolated DB)                                                              |
+| Contrast tokens                                                                                                                                                  | `node apps/web/scripts/check-contrast.mjs`                                                            | all AA                                                                                                                              |
 
 **Card payments are tested against a LOCAL MOCK of the Stripe API** (`apps/web/test/mock-stripe.ts`); webhook
 signatures are real (Stripe SDK). **No real Stripe (test-mode) transaction has been run.**

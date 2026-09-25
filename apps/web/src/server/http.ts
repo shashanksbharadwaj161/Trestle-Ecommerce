@@ -42,6 +42,21 @@ export function json(data: unknown, init?: ResponseInit): NextResponse {
   return NextResponse.json(toJsonSafe(data), init);
 }
 
+export function errorRef(err: unknown): string {
+  if (!err || typeof err !== "object") return typeof err;
+  const e = err as {
+    name?: unknown;
+    code?: unknown;
+    errorCode?: unknown;
+    meta?: { code?: unknown };
+  };
+  const name = typeof e.name === "string" ? e.name.replace(/[^A-Za-z]/g, "").slice(0, 40) : "Error";
+  const code = [e.code, e.errorCode, e.meta?.code].find(
+    (c) => typeof c === "string" && /^[A-Z0-9_]{1,12}$/.test(c),
+  );
+  return code ? `${name}:${code}` : name;
+}
+
 export function errorResponse(err: unknown): NextResponse {
   if (err instanceof ApiError) {
     return json(
@@ -57,7 +72,14 @@ export function errorResponse(err: unknown): NextResponse {
   }
   console.error("[api] unhandled error", err);
   return json(
-    { error: { code: "internal_error", message: "Something went wrong. Please try again." } },
+    {
+      error: {
+        code: "internal_error",
+        message: "Something went wrong. Please try again.",
+        // non-sensitive diagnostic (error class + Prisma/Postgres code only — never messages or data)
+        ref: errorRef(err),
+      },
+    },
     { status: 500 },
   );
 }
