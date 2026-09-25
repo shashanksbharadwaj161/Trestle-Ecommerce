@@ -171,8 +171,8 @@ async function main() {
 
   // ─────────────────────────────── 1. cross-chain checkout: ETH on chain A → tUSDC escrow on chain B
   step("Cross-chain checkout: pay ETH on chain A, seller paid tUSDC on chain B");
-  const catalog = await noah.req(`/api/products?q=Meridian`);
-  const product = catalog.items[0];
+  // Trestle Studio (paid in tUSDC on chain B); the seed minted provenance records for this dress
+  const product = (await noah.req(`/api/products/floral-maxi-dress`)).product;
   const variant = product.variants.find((v: any) => v.stock > 0);
   const sellerId = product.seller.id;
   await noah.req("/api/cart", { op: "clear" });
@@ -374,7 +374,7 @@ async function main() {
     })
     .then((h) => clients[B.chain.id]!.waitForTransactionReceipt({ hash: h }))
     .catch(() => log("faucet cooldown — using existing balance"));
-  const poster = (await noah.req(`/api/products?q=Watch Roll`)).items[0];
+  const poster = (await noah.req(`/api/products/mens-heavyweight-tee`)).product;
   const pv = poster.variants.find((v: any) => v.stock > 0);
   const q2 = await noah.req("/api/checkout/quote", {
     sellerId: poster.seller.id,

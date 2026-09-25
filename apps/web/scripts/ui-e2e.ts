@@ -4,7 +4,8 @@
  *
  *   BASE_URL=http://localhost:3000 tsx scripts/ui-e2e.ts
  *
- * Flow: product page → Buy now → Connect (RainbowKit "Browser Wallet") → Sign-In with Ethereum → shipping →
+ * Flow: product page → choose size → Add to bag → /checkout → "Stablecoin escrow" → Pay with stablecoin →
+ * Connect (RainbowKit "Browser Wallet") → Sign-In with Ethereum → shipping →
  * choose "ETH from Local B" (cross-chain to a seller paid on Local A) → Confirm & sign → live settlement tracker
  * reaches "Escrowed" → order page → gasless "Confirm delivery" (ERC-4337) → order Completed.
  */
@@ -75,15 +76,17 @@ async function shot(page: Page, name: string) {
 
 async function main() {
   const prisma = new PrismaClient();
-  // a Lumen Labs product (seller paid on Local A) so paying from Local B is cross-chain
+  // a Trestle Denim product (seller paid on Local A) so paying from Local B is cross-chain
   const product = await prisma.product.findFirstOrThrow({
     where: {
-      seller: { slug: "lumen-labs" },
+      seller: { slug: "trestle-denim" },
       status: "ACTIVE",
-      variants: { some: { stock: { gt: 0 } } },
+      variants: { some: { stock: { gt: 1 } } },
     },
+    include: { variants: { orderBy: { position: "asc" } } },
     orderBy: { priceUsdMicros: "asc" },
   });
+  const variant = product.variants.find((v) => v.stock > 1)!;
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await ctx.addInitScript(walletShim(BUYER, RPC, 31338));
@@ -93,16 +96,18 @@ async function main() {
   const t0 = Date.now();
   const mark = (s: string) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${s}`);
 
-  await page.goto(`${BASE}/products/${product.id}`, { waitUntil: "networkidle" });
-  mark(`product page: ${product.title}`);
-  await page.getByRole("button", { name: /Buy now/i }).click();
-  await page.waitForURL(/\/checkout\?seller=/);
-  mark("checkout page (signed out)");
+  await page.goto(`${BASE}/products/${product.slug}?colour=${encodeURIComponent(variant.colour!)}`, { waitUntil: "networkidle" });
+  mark(`product page: ${product.title} (${variant.colour} / ${variant.size})`);
+  await page.getByRole("radio", { name: new RegExp(`^Size ${variant.size}(,|$)`) }).first().click();
+  await page.getByRole("button", { name: "Add to bag" }).first().click();
+  await page.getByRole("dialog", { name: /Bag/ }).waitFor();
+  await page.goto(`${BASE}/checkout`, { waitUntil: "networkidle" });
+  await page.getByText("Stablecoin escrow").click();
+  await page.getByRole("link", { name: "Pay with stablecoin" }).first().click();
+  await page.waitForURL(/\/checkout\/crypto\?seller=/, { waitUntil: "commit" });
+  mark("stablecoin checkout (signed out)");
 
-  await page
-    .getByRole("button", { name: /Connect & sign in/i })
-    .first()
-    .click();
+  await page.getByRole("button", { name: /Connect wallet/i }).first().click();
   // RainbowKit either lists wallets or (single injected provider) goes straight to the SIWE step
   const signBtn = page.getByRole("button", { name: /Sign message/i });
   const walletBtn = page
