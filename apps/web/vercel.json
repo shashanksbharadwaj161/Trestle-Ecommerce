@@ -3,6 +3,7 @@
   "framework": "nextjs",
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm exec tsx scripts/vercel-build.ts",
+  "regions": ["icn1"],
   "functions": {
     "src/app/api/**/*.ts": {
       "maxDuration": 60

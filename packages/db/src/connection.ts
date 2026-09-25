@@ -4,7 +4,12 @@ export function configureDatabaseEnvironment() {
   if (!process.env.DATABASE_URL && integrated) {
     const url = new URL(integrated);
     url.searchParams.set("schema", "trestle");
-    url.searchParams.set("connection_limit", "1");
+    // Supavisor's transaction pooler multiplexes client connections, so a few per function instance let a
+    // page's parallel catalogue queries actually run in parallel (1 serialised every query behind the others).
+    url.searchParams.set("connection_limit", "5");
+    // fail fast instead of hanging a request when the pool or the database is unreachable
+    url.searchParams.set("pool_timeout", "10");
+    url.searchParams.set("connect_timeout", "10");
     url.searchParams.set("pgbouncer", "true");
     url.searchParams.set("sslmode", "require");
     process.env.DATABASE_URL = url.toString();

@@ -6,6 +6,9 @@ generator client {
   provider      = "prisma-client-js"
   // native (local), Vercel (Amazon Linux 2023) and Render (Debian) runtimes
   binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
+  // load `include`d relations with SQL joins: one round trip per query instead of one per relation
+  // (each round trip to the database region is expensive from a serverless function)
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {

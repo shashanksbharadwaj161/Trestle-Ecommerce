@@ -18,8 +18,12 @@ export async function rateLimit(
   const window = Math.floor(Date.now() / 1000 / windowSec);
   const key = `rl:${bucket}:${identity}:${window}`;
   const store = kv();
-  const count = await store.incr(key);
-  if (count === 1) await store.expire(key, windowSec + 1);
+  let count: number;
+  if (store.incrWithTtl) count = await store.incrWithTtl(key, windowSec + 1);
+  else {
+    count = await store.incr(key);
+    if (count === 1) await store.expire(key, windowSec + 1);
+  }
   const resetSeconds = (window + 1) * windowSec - Math.floor(Date.now() / 1000);
   return { ok: count <= limit, limit, remaining: Math.max(0, limit - count), resetSeconds };
 }

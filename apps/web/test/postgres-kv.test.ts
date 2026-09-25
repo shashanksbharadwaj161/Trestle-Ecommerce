@@ -35,4 +35,14 @@ describe("durable database KV", () => {
     await store.del("rate");
     expect(await store.get("rate")).toBeNull();
   });
+  it("counts a rate-limit window in one atomic statement and restarts it after expiry", async () => {
+    const counts = await Promise.all(
+      Array.from({ length: 10 }, () => store.incrWithTtl("win", 60)),
+    );
+    expect([...counts].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(await store.ttl("win")).toBeGreaterThan(50);
+    await store.expire("win", -1);
+    expect(await store.incrWithTtl("win", 60)).toBe(1);
+    expect(await store.ttl("win")).toBeGreaterThan(50);
+  });
 });

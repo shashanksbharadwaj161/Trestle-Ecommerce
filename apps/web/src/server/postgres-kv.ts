@@ -37,6 +37,12 @@ export class PostgresKV implements KV {
     >`INSERT INTO "AppKV" ("key","value") VALUES (${key},'1') ON CONFLICT ("key") DO UPDATE SET "value"=CASE WHEN "AppKV"."expiresAt"<=NOW() THEN '1' ELSE (("AppKV"."value")::bigint+1)::text END, "expiresAt"=CASE WHEN "AppKV"."expiresAt"<=NOW() THEN NULL ELSE "AppKV"."expiresAt" END RETURNING "value"`;
     return Number(rows[0]!.value);
   }
+  async incrWithTtl(key: string, seconds: number) {
+    const rows = await prisma.$queryRaw<
+      { value: string }[]
+    >`INSERT INTO "AppKV" ("key","value","expiresAt") VALUES (${key},'1',NOW()+${seconds}*INTERVAL '1 second') ON CONFLICT ("key") DO UPDATE SET "value"=CASE WHEN "AppKV"."expiresAt"<=NOW() THEN '1' ELSE (("AppKV"."value")::bigint+1)::text END, "expiresAt"=CASE WHEN "AppKV"."expiresAt" IS NULL OR "AppKV"."expiresAt"<=NOW() THEN NOW()+${seconds}*INTERVAL '1 second' ELSE "AppKV"."expiresAt" END RETURNING "value"`;
+    return Number(rows[0]!.value);
+  }
   async expire(key: string, seconds: number) {
     await prisma.$executeRaw`UPDATE "AppKV" SET "expiresAt"=NOW()+${seconds}*INTERVAL '1 second' WHERE "key"=${key} AND ("expiresAt" IS NULL OR "expiresAt">NOW())`;
   }

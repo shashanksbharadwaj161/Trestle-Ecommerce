@@ -1,5 +1,6 @@
 import "server-only";
 import { cache } from "react";
+import { cachedCatalog } from "./catalog-cache";
 import { prisma, type Prisma } from "@trestle/db";
 import { parseUsdToMicros, sortSizes, sizeRank } from "@trestle/shared";
 import type { ProductQuery } from "@/lib/schemas";
@@ -147,7 +148,7 @@ function filteredWhere(q: ProductQuery, opts: ListOpts): Prisma.ProductWhereInpu
   return { ...where, AND: and };
 }
 
-export async function listCatalog(q: ProductQuery, opts: ListOpts = {}) {
+async function queryCatalog(q: ProductQuery, opts: ListOpts = {}) {
   const where = filteredWhere(q, opts);
   const orderBy: Prisma.ProductOrderByWithRelationInput[] =
     q.sort === "price-asc"
@@ -179,6 +180,14 @@ export async function listCatalog(q: ProductQuery, opts: ListOpts = {}) {
 }
 
 /** Facet values available within the current scope (department / collection / search / new). */
+const cachedPublicCatalog = cachedCatalog("list", (q: ProductQuery) => queryCatalog(q));
+
+/** Seller/admin listings ("mine", drafts) always read live; the public storefront listing is cached. */
+export async function listCatalog(q: ProductQuery, opts: ListOpts = {}) {
+  if (opts.sellerId || opts.all) return queryCatalog(q, opts);
+  return cachedPublicCatalog(q);
+}
+
 async function facetsFor(where: Prisma.ProductWhereInput) {
   const [cats, variants, price] = await Promise.all([
     prisma.product.groupBy({ by: ["category"], where, _count: { _all: true } }),
@@ -256,15 +265,12 @@ async function loadProductDetail(slugOrId: string) {
 }
 
 /** Request-deduplicated: generateMetadata and the page share one query. */
-export const getProductDetail = cache(loadProductDetail);
+export const getProductDetail = cache(cachedCatalog("detail", loadProductDetail));
 export type ProductDetail = NonNullable<Awaited<ReturnType<typeof getProductDetail>>>;
 
 /** "You may also like": same department + category, then same department. */
-export async function relatedProducts(p: {
-  id: string;
-  department: string | null;
-  category: string;
-}) {
+export const relatedProducts = cachedCatalog("related", loadRelated);
+async function loadRelated(p: { id: string; department: string | null; category: string }) {
   const rows = await prisma.product.findMany({
     where: {
       status: "ACTIVE",
@@ -280,7 +286,8 @@ export async function relatedProducts(p: {
   return [...same, ...other].slice(0, 8).map(toCard);
 }
 
-export async function listCollections() {
+export const listCollections = cachedCatalog("collections", loadCollections);
+async function loadCollections() {
   return prisma.collection.findMany({
     where: { published: true },
     orderBy: { position: "asc" },
@@ -288,11 +295,13 @@ export async function listCollections() {
   });
 }
 
-export async function getCollection(slug: string) {
+export const getCollection = cachedCatalog("collection", loadCollection);
+async function loadCollection(slug: string) {
   return prisma.collection.findFirst({ where: { slug, published: true } });
 }
 
-export async function productCards(
+export const productCards = cachedCatalog("cards", loadProductCards);
+async function loadProductCards(
   where: Prisma.ProductWhereInput,
   take: number,
   orderBy?: Prisma.ProductOrderByWithRelationInput[],
@@ -306,6 +315,22 @@ export async function productCards(
   return rows.map(toCard);
 }
 
-export async function newArrivals(take = 12) {
-  return productCards({ publishedAt: { gte: newSince() } }, take, [{ publishedAt: "desc" }]);
+export const newArrivals = cachedCatalog("new", loadNewArrivals);
+async function loadNewArrivals(take = 12) {
+  return loadProductCards({ publishedAt: { gte: newSince() } }, take, [{ publishedAt: "desc" }]);
 }
+
+/** On-chain provenance events for a product's certificates (public record). */
+export const provenanceFor = cachedCatalog(
+  "provenance",
+  async (certs: { chainId: number; contractAddress: string }[]) =>
+    certs.length
+      ? prisma.chainEvent.findMany({
+          where: {
+            eventName: "ProvenanceRecorded",
+            OR: certs.map((c) => ({ chainId: c.chainId, address: c.contractAddress })),
+          },
+          orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }],
+        })
+      : [],
+);

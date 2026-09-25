@@ -5,6 +5,7 @@ import { toJsonSafe } from "@trestle/db";
 import { rateLimit } from "./rate-limit";
 import { SESSION_COOKIE, userFromToken, type AuthedUser } from "./session";
 import { env } from "./env";
+import { invalidateCatalog, writeAffectsCatalog } from "./catalog-cache";
 
 export class ApiError extends Error {
   constructor(
@@ -17,8 +18,7 @@ export class ApiError extends Error {
   }
 }
 
-export const unauthorized = (msg = "Sign in to continue") =>
-  new ApiError(401, "unauthorized", msg);
+export const unauthorized = (msg = "Sign in to continue") => new ApiError(401, "unauthorized", msg);
 export const forbidden = (msg = "You do not have access to this resource") =>
   new ApiError(403, "forbidden", msg);
 export const notFound = (what = "Resource") => new ApiError(404, "not_found", `${what} not found`);
@@ -136,6 +136,10 @@ export function route<P extends Record<string, string> = Record<string, never>>(
         }
       }
       const result = await fn({ req, params, user, ip });
+      if (mutating && writeAffectsCatalog(req.nextUrl.pathname)) {
+        const status = result instanceof Response ? result.status : 200;
+        if (status < 400) invalidateCatalog();
+      }
       if (result instanceof Response) return result;
       return json(result ?? { ok: true });
     } catch (err) {

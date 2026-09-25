@@ -18,6 +18,8 @@ export interface KV {
   incr(key: string): Promise<number>;
   expire(key: string, seconds: number): Promise<void>;
   ttl(key: string): Promise<number>;
+  /** Optional single round trip: increment and, when the key is new or expired, set its lifetime. */
+  incrWithTtl?(key: string, seconds: number): Promise<number>;
 }
 
 class UpstashKV implements KV {
