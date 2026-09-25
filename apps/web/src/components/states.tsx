@@ -9,7 +9,10 @@ export function EmptyState({
   action,
   icon,
   className,
+  level = 2,
 }: {
+  /** heading level — 1 when the state is the whole page (e.g. a sign-in gate) */
+  level?: 1 | 2;
   title: string;
   description?: React.ReactNode;
   action?: { href: string; label: string } | React.ReactNode;
@@ -29,7 +32,11 @@ export function EmptyState({
       >
         {icon ?? <Inbox className="size-5" />}
       </div>
-      <h2 className="text-lg font-medium">{title}</h2>
+      {level === 1 ? (
+        <h1 className="text-lg font-medium">{title}</h1>
+      ) : (
+        <h2 className="text-lg font-medium">{title}</h2>
+      )}
       {description && (
         <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">{description}</p>
       )}

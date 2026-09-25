@@ -42,6 +42,7 @@ export function RequireAuth({
     return (
       <Container>
         <EmptyState
+          level={1}
           icon={<LockKeyhole className="size-5" strokeWidth={1.5} />}
           title={title}
           description={description}
@@ -61,6 +62,7 @@ export function RequireAuth({
     return (
       <Container>
         <EmptyState
+          level={1}
           title="Admins only"
           description="This area is restricted to the Trestle team."
           action={{ href: "/", label: "Back to the shop" }}
@@ -72,6 +74,7 @@ export function RequireAuth({
     return (
       <Container>
         <EmptyState
+          level={1}
           title="Set up your storefront first"
           description="Create a seller profile and choose where you want to be paid."
           action={{ href: "/seller/onboarding", label: "Start selling" }}
@@ -83,6 +86,7 @@ export function RequireAuth({
     return (
       <Container>
         <EmptyState
+          level={1}
           icon={<Wallet className="size-5" strokeWidth={1.5} />}
           title="Link a wallet to continue"
           description="This page uses stablecoin escrow. Connect your wallet and sign a message (no gas, no transaction) to link it to your account."

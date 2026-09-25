@@ -40,7 +40,10 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
                 src={img.url}
                 alt={img.alt}
                 fill
-                priority={i === 0}
+                // no `priority`: its preload link has no media query, so desktops would download this hidden
+                // mobile copy at full size. Eager + high fetch priority keeps the phone LCP fast.
+                loading={i === 0 ? "eager" : "lazy"}
+                fetchPriority={i === 0 ? "high" : "auto"}
                 sizes="(max-width: 767px) 100vw, 1px"
                 className="object-cover"
               />
@@ -72,8 +75,13 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
                 src={img.url}
                 alt={img.alt}
                 fill
-                priority={i < 2}
-                sizes={wide(images.length, i) ? "58vw" : "29vw"}
+                loading={i < 2 ? "eager" : "lazy"}
+                fetchPriority={i < 2 ? "high" : "auto"}
+                sizes={
+                  wide(images.length, i)
+                    ? "(min-width: 768px) 58vw, 1px"
+                    : "(min-width: 768px) 29vw, 1px"
+                }
                 className="object-cover [transform-origin:var(--zx,50%)_var(--zy,50%)] transition-transform duration-500 ease-out motion-reduce:transition-none [@media(hover:hover)_and_(pointer:fine)]:group-hover:scale-[1.6] motion-reduce:group-hover:scale-100"
               />
               <span className="absolute bottom-3 right-3 grid size-9 place-items-center rounded-full bg-background/85 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">

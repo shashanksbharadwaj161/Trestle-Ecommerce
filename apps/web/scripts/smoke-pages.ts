@@ -15,8 +15,14 @@ mkdirSync(OUT, { recursive: true });
 
 async function main() {
   const prisma = new PrismaClient();
-  const cardPayment = await prisma.cardPayment.findFirst({ where: { status: "PAID" }, select: { id: true } });
-  const cryptoOrder = await prisma.order.findFirst({ where: { paymentMethod: "CRYPTO" }, select: { id: true } });
+  const cardPayment = await prisma.cardPayment.findFirst({
+    where: { status: "PAID" },
+    select: { id: true },
+  });
+  const cryptoOrder = await prisma.order.findFirst({
+    where: { paymentMethod: "CRYPTO" },
+    select: { id: true },
+  });
   await prisma.$disconnect();
   const routes = [
     "/",
@@ -68,17 +74,23 @@ async function main() {
   const axeSummary: Record<string, number> = {};
   for (const w of [390, 768, 1440]) {
     for (const scheme of ["light", "dark"] as const) {
-      const ctx = await browser.newContext({ viewport: { width: w, height: 900 }, colorScheme: scheme, reducedMotion: w === 390 ? "reduce" : "no-preference" });
+      const ctx = await browser.newContext({
+        viewport: { width: w, height: 900 },
+        colorScheme: scheme,
+        reducedMotion: w === 390 ? "reduce" : "no-preference",
+      });
       for (const r of routes) {
         const page = await ctx.newPage();
         const errors: string[] = [];
         page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
         page.on("console", (m) => {
-          if (m.type() === "error" && !/status of 40[134]/.test(m.text())) errors.push(`console: ${m.text().slice(0, 200)}`);
+          if (m.type() === "error" && !/status of 40[134]/.test(m.text()))
+            errors.push(`console: ${m.text().slice(0, 200)}`);
         });
         const res = await page.goto(`${BASE}${r}`, { waitUntil: "networkidle", timeout: 60_000 });
         const status = res?.status() ?? 0;
-        if (r === "/does-not-exist" ? status !== 404 : status >= 400) failures.push(`${w} ${scheme} ${r}: HTTP ${status}`);
+        if (r === "/does-not-exist" ? status !== 404 : status >= 400)
+          failures.push(`${w} ${scheme} ${r}: HTTP ${status}`);
         // load lazy images, then check for broken ones
         await page.evaluate(async () => {
           for (let y = 0; y < document.body.scrollHeight; y += 800) {
@@ -89,17 +101,30 @@ async function main() {
         });
         await page.waitForTimeout(400);
         const broken = await page.evaluate(() =>
-          [...document.images].filter((i) => i.complete && i.naturalWidth === 0 && i.currentSrc).map((i) => i.currentSrc.slice(0, 120)),
+          // only rendered images count: ones inside display:none (e.g. the other breakpoint's gallery) never decode
+          [...document.images]
+            .filter(
+              (i) =>
+                i.getClientRects().length > 0 && i.complete && i.naturalWidth === 0 && i.currentSrc,
+            )
+            .map((i) => i.currentSrc.slice(0, 120)),
         );
         if (broken.length) failures.push(`${w} ${scheme} ${r}: broken images ${broken.join(", ")}`);
-        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        const overflow = await page.evaluate(
+          () => document.documentElement.scrollWidth - window.innerWidth,
+        );
         if (overflow > 1) failures.push(`${w} ${scheme} ${r}: horizontal overflow ${overflow}px`);
         if (errors.length) failures.push(`${w} ${scheme} ${r}: ${errors.join(" | ")}`);
         if (scheme === "light" && (w === 390 || w === 1440)) {
           const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
-          const bad = axe.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
+          const bad = axe.violations.filter(
+            (v) => v.impact === "serious" || v.impact === "critical",
+          );
           axeSummary[`${w} ${r}`] = bad.length;
-          for (const v of bad) failures.push(`${w} ${r}: axe ${v.id} (${v.impact}) ×${v.nodes.length} — ${v.nodes[0]?.target.join(" ")}`);
+          for (const v of bad)
+            failures.push(
+              `${w} ${r}: axe ${v.id} (${v.impact}) ×${v.nodes.length} — ${v.nodes[0]?.target.join(" ")}`,
+            );
         }
         if (scheme === "light" || r === "/") {
           const name = `${w}-${scheme}${r.replace(/[/?=&]+/g, "_") || "_home"}`.slice(0, 120);
@@ -112,7 +137,9 @@ async function main() {
   }
   await browser.close();
   const axeTotal = Object.values(axeSummary).reduce((a, b) => a + b, 0);
-  console.log(`routes: ${routes.length} × 3 widths × 2 themes; axe serious/critical violations: ${axeTotal}`);
+  console.log(
+    `routes: ${routes.length} × 3 widths × 2 themes; axe serious/critical violations: ${axeTotal}`,
+  );
   if (failures.length) {
     console.error(`SMOKE FAILED (${failures.length}):\n` + failures.join("\n"));
     process.exit(1);
