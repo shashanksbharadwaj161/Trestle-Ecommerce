@@ -1,0 +1,6 @@
+{
+  "mode": "testnet",
+  "generatedAt": null,
+  "note": "Not deployed yet. Run `pnpm contracts:deploy:testnet` (see README → Deployment) — it overwrites this file with the real Sepolia + Base Sepolia addresses.",
+  "chains": {}
+}

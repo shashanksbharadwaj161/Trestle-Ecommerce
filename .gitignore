@@ -20,3 +20,5 @@ packages/contracts/broadcast/*/31338
 .local-chains
 playwright-report
 test-results
+packages/db/.env
+**/.env
