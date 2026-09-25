@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@trestle/db";
+import { table, type PrismaClient } from "@trestle/db";
 
 const LEASE_ID = "relayer-leader";
 
@@ -14,7 +14,7 @@ export async function acquireLease(
 ) {
   const expires = new Date(Date.now() + ttlMs);
   const rows = await prisma.$queryRaw<{ holder: string }[]>`
-    INSERT INTO "RelayerLease" ("id", "holder", "expiresAt", "updatedAt", "info")
+    INSERT INTO ${table("RelayerLease")} AS "RelayerLease" ("id", "holder", "expiresAt", "updatedAt", "info")
     VALUES (${LEASE_ID}, ${holder}, ${expires}, now(), ${JSON.stringify(info)}::jsonb)
     ON CONFLICT ("id") DO UPDATE
       SET "holder" = EXCLUDED."holder", "expiresAt" = EXCLUDED."expiresAt", "updatedAt" = now(), "info" = EXCLUDED."info"

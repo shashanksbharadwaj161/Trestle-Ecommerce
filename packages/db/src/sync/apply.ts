@@ -6,6 +6,7 @@ import {
   type LoyaltyTxType,
 } from "@prisma/client";
 import { REPUTATION_EVENT_TYPES } from "@trestle/shared";
+import { table } from "../table";
 import type { ApplyResult, NormalizedEvent } from "./types";
 
 type Tx = Prisma.TransactionClient;
@@ -516,7 +517,7 @@ async function refreshReputationCache(tx: Tx, userId: string) {
   const rows = await tx.$queryRaw<{ total: string | null }[]>`
     SELECT SUM(latest."newScore")::text AS total FROM (
       SELECT DISTINCT ON ("chainId", address) "newScore"
-      FROM "ReputationEvent"
+      FROM ${table("ReputationEvent")}
       WHERE "userId" = ${userId} AND "isSeedDemo" = false
       ORDER BY "chainId", address, "blockNumber" DESC, "logIndex" DESC
     ) latest`;

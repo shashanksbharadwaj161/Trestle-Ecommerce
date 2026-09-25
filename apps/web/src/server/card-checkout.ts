@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type { NextRequest, NextResponse } from "next/server";
-import { prisma, Prisma, type CardPayment, type CardPaymentStatus } from "@trestle/db";
+import { prisma, Prisma, table, type CardPayment, type CardPaymentStatus } from "@trestle/db";
 import {
   CARD_PAYMENT_RANK,
   SHIPPING_METHODS,
@@ -128,7 +128,13 @@ export async function cardQuote(
 
 interface StoredLines {
   cartOwner: string;
-  items: { variantId: string; quantity: number; unitCents: number; title: string; variant: string }[];
+  items: {
+    variantId: string;
+    quantity: number;
+    unitCents: number;
+    title: string;
+    variant: string;
+  }[];
 }
 
 export async function createCardCheckout(args: {
@@ -140,7 +146,8 @@ export async function createCardCheckout(args: {
   origin: string;
 }) {
   const cfg = cardConfig();
-  if (!cfg.enabled) throw new ApiError(503, "card_unavailable", cfg.reason ?? "Card payments are unavailable.");
+  if (!cfg.enabled)
+    throw new ApiError(503, "card_unavailable", cfg.reason ?? "Card payments are unavailable.");
   await sweepExpiredCardPayments().catch((err) =>
     console.warn("[card] sweep failed", (err as Error).message),
   );
@@ -277,7 +284,9 @@ export async function createCardCheckout(args: {
         shipping_address_collection: {
           allowed_countries: e.SHIPPING_COUNTRIES.split(",")
             .map((c) => c.trim().toUpperCase())
-            .filter(Boolean) as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[],
+            .filter(
+              Boolean,
+            ) as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[],
         },
         shipping_options: [
           {
@@ -304,9 +313,17 @@ export async function createCardCheckout(args: {
     });
   } catch (err) {
     // could not open a hosted session: give the stock back immediately
-    await releaseReservation(paymentId, "EXPIRED", `Could not start card checkout: ${(err as Error).message}`);
+    await releaseReservation(
+      paymentId,
+      "EXPIRED",
+      `Could not start card checkout: ${(err as Error).message}`,
+    );
     console.error("[card] session create failed", (err as Error).message);
-    throw new ApiError(502, "stripe_unavailable", "We couldn’t start card checkout. Please try again.");
+    throw new ApiError(
+      502,
+      "stripe_unavailable",
+      "We couldn’t start card checkout. Please try again.",
+    );
   }
   if (!session.url) throw new ApiError(502, "stripe_unavailable", "Card checkout returned no URL.");
 
@@ -385,7 +402,11 @@ export async function expireAndRelease(paymentId: string, reason: string) {
 /** Sweeps OPEN payments past their expiry (lazy on checkout, plus /api/cron/card-reservations). */
 export async function sweepExpiredCardPayments(limit = 25) {
   const stale = await prisma.cardPayment.findMany({
-    where: { status: "OPEN", stockReleased: false, expiresAt: { lt: new Date(Date.now() - 60_000) } },
+    where: {
+      status: "OPEN",
+      stockReleased: false,
+      expiresAt: { lt: new Date(Date.now() - 60_000) },
+    },
     select: { id: true },
     take: limit,
   });
@@ -409,8 +430,11 @@ function sessionPaymentId(session: Stripe.Checkout.Session): string | null {
 
 async function lockedPayment(tx: Prisma.TransactionClient, id: string) {
   // row lock serialises concurrent deliveries for the same payment
-  await tx.$queryRaw`SELECT id FROM "CardPayment" WHERE id = ${id} FOR UPDATE`;
-  return tx.cardPayment.findUnique({ where: { id }, include: { orders: { include: { items: true } } } });
+  await tx.$queryRaw`SELECT id FROM ${table("CardPayment")} WHERE id = ${id} FOR UPDATE`;
+  return tx.cardPayment.findUnique({
+    where: { id },
+    include: { orders: { include: { items: true } } },
+  });
 }
 
 function canMove(from: CardPaymentStatus, to: CardPaymentStatus) {
@@ -431,7 +455,10 @@ function shippingFrom(session: Stripe.Checkout.Session): Prisma.InputJsonValue |
   } as Prisma.InputJsonValue;
 }
 
-async function onSessionCompleted(session: Stripe.Checkout.Session, eventAt: Date): Promise<Outcome> {
+async function onSessionCompleted(
+  session: Stripe.Checkout.Session,
+  eventAt: Date,
+): Promise<Outcome> {
   const id = sessionPaymentId(session);
   if (!id) return { outcome: "ignored:no payment reference" };
   const after: (() => Promise<void>)[] = [];
@@ -446,7 +473,9 @@ async function onSessionCompleted(session: Stripe.Checkout.Session, eventAt: Dat
       shippingAddress: p.shippingAddress ?? shippingFrom(session),
       stripePaymentIntentId:
         p.stripePaymentIntentId ??
-        (typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id) ??
+        (typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : session.payment_intent?.id) ??
         null,
     };
     if (session.amount_total !== p.totalCents || session.currency?.toLowerCase() !== p.currency) {
@@ -514,14 +543,24 @@ async function markPaid(
   }
   await tx.cardPayment.update({
     where: { id: p.id },
-    data: { ...details, status: "PAID", paidAt: new Date(), stockReleased: false, lastEventAt: eventAt, failureReason: null },
+    data: {
+      ...details,
+      status: "PAID",
+      paidAt: new Date(),
+      stockReleased: false,
+      lastEventAt: eventAt,
+      failureReason: null,
+    },
   });
   await tx.order.updateMany({
     where: { cardPaymentId: p.id },
     data: { status: "PROCESSING", stockReleased: false, reservationExpiresAt: null },
   });
   if (p.promoCode)
-    await tx.promoCode.updateMany({ where: { code: p.promoCode }, data: { redemptions: { increment: 1 } } });
+    await tx.promoCode.updateMany({
+      where: { code: p.promoCode },
+      data: { redemptions: { increment: 1 } },
+    });
   const lines = p.lines as unknown as StoredLines;
   if (lines?.cartOwner) {
     after.push(() =>
@@ -541,11 +580,21 @@ class OversoldError extends Error {
 }
 
 /** Paid after the stock was sold to someone else: refund in full and cancel. */
-async function refundOversold(paymentId: string, session: Stripe.Checkout.Session): Promise<Outcome> {
-  const pi = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
+async function refundOversold(
+  paymentId: string,
+  session: Stripe.Checkout.Session,
+): Promise<Outcome> {
+  const pi =
+    typeof session.payment_intent === "string"
+      ? session.payment_intent
+      : session.payment_intent?.id;
   if (pi) {
     await stripe().refunds.create(
-      { payment_intent: pi, reason: "requested_by_customer", metadata: { cardPaymentId: paymentId } },
+      {
+        payment_intent: pi,
+        reason: "requested_by_customer",
+        metadata: { cardPaymentId: paymentId },
+      },
       { idempotencyKey: `trestle:${paymentId}:oversold-refund` },
     );
   }
@@ -605,7 +654,8 @@ async function onFailedOrExpired(
 }
 
 async function onChargeRefunded(charge: Stripe.Charge): Promise<Outcome> {
-  const pi = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
+  const pi =
+    typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
   if (!pi) return { outcome: "ignored:no payment intent" };
   return {
     outcome: await prisma.$transaction(async (tx) => {
@@ -634,7 +684,9 @@ async function onChargeRefunded(charge: Stripe.Charge): Promise<Outcome> {
 }
 
 /** Applies one verified Stripe event exactly once (StripeEvent ledger). */
-export async function applyStripeEvent(event: Stripe.Event): Promise<{ duplicate: boolean; outcome: string }> {
+export async function applyStripeEvent(
+  event: Stripe.Event,
+): Promise<{ duplicate: boolean; outcome: string }> {
   const existing = await prisma.stripeEvent.findUnique({ where: { id: event.id } });
   if (existing?.processedAt) return { duplicate: true, outcome: existing.outcome ?? "processed" };
   if (!existing) {
@@ -690,7 +742,11 @@ export async function applyStripeEvent(event: Stripe.Event): Promise<{ duplicate
 // reads, cancel, claim, refunds
 // ---------------------------------------------------------------------------------------------
 
-export async function cardPaymentView(paymentId: string, viewer: CardViewer, sellerId?: string | null) {
+export async function cardPaymentView(
+  paymentId: string,
+  viewer: CardViewer,
+  sellerId?: string | null,
+) {
   const p = await prisma.cardPayment.findUniqueOrThrow({
     where: { id: paymentId },
     include: {
@@ -717,7 +773,8 @@ export async function cancelCardCheckout(paymentId: string) {
 
 /** A signed-in user who holds the guest token may attach the order to their account. */
 export async function claimCardPayment(payment: CardPayment, user: AuthedUser) {
-  if (payment.userId && payment.userId !== user.id) throw forbidden("This order belongs to another account.");
+  if (payment.userId && payment.userId !== user.id)
+    throw forbidden("This order belongs to another account.");
   await prisma.$transaction([
     prisma.cardPayment.update({ where: { id: payment.id }, data: { userId: user.id } }),
     prisma.order.updateMany({
@@ -726,7 +783,12 @@ export async function claimCardPayment(payment: CardPayment, user: AuthedUser) {
     }),
   ]);
   await prisma.auditLog.create({
-    data: { actorId: user.id, action: "card.order_claimed", entity: "CardPayment", entityId: payment.id },
+    data: {
+      actorId: user.id,
+      action: "card.order_claimed",
+      entity: "CardPayment",
+      entityId: payment.id,
+    },
   });
 }
 
