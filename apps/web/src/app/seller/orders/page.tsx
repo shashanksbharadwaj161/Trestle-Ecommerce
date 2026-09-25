@@ -1,6 +1,6 @@
 "use client";
 import { FulfilAction } from "@/components/fulfil-action";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RequireAuth } from "@/components/require-auth";
@@ -77,7 +77,12 @@ function Inner() {
           description="Orders appear here as soon as a buyer's payment is initiated."
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card" tabIndex={0} role="region" aria-label="Table (scrolls horizontally)">
+        <div
+          className="overflow-x-auto rounded-xl border border-border bg-card"
+          tabIndex={0}
+          role="region"
+          aria-label="Table (scrolls horizontally)"
+        >
           <table className="w-full min-w-[720px] text-sm">
             <thead className="text-left text-xs text-muted-foreground">
               <tr>
@@ -87,7 +92,9 @@ function Inner() {
                 <th className="p-3 font-medium">Total</th>
                 <th className="p-3 font-medium">Status</th>
                 <th className="p-3 font-medium">Placed</th>
-                <th className="p-3"><span className="sr-only">Actions</span></th>
+                <th className="p-3">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -112,13 +119,17 @@ function Inner() {
                       .join(", ")}
                   </td>
                   <td className="p-3">
-                    {o.buyer ? (o.buyer.displayName ?? shortAddress(o.buyer.walletAddress)) : "Guest"}
+                    {o.buyer
+                      ? (o.buyer.displayName ?? shortAddress(o.buyer.walletAddress))
+                      : "Guest"}
                   </td>
                   <td className="tabular p-3">{usd(o.subtotalUsdMicros)}</td>
                   <td className="p-3">
                     <div className="flex flex-wrap gap-1">
                       <OrderStatusBadge status={o.status} />
-                      <Badge tone="outline">{o.paymentMethod === "CARD" ? "card" : "stablecoin"}</Badge>
+                      <Badge tone="outline">
+                        {o.paymentMethod === "CARD" ? "card" : "stablecoin"}
+                      </Badge>
                       {o.paymentIntents[0]?.routeKind === "CROSS_CHAIN" && (
                         <Badge tone="info">cross-chain</Badge>
                       )}
@@ -127,7 +138,12 @@ function Inner() {
                   <td className="p-3 text-muted-foreground">{dateTime(o.createdAt)}</td>
                   <td className="p-3 text-right">
                     {!o.isSeedDemo && (
-                      <FulfilAction orderId={o.id} status={o.status} paymentMethod={o.paymentMethod} invalidate={["seller-orders"]} />
+                      <FulfilAction
+                        orderId={o.id}
+                        status={o.status}
+                        paymentMethod={o.paymentMethod}
+                        invalidate={["seller-orders"]}
+                      />
                     )}
                   </td>
                 </tr>

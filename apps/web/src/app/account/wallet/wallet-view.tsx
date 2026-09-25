@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useQuery } from "@tanstack/react-query";
 import { Fingerprint, Fuel } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
@@ -268,7 +268,12 @@ function Account({ user }: { user: SessionUser }) {
           <h2 id="rep-h" className="mb-3 text-xl font-semibold">
             Reputation history
           </h2>
-          <div className="overflow-x-auto rounded-xl border border-border bg-card" tabIndex={0} role="region" aria-label="Table (scrolls horizontally)">
+          <div
+            className="overflow-x-auto rounded-xl border border-border bg-card"
+            tabIndex={0}
+            role="region"
+            aria-label="Table (scrolls horizontally)"
+          >
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground">
                 <tr>

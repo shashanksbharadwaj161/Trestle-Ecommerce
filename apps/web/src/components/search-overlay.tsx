@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import { useUi } from "@/store/ui";
 import { Price } from "./price";
 import type { CardData } from "./product-card";
+import { signalNavigation } from "@/components/navigation-progress";
 
 const SUGGESTIONS = [
   { label: "Maxi dresses", q: "maxi" },
@@ -108,6 +109,7 @@ export function SearchOverlay() {
     setQ("");
     setDebounced("");
     setSearch(false);
+    signalNavigation();
     router.push(`/search?q=${encodeURIComponent(t)}`);
   }
 

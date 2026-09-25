@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/link";
 import { usePathname } from "next/navigation";
 import { LockKeyhole, Wallet } from "lucide-react";
 import { useSession, type SessionUser } from "@/hooks/use-session";

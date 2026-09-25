@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
+import Link from "@/components/link";
 import { toast } from "sonner";
 import { formatCents } from "@trestle/shared";
 import { RequireAuth } from "@/components/require-auth";
@@ -35,10 +35,16 @@ export default function AdminReturns() {
 }
 
 function Inner() {
-  const q = useQuery({ queryKey: ["admin-returns"], queryFn: () => api<{ items: Ret[] }>("/api/admin/returns") });
+  const q = useQuery({
+    queryKey: ["admin-returns"],
+    queryFn: () => api<{ items: Ret[] }>("/api/admin/returns"),
+  });
   return (
     <Container className="max-w-5xl">
-      <PageHeader title="Returns" description="Approve, receive and refund return requests. Refunds go back through Stripe." />
+      <PageHeader
+        title="Returns"
+        description="Approve, receive and refund return requests. Refunds go back through Stripe."
+      />
       {q.isLoading ? (
         <Skeleton className="h-64" />
       ) : q.isError ? (
@@ -65,7 +71,8 @@ function ReturnRow({ r }: { r: Ret }) {
     enabled: r.status === "RECEIVED" || r.status === "APPROVED",
   });
   const m = useMutation({
-    mutationFn: (action: string) => api(`/api/admin/returns/${r.id}`, { body: { action, adminNotes: notes || undefined } }),
+    mutationFn: (action: string) =>
+      api(`/api/admin/returns/${r.id}`, { body: { action, adminNotes: notes || undefined } }),
     onSuccess: () => {
       toast.success("Return updated");
       qc.invalidateQueries({ queryKey: ["admin-returns"] });
@@ -98,10 +105,18 @@ function ReturnRow({ r }: { r: Ret }) {
       </ul>
       {r.notes && <p className="mt-2 text-sm text-muted-foreground">“{r.notes}”</p>}
       <p className="mt-2 text-xs text-muted-foreground">{r.order.cardPayment?.email}</p>
-      {r.refundCents != null && <p className="mt-2 text-sm">Refunded {formatCents(r.refundCents)}</p>}
+      {r.refundCents != null && (
+        <p className="mt-2 text-sm">Refunded {formatCents(r.refundCents)}</p>
+      )}
       {!["REFUNDED", "REJECTED"].includes(r.status) && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Input aria-label="Notes for the record" placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} className="h-9 w-64" />
+          <Input
+            aria-label="Notes for the record"
+            placeholder="Notes (optional)"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="h-9 w-64"
+          />
           {r.status === "REQUESTED" && (
             <Button size="sm" onClick={() => m.mutate("approve")} loading={m.isPending}>
               Approve
@@ -113,11 +128,21 @@ function ReturnRow({ r }: { r: Ret }) {
             </Button>
           )}
           {(r.status === "RECEIVED" || r.status === "APPROVED") && (
-            <Button size="sm" variant="outline" onClick={() => m.mutate("refund")} loading={m.isPending}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => m.mutate("refund")}
+              loading={m.isPending}
+            >
               Refund {suggested.data ? formatCents(suggested.data.suggestedRefundCents) : ""}
             </Button>
           )}
-          <Button size="sm" variant="ghost" onClick={() => m.mutate("reject")} loading={m.isPending}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => m.mutate("reject")}
+            loading={m.isPending}
+          >
             Decline
           </Button>
         </div>

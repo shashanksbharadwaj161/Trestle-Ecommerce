@@ -128,26 +128,6 @@
   }
 }
 
-/* ---------------------------------------------------------------- page transitions (View Transitions API) */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 260ms;
-  animation-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
-}
-::view-transition-group(product-hero) {
-  animation-duration: 480ms;
-  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-::view-transition-old(product-hero),
-::view-transition-new(product-hero) {
-  height: 100%;
-  object-fit: cover;
-}
-/* the header stays put while the page underneath changes */
-.vt-header {
-  view-transition-name: site-header;
-}
-
 /* ---------------------------------------------------------------- campaign entrance (home hero) */
 /* each headline line rises out of its own mask; images are unveiled by a wipe so the image itself (the LCP
    element) paints immediately underneath */
@@ -258,34 +238,18 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
-::view-transition-group(*) {
-  animation-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
-}
 
-/* product card quick add: touch gets a "+" (size sheet); mouse gets the sizes on hover */
-.quick-inline {
-  display: none;
+/* navigation progress: grows quickly then creeps, until the route commits */
+.nav-progress {
+  transform-origin: left;
+  animation: nav-progress 8s cubic-bezier(0.1, 0.7, 0.2, 1) forwards;
 }
-@media (hover: hover) and (pointer: fine) {
-  .quick-touch {
-    opacity: 0;
+@keyframes nav-progress {
+  from {
+    transform: scaleX(0.05);
   }
-  .quick-touch:focus-visible {
-    opacity: 1;
-  }
-  .quick-inline {
-    display: block;
-    opacity: 0;
-    transform: translateY(12px);
-    pointer-events: none;
-    transition:
-      opacity 250ms ease,
-      transform 500ms cubic-bezier(0.19, 1, 0.22, 1);
-  }
-  .group\/card:hover .quick-inline {
-    opacity: 1;
-    transform: none;
-    pointer-events: auto;
+  to {
+    transform: scaleX(0.92);
   }
 }
 
@@ -546,11 +510,6 @@ p {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation: none !important;
-  }
   *,
   *::before,
   *::after {

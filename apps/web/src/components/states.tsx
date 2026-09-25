@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/link";
 import { AlertTriangle, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -30,7 +30,9 @@ export function EmptyState({
         {icon ?? <Inbox className="size-5" />}
       </div>
       <h2 className="text-lg font-medium">{title}</h2>
-      {description && <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">{description}</p>}
+      {description && (
+        <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">{description}</p>
+      )}
       {action && (
         <div className="mt-5">
           {typeof action === "object" && action !== null && "href" in action ? (
@@ -88,11 +90,7 @@ export function PageHeader({
   return (
     <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        {eyebrow && (
-          <div className="eyebrow mb-2 text-muted-foreground">
-            {eyebrow}
-          </div>
-        )}
+        {eyebrow && <div className="eyebrow mb-2 text-muted-foreground">{eyebrow}</div>}
         <h1 className="text-[1.75rem] leading-tight sm:text-[2.25rem]">{title}</h1>
         {description && (
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{description}</p>

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/link";
 import { HELP_LINKS, NAV } from "@/lib/nav";
 import { Wordmark } from "./logo";
 import { ThemeToggle } from "./theme-toggle";
@@ -10,8 +10,8 @@ export function SiteFooter({ notice }: { notice: string | null }) {
         <div className="md:col-span-4">
           <Wordmark />
           <p className="mt-4 max-w-xs text-sm text-muted-foreground">
-            Dresses, jersey, denim and knits, made to be worn often. Pay by card, or with stablecoins held in
-            escrow until your order arrives.
+            Dresses, jersey, denim and knits, made to be worn often. Pay by card, or with
+            stablecoins held in escrow until your order arrives.
           </p>
           {notice && (
             <p className="mt-5 inline-flex max-w-sm items-start gap-2 border border-border px-3 py-2 text-xs text-muted-foreground">

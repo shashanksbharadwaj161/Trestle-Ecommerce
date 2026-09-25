@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/link";
 import { ShoppingBag } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";

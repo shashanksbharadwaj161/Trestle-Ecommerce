@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -16,11 +16,15 @@ function ResetForm() {
   useEffect(() => {
     if (sp.get("token")) window.history.replaceState(null, "", "/reset-password");
   }, [sp]);
-  const m = useMutation({ mutationFn: () => api("/api/auth/password/reset", { body: { token, password } }) });
+  const m = useMutation({
+    mutationFn: () => api("/api/auth/password/reset", { body: { token, password } }),
+  });
   if (m.isSuccess)
     return (
       <div role="status" className="mt-6">
-        <p className="text-sm">Your password has been changed and you’ve been signed out everywhere.</p>
+        <p className="text-sm">
+          Your password has been changed and you’ve been signed out everywhere.
+        </p>
         <Button asChild className="mt-6">
           <Link href="/sign-in">Sign in</Link>
         </Button>
@@ -36,12 +40,34 @@ function ResetForm() {
       }}
     >
       <Field label="New password" htmlFor="rp-pw" hint="At least 10 characters.">
-        <Input id="rp-pw" type="password" autoComplete="new-password" minLength={10} required value={password} onChange={(e) => setPassword(e.target.value)} />
+        <Input
+          id="rp-pw"
+          type="password"
+          autoComplete="new-password"
+          minLength={10}
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
       </Field>
-      <Field label="Confirm new password" htmlFor="rp-pw2" error={mismatch ? "Passwords don’t match" : undefined}>
-        <Input id="rp-pw2" type="password" autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} aria-invalid={mismatch} />
+      <Field
+        label="Confirm new password"
+        htmlFor="rp-pw2"
+        error={mismatch ? "Passwords don’t match" : undefined}
+      >
+        <Input
+          id="rp-pw2"
+          type="password"
+          autoComplete="new-password"
+          required
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          aria-invalid={mismatch}
+        />
       </Field>
-      {!token && <p className="text-sm text-danger">This page needs the link from your reset email.</p>}
+      {!token && (
+        <p className="text-sm text-danger">This page needs the link from your reset email.</p>
+      )}
       {m.isError && (
         <p role="alert" className="text-sm text-danger">
           {errorMessage(m.error)}{" "}
@@ -50,7 +76,13 @@ function ResetForm() {
           </Link>
         </p>
       )}
-      <Button type="submit" size="lg" className="w-full" loading={m.isPending} disabled={!token || mismatch}>
+      <Button
+        type="submit"
+        size="lg"
+        className="w-full"
+        loading={m.isPending}
+        disabled={!token || mismatch}
+      >
         Set new password
       </Button>
     </form>

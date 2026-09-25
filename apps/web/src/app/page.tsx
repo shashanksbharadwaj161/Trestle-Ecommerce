@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/link";
 import { ArrowRight, Box, CreditCard, LifeBuoy, RotateCcw } from "lucide-react";
 import { toJsonSafe } from "@trestle/db";
 import { listCollections, newArrivals, productCards } from "@/server/catalog";

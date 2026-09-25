@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useQuery } from "@tanstack/react-query";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";

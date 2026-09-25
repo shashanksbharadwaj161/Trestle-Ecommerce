@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Loader2, Package } from "lucide-react";
@@ -35,7 +35,13 @@ interface CardOrder {
   deliveredAt: string | null;
   seller: { storefrontName: string };
   items: OrderItem[];
-  returnRequests: { id: string; status: string; reason: string; createdAt: string; refundCents: number | null }[];
+  returnRequests: {
+    id: string;
+    status: string;
+    reason: string;
+    createdAt: string;
+    refundCents: number | null;
+  }[];
 }
 interface CardView {
   viewer: "owner" | "guest" | "admin" | "seller";
@@ -68,7 +74,13 @@ const CARRIER_URL: Record<string, (n: string) => string> = {
   DHL: (n) => `https://www.dhl.com/en/express/tracking.html?AWB=${encodeURIComponent(n)}`,
 };
 
-export function CardOrderView({ paymentId, context }: { paymentId: string; context: "complete" | "status" }) {
+export function CardOrderView({
+  paymentId,
+  context,
+}: {
+  paymentId: string;
+  context: "complete" | "status";
+}) {
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["card-payment", paymentId],
@@ -96,7 +108,8 @@ export function CardOrderView({ paymentId, context }: { paymentId: string; conte
         <div className="border-y border-border py-16 text-center">
           <p className="text-lg">We can’t show this order</p>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-            Open it from the private link on your confirmation page, or sign in to the account you ordered with.
+            Open it from the private link on your confirmation page, or sign in to the account you
+            ordered with.
           </p>
           <div className="mt-6 flex justify-center gap-3">
             <Button asChild variant="outline">
@@ -119,7 +132,9 @@ export function CardOrderView({ paymentId, context }: { paymentId: string; conte
       <header>
         <div className="flex flex-wrap items-center gap-3">
           <CardPaymentBadge status={p.status} />
-          <span className="tabular text-[0.8125rem] text-muted-foreground">Order {p.id.slice(-10).toUpperCase()}</span>
+          <span className="tabular text-[0.8125rem] text-muted-foreground">
+            Order {p.id.slice(-10).toUpperCase()}
+          </span>
         </div>
         <h1 className="mt-4 text-[1.75rem] leading-tight tracking-[-0.02em] md:text-[2.25rem]">
           {p.status === "PAID" || p.status === "PARTIALLY_REFUNDED"
@@ -161,14 +176,23 @@ export function CardOrderView({ paymentId, context }: { paymentId: string; conte
         )}
       </header>
 
-      {v.privateLink && (p.status === "PAID" || p.status === "PROCESSING" || p.status === "PARTIALLY_REFUNDED") && (
-        <PrivateLink link={v.privateLink} />
-      )}
+      {v.privateLink &&
+        (p.status === "PAID" || p.status === "PROCESSING" || p.status === "PARTIALLY_REFUNDED") && (
+          <PrivateLink link={v.privateLink} />
+        )}
       {v.canClaim && (
         <Notice tone="info">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span>You’re signed in. Save this guest order to your account to see it in your order history.</span>
-            <Button size="sm" variant="outline" onClick={() => claim.mutate()} loading={claim.isPending}>
+            <span>
+              You’re signed in. Save this guest order to your account to see it in your order
+              history.
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => claim.mutate()}
+              loading={claim.isPending}
+            >
               Save to my account
             </Button>
           </div>
@@ -176,25 +200,46 @@ export function CardOrderView({ paymentId, context }: { paymentId: string; conte
       )}
 
       {p.orders.map((o) => (
-        <section key={o.id} aria-label={`Items from ${o.seller.storefrontName}`} className="border-t border-border pt-6">
+        <section
+          key={o.id}
+          aria-label={`Items from ${o.seller.storefrontName}`}
+          className="border-t border-border pt-6"
+        >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm">
-              {o.seller.storefrontName} <span className="text-muted-foreground">· {o.items.length} item{o.items.length === 1 ? "" : "s"}</span>
+              {o.seller.storefrontName}{" "}
+              <span className="text-muted-foreground">
+                · {o.items.length} item{o.items.length === 1 ? "" : "s"}
+              </span>
             </p>
             <OrderStatusBadge status={o.status} />
           </div>
           <ul className="mt-4 space-y-4">
             {o.items.map((it) => (
               <li key={it.id} className="flex gap-4">
-                <Link href={`/products/${it.product.slug ?? ""}`} className="relative aspect-[3/4] w-20 shrink-0 overflow-hidden bg-muted">
-                  {it.imageSnapshot && <Image src={it.imageSnapshot} alt="" fill sizes="80px" className="object-cover" />}
+                <Link
+                  href={`/products/${it.product.slug ?? ""}`}
+                  className="relative aspect-[3/4] w-20 shrink-0 overflow-hidden bg-muted"
+                >
+                  {it.imageSnapshot && (
+                    <Image
+                      src={it.imageSnapshot}
+                      alt=""
+                      fill
+                      sizes="80px"
+                      className="object-cover"
+                    />
+                  )}
                 </Link>
                 <div className="flex-1 text-sm">
                   <p>{it.titleSnapshot}</p>
                   <p className="text-muted-foreground">{it.variantSnapshot}</p>
                   <p className="text-muted-foreground">Qty {it.quantity}</p>
                 </div>
-                <Price micros={(BigInt(it.unitPriceUsdMicros) * BigInt(it.quantity)).toString()} className="text-sm" />
+                <Price
+                  micros={(BigInt(it.unitPriceUsdMicros) * BigInt(it.quantity)).toString()}
+                  className="text-sm"
+                />
               </li>
             ))}
           </ul>
@@ -218,12 +263,22 @@ export function CardOrderView({ paymentId, context }: { paymentId: string; conte
         </section>
       ))}
 
-      <section aria-label="Payment summary" className="grid gap-8 border-t border-border pt-6 md:grid-cols-2">
+      <section
+        aria-label="Payment summary"
+        className="grid gap-8 border-t border-border pt-6 md:grid-cols-2"
+      >
         <div className="text-sm">
           <h2 className="font-medium">Delivery address</h2>
           {p.shippingAddress ? (
             <address className="mt-2 not-italic text-muted-foreground">
-              {[p.shippingAddress.name, p.shippingAddress.line1, p.shippingAddress.line2, [p.shippingAddress.postalCode, p.shippingAddress.city].filter(Boolean).join(" "), p.shippingAddress.state, p.shippingAddress.country]
+              {[
+                p.shippingAddress.name,
+                p.shippingAddress.line1,
+                p.shippingAddress.line2,
+                [p.shippingAddress.postalCode, p.shippingAddress.city].filter(Boolean).join(" "),
+                p.shippingAddress.state,
+                p.shippingAddress.country,
+              ]
                 .filter(Boolean)
                 .map((l) => (
                   <span key={l} className="block">
@@ -238,19 +293,29 @@ export function CardOrderView({ paymentId, context }: { paymentId: string; conte
         </div>
         <dl className="space-y-2 text-sm">
           <Row k="Subtotal" v={formatCents(p.subtotalCents)} />
-          {p.discountCents > 0 && <Row k={`Discount${p.promoCode ? ` (${p.promoCode})` : ""}`} v={`−${formatCents(p.discountCents)}`} />}
+          {p.discountCents > 0 && (
+            <Row
+              k={`Discount${p.promoCode ? ` (${p.promoCode})` : ""}`}
+              v={`−${formatCents(p.discountCents)}`}
+            />
+          )}
           <Row k="Delivery" v={p.shippingCents ? formatCents(p.shippingCents) : "Free"} />
           <div className="flex justify-between border-t border-border pt-2 font-medium">
             <dt>Total</dt>
             <dd className="tabular">{formatCents(p.totalCents)}</dd>
           </div>
           {p.refundedCents > 0 && <Row k="Refunded" v={`−${formatCents(p.refundedCents)}`} />}
-          <p className="pt-2 text-xs text-muted-foreground">Paid by card via Stripe{p.paidAt ? ` · ${dateTime(p.paidAt)}` : ""}</p>
+          <p className="pt-2 text-xs text-muted-foreground">
+            Paid by card via Stripe{p.paidAt ? ` · ${dateTime(p.paidAt)}` : ""}
+          </p>
         </dl>
       </section>
       <p className="text-sm text-muted-foreground">
         Questions about this order?{" "}
-        <Link href={`/contact?order=${p.id}`} className="text-foreground underline underline-offset-4">
+        <Link
+          href={`/contact?order=${p.id}`}
+          className="text-foreground underline underline-offset-4"
+        >
           Contact us
         </Link>
       </p>
@@ -274,7 +339,9 @@ function Timeline({ o }: { o: CardOrder }) {
     { label: "Delivered", done: !!o.deliveredAt || o.status === "DELIVERED", at: o.deliveredAt },
   ];
   if (o.status === "CANCELLED" || o.status === "REFUNDED") return null;
-  const trackUrl = o.trackingUrl ?? (o.carrier && o.trackingNumber ? CARRIER_URL[o.carrier]?.(o.trackingNumber) : undefined);
+  const trackUrl =
+    o.trackingUrl ??
+    (o.carrier && o.trackingNumber ? CARRIER_URL[o.carrier]?.(o.trackingNumber) : undefined);
   return (
     <div className="mt-6">
       <ol className="grid grid-cols-3 gap-2" aria-label="Delivery progress">
@@ -291,7 +358,12 @@ function Timeline({ o }: { o: CardOrder }) {
           <Package className="size-4" strokeWidth={1.5} />
           {o.carrier ?? "Carrier"} · <span className="tabular">{o.trackingNumber}</span>
           {trackUrl && (
-            <a href={trackUrl} target="_blank" rel="noreferrer noopener" className="underline underline-offset-4">
+            <a
+              href={trackUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="underline underline-offset-4"
+            >
               Track parcel
             </a>
           )}
@@ -307,11 +379,17 @@ function PrivateLink({ link }: { link: string }) {
     <div className="border border-border p-5">
       <p className="text-sm font-medium">Save your private order link</p>
       <p className="mt-1 text-[0.8125rem] text-muted-foreground">
-        Anyone with this link can see this order, so keep it to yourself. It’s the way back to your order, tracking
-        and returns if you checked out as a guest.
+        Anyone with this link can see this order, so keep it to yourself. It’s the way back to your
+        order, tracking and returns if you checked out as a guest.
       </p>
       <div className="mt-3 flex gap-2">
-        <input readOnly value={link} aria-label="Private order link" className="h-10 min-w-0 flex-1 border border-input bg-card px-3 text-xs text-muted-foreground" onFocus={(e) => e.currentTarget.select()} />
+        <input
+          readOnly
+          value={link}
+          aria-label="Private order link"
+          className="h-10 min-w-0 flex-1 border border-input bg-card px-3 text-xs text-muted-foreground"
+          onFocus={(e) => e.currentTarget.select()}
+        />
         <Button
           variant="outline"
           size="sm"
@@ -364,7 +442,9 @@ function ReturnAction({
   });
   if (!eligibility) return null;
   if (!eligibility.eligible)
-    return order.status === "DELIVERED" ? <p className="mt-4 text-[0.8125rem] text-muted-foreground">{eligibility.reason}</p> : null;
+    return order.status === "DELIVERED" ? (
+      <p className="mt-4 text-[0.8125rem] text-muted-foreground">{eligibility.reason}</p>
+    ) : null;
   const selected = Object.values(qty).some((n) => n > 0);
   return (
     <>
@@ -373,7 +453,9 @@ function ReturnAction({
           Request a return
         </Button>
         {eligibility.deadline && (
-          <span className="text-xs text-muted-foreground">Return window closes {dateTime(eligibility.deadline)}</span>
+          <span className="text-xs text-muted-foreground">
+            Return window closes {dateTime(eligibility.deadline)}
+          </span>
         )}
       </div>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -390,7 +472,8 @@ function ReturnAction({
               {order.items.map((it) => (
                 <div key={it.id} className="flex items-center justify-between gap-3 text-sm">
                   <label htmlFor={`rq-${it.id}`} className="flex-1">
-                    {it.titleSnapshot} <span className="text-muted-foreground">· {it.variantSnapshot}</span>
+                    {it.titleSnapshot}{" "}
+                    <span className="text-muted-foreground">· {it.variantSnapshot}</span>
                   </label>
                   <Select
                     id={`rq-${it.id}`}
@@ -415,7 +498,12 @@ function ReturnAction({
               </Select>
             </Field>
             <Field label="Anything else? (optional)" htmlFor="rq-notes">
-              <Textarea id="rq-notes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} />
+              <Textarea
+                id="rq-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                maxLength={1000}
+              />
             </Field>
             {m.isError && (
               <p role="alert" className="text-sm text-danger">

@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/link";
 import { Minus, Plus } from "lucide-react";
 import type { HydratedLine } from "@/hooks/use-cart";
 import { Price } from "./price";
@@ -24,20 +24,35 @@ export function BagLine({
   const max = Math.min(20, line.stock);
   return (
     <li className="flex gap-4 py-5">
-      <Link href={href} onClick={onNavigate} className="relative aspect-[3/4] w-24 shrink-0 overflow-hidden bg-muted sm:w-28">
+      <Link
+        href={href}
+        onClick={onNavigate}
+        className="relative aspect-[3/4] w-24 shrink-0 overflow-hidden bg-muted sm:w-28"
+      >
         {line.image && (
-          <Image src={line.image} alt={`${line.product.title} in ${line.colour ?? ""}`} fill sizes="112px" className="object-cover" />
+          <Image
+            src={line.image}
+            alt={`${line.product.title} in ${line.colour ?? ""}`}
+            fill
+            sizes="112px"
+            className="object-cover"
+          />
         )}
       </Link>
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex justify-between gap-3">
-          <Link href={href} onClick={onNavigate} className="text-[0.9375rem] leading-snug hover:underline">
+          <Link
+            href={href}
+            onClick={onNavigate}
+            className="text-[0.9375rem] leading-snug hover:underline"
+          >
             {line.product.title}
           </Link>
           <Price micros={line.lineTotalUsdMicros} className="text-[0.9375rem]" />
         </div>
         <p className="mt-1 text-[0.8125rem] text-muted-foreground">
-          {[line.colour, line.size && `Size ${line.size}`].filter(Boolean).join(" · ") || line.variantName}
+          {[line.colour, line.size && `Size ${line.size}`].filter(Boolean).join(" · ") ||
+            line.variantName}
         </p>
         {!compact && line.quantity > 1 && (
           <p className="text-[0.8125rem] text-muted-foreground">
@@ -45,7 +60,11 @@ export function BagLine({
           </p>
         )}
         <div className="mt-auto flex items-center justify-between pt-3">
-          <div className="flex h-9 items-center border border-border" role="group" aria-label={`Quantity of ${line.product.title}`}>
+          <div
+            className="flex h-9 items-center border border-border"
+            role="group"
+            aria-label={`Quantity of ${line.product.title}`}
+          >
             <button
               type="button"
               className="grid size-9 place-items-center disabled:opacity-30"

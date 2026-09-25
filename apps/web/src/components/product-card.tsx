@@ -1,8 +1,7 @@
 "use client";
 import Image from "next/image";
-import Link from "next/link";
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "@/components/link";
+import { useState } from "react";
 import { Heart, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/cn";
@@ -12,7 +11,6 @@ import { useCart } from "@/hooks/use-cart";
 import { useUi } from "@/store/ui";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Price } from "./price";
-import { navigateWithTransition } from "@/lib/view-transition";
 
 /** JSON form of server/catalog.ts ProductCard. */
 export interface CardData {
@@ -50,8 +48,6 @@ export function ProductCard({
   sizes?: string;
 }) {
   const [colourIdx, setColourIdx] = useState(0);
-  const router = useRouter();
-  const media = useRef<HTMLDivElement>(null);
   const [pop, setPop] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const colour = p.colours[colourIdx] ?? p.colours[0];
@@ -61,20 +57,11 @@ export function ProductCard({
   const href =
     colourIdx > 0 && colour ? `${p.href}?colour=${encodeURIComponent(colour.name)}` : p.href;
   const extra = p.colours.length - MAX_SWATCHES;
-  // plain left-clicks morph the card image into the product page hero (View Transitions API)
-  const open = (e: React.MouseEvent) => {
-    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
-      return;
-    e.preventDefault();
-    navigateWithTransition(router, href, media.current);
-  };
-
   return (
     <article className="group/card relative flex flex-col">
-      <div ref={media} className="relative aspect-[3/4] overflow-hidden bg-muted">
+      <div className="relative aspect-[3/4] overflow-hidden bg-muted">
         <Link
           href={href}
-          onClick={open}
           className="absolute inset-0"
           aria-label={`${p.title}${colour ? `, ${colour.name}` : ""}`}
         >
@@ -134,23 +121,21 @@ export function ProductCard({
         </button>
         {!p.soldOut && (
           <>
-            {/* touch: opens the size sheet. Mouse: hidden (sizes appear on hover) but still the keyboard route */}
             <button
               type="button"
               onClick={() => setQuickOpen(true)}
-              className="quick-touch absolute bottom-2 right-2 grid size-9 place-items-center rounded-full bg-background/90 text-foreground backdrop-blur transition-[opacity,transform] active:scale-90"
+              className="absolute bottom-2 right-2 grid size-9 place-items-center rounded-full bg-background/90 text-foreground shadow-sm backdrop-blur transition-transform active:scale-90 md:size-10"
               aria-label={`Quick add ${p.title}`}
             >
               <Plus className="size-4" strokeWidth={1.5} />
             </button>
-            <InlineSizes p={p} colourIdx={colourIdx} />
           </>
         )}
       </div>
 
       <div className="flex flex-col gap-1 px-0.5 pb-2 pt-3">
         <h3 className="text-[0.8125rem] leading-snug md:text-[0.875rem]">
-          <Link href={href} onClick={open} className="hover:underline hover:underline-offset-4">
+          <Link href={href} className="hover:underline hover:underline-offset-4">
             {p.title}
           </Link>
         </h3>
@@ -231,54 +216,6 @@ function useQuickAdd(p: CardData, colourIdx: number) {
     }
   }
   return { colour, adding, add };
-}
-
-/**
- * Mouse users: the sizes of the shown colour slide up over the image on hover; one click adds to the bag.
- * Hidden from assistive tech and the tab order — keyboard and screen-reader users use the "Quick add" button,
- * which opens the same choice in an accessible sheet.
- */
-function InlineSizes({ p, colourIdx }: { p: CardData; colourIdx: number }) {
-  const { colour, adding, add } = useQuickAdd(p, colourIdx);
-  const sizes = p.sizes
-    .map((s) => ({ size: s.size, v: s.variants.find((x) => x.colour === colour?.name) }))
-    .filter((s) => !!s.v);
-  if (!sizes.length) return null;
-  const oneSize = sizes.length === 1 && sizes[0]!.size === "One size";
-  return (
-    <div
-      aria-hidden="true"
-      className="quick-inline absolute inset-x-2 bottom-2 z-10 bg-background/92 px-3 py-2.5 backdrop-blur"
-    >
-      <p className="mb-1.5 flex items-center justify-between text-[0.6875rem] text-muted-foreground">
-        <span>{oneSize ? "Quick add" : "Add size"}</span>
-        <span className="truncate pl-2">{colour?.name}</span>
-      </p>
-      <div className="flex flex-wrap gap-1">
-        {sizes.map(({ size, v }) => {
-          const available = !!v && v.stock > 0;
-          return (
-            <button
-              key={size}
-              type="button"
-              tabIndex={-1}
-              disabled={!available || !!adding}
-              onClick={() => v && add(v.variantId, size)}
-              className={cn(
-                "h-8 min-w-8 border border-transparent px-2 text-[0.75rem] tabular transition-[border-color,background-color,color] duration-200 hover:border-foreground",
-                oneSize && "w-full border-border",
-                !available &&
-                  "cursor-not-allowed text-muted-foreground line-through hover:border-transparent",
-                adding === v?.variantId && "animate-pulse bg-foreground text-background",
-              )}
-            >
-              {oneSize ? "Add to bag" : size}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 function QuickAdd({

@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import * as NM from "@radix-ui/react-navigation-menu";

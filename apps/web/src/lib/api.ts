@@ -9,18 +9,48 @@ export class ApiClientError extends Error {
   }
 }
 
+/** Requests fail with a clear message instead of leaving a button spinning forever. */
+const TIMEOUT_MS = 25_000;
+
 export async function api<T = unknown>(
   path: string,
-  init: { method?: string; body?: unknown; signal?: AbortSignal } = {},
+  init: { method?: string; body?: unknown; signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<T> {
-  const res = await fetch(path, {
-    method: init.method ?? (init.body !== undefined ? "POST" : "GET"),
-    headers: init.body !== undefined ? { "content-type": "application/json" } : undefined,
-    body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
-    credentials: "same-origin",
-    signal: init.signal,
-    cache: "no-store",
-  });
+  const ms = init.timeoutMs ?? TIMEOUT_MS;
+  const timeout =
+    typeof AbortSignal.timeout === "function"
+      ? AbortSignal.timeout(ms)
+      : new AbortController().signal;
+  // older browsers without AbortSignal.any keep the caller's signal (the timeout is a best effort there)
+  const signal = init.signal
+    ? typeof AbortSignal.any === "function"
+      ? AbortSignal.any([init.signal, timeout])
+      : init.signal
+    : timeout;
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method: init.method ?? (init.body !== undefined ? "POST" : "GET"),
+      headers: init.body !== undefined ? { "content-type": "application/json" } : undefined,
+      body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+      credentials: "same-origin",
+      signal,
+      cache: "no-store",
+    });
+  } catch (err) {
+    if (timeout.aborted)
+      throw new ApiClientError(
+        0,
+        "timeout",
+        "The server is taking too long to respond. Please try again.",
+      );
+    if (init.signal?.aborted) throw err;
+    throw new ApiClientError(
+      0,
+      "network",
+      "Couldn’t reach the server. Check your connection and try again.",
+    );
+  }
   const text = await res.text();
   let data: unknown = null;
   try {

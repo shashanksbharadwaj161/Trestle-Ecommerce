@@ -19,8 +19,7 @@ function Glyph({ cols }: { cols: 2 | 4 }) {
 
 /**
  * Switches the product grid between the standard density and larger images. The choice is kept in a
- * first-party cookie so the server renders the same layout next time (no shift on load). Where supported,
- * the cards glide to their new positions with a View Transition.
+ * first-party cookie so the server renders the same layout next time (no shift on load).
  */
 export function GridDensity({ initial }: { initial: Density }) {
   const router = useRouter();
@@ -31,34 +30,8 @@ export function GridDensity({ initial }: { initial: Density }) {
     setDensity(next);
     document.cookie = `${DENSITY_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
     const grid = document.querySelector<HTMLElement>("[data-product-grid]");
-    if (!grid) return;
-    const swap = () => {
-      grid.dataset.density = next;
-    };
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const doc = document as Document & {
-      startViewTransition?: (cb: () => void) => { finished: Promise<void> };
-    };
-    if (!doc.startViewTransition || reduce) {
-      swap();
-      router.refresh();
-      return;
-    }
-    // name only the cards on screen so the morph stays cheap on long grids
-    const named: HTMLElement[] = [];
-    const vh = window.innerHeight;
-    grid.querySelectorAll<HTMLElement>(":scope > li").forEach((li, i) => {
-      const r = li.getBoundingClientRect();
-      if (r.bottom > -200 && r.top < vh + 200) {
-        li.style.viewTransitionName = `grid-cell-${i}`;
-        named.push(li);
-      }
-    });
-    const t = doc.startViewTransition(swap);
-    t.finished.finally(() => {
-      named.forEach((li) => (li.style.viewTransitionName = ""));
-      router.refresh(); // re-render so image `sizes` match the new layout
-    });
+    if (grid) grid.dataset.density = next;
+    router.refresh(); // re-render so image `sizes` match the new layout
   }
 
   return (

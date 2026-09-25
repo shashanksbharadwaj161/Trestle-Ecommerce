@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { CreditCard, Lock, ShieldCheck } from "lucide-react";
@@ -103,9 +103,15 @@ export function CheckoutView() {
 
   if (!hydrated || cart.isLoading) {
     return (
-      <div className="container-page grid gap-10 pt-10 md:grid-cols-12">
-        <Skeleton className="h-[480px] md:col-span-7" />
-        <Skeleton className="h-80 md:col-span-5" />
+      <div className="container-page pt-10" aria-busy="true">
+        <h1 className="text-[2rem] tracking-[-0.03em] md:text-[2.5rem]">Checkout</h1>
+        <p className="sr-only" role="status">
+          Loading your bag…
+        </p>
+        <div className="mt-8 grid gap-10 md:grid-cols-12">
+          <Skeleton className="h-[480px] md:col-span-7" />
+          <Skeleton className="h-80 md:col-span-5" />
+        </div>
       </div>
     );
   }
@@ -119,7 +125,8 @@ export function CheckoutView() {
   if (!cart.data || cart.data.lines.length === 0) {
     return (
       <div className="container-page pt-10">
-        <div className="border-y border-border py-20 text-center">
+        <h1 className="text-[2rem] tracking-[-0.03em] md:text-[2.5rem]">Checkout</h1>
+        <div className="mt-8 border-y border-border py-20 text-center">
           <p className="text-lg">Your bag is empty</p>
           <Link href="/women" className="mt-4 inline-block text-sm underline underline-offset-4">
             Continue shopping
@@ -265,6 +272,24 @@ export function CheckoutView() {
                 }
               />
             </div>
+            {options.isError && (
+              <Notice tone="danger" className="mt-4">
+                We couldn’t check which payment methods are available.{" "}
+                <button
+                  type="button"
+                  className="underline underline-offset-2"
+                  onClick={() => options.refetch()}
+                >
+                  Try again
+                </button>
+              </Notice>
+            )}
+            {opts && !opts.card.enabled && !opts.crypto.enabled && (
+              <Notice tone="info" className="mt-4">
+                Checkout isn’t open yet: payments are switched off in this demo store, so orders
+                can’t be placed. Your bag is saved — nothing has been charged.
+              </Notice>
+            )}
             {opts?.card.enabled && method === "card" && (
               <Notice tone="warning" className="mt-4">
                 {opts.card.mode === "mock"

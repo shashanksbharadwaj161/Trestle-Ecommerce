@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RequireAuth } from "@/components/require-auth";
 import { Container, EmptyState, ErrorState, PageHeader } from "@/components/states";
@@ -26,7 +26,10 @@ export default function AdminMessages() {
 
 function Inner() {
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["admin-messages"], queryFn: () => api<{ items: Msg[] }>("/api/admin/messages") });
+  const q = useQuery({
+    queryKey: ["admin-messages"],
+    queryFn: () => api<{ items: Msg[] }>("/api/admin/messages"),
+  });
   const m = useMutation({
     mutationFn: ({ id, handled }: { id: string; handled: boolean }) =>
       api(`/api/admin/messages/${id}`, { method: "PATCH", body: { handled } }),
@@ -34,7 +37,10 @@ function Inner() {
   });
   return (
     <Container className="max-w-4xl">
-      <PageHeader title="Messages" description="From the contact form. Reply from your own mailbox." />
+      <PageHeader
+        title="Messages"
+        description="From the contact form. Reply from your own mailbox."
+      />
       {q.isLoading ? (
         <Skeleton className="h-64" />
       ) : q.isError ? (
@@ -47,14 +53,19 @@ function Inner() {
             <li key={x.id} className="py-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm">
-                  <Badge tone={x.handled ? "neutral" : "warning"}>{x.handled ? "Handled" : "New"}</Badge>
+                  <Badge tone={x.handled ? "neutral" : "warning"}>
+                    {x.handled ? "Handled" : "New"}
+                  </Badge>
                   <span className="font-medium">{x.name}</span>
                   <a href={`mailto:${x.email}`} className="text-muted-foreground underline">
                     {x.email}
                   </a>
                   <span className="text-muted-foreground">· {x.topic}</span>
                   {x.orderRef && (
-                    <Link href={`/admin/orders?q=${encodeURIComponent(x.orderRef)}`} className="text-muted-foreground underline">
+                    <Link
+                      href={`/admin/orders?q=${encodeURIComponent(x.orderRef)}`}
+                      className="text-muted-foreground underline"
+                    >
                       {x.orderRef}
                     </Link>
                   )}
@@ -62,7 +73,12 @@ function Inner() {
                 <span className="text-xs text-muted-foreground">{dateTime(x.createdAt)}</span>
               </div>
               <p className="mt-2 whitespace-pre-wrap text-sm">{x.message}</p>
-              <Button size="sm" variant="ghost" className="mt-2" onClick={() => m.mutate({ id: x.id, handled: !x.handled })}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="mt-2"
+                onClick={() => m.mutate({ id: x.id, handled: !x.handled })}
+              >
                 Mark as {x.handled ? "new" : "handled"}
               </Button>
             </li>

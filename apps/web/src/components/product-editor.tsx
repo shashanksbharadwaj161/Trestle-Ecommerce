@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -46,7 +46,14 @@ interface EditableProduct {
     width: number | null;
     height: number | null;
   }[];
-  variants: { id: string; sku: string; colour: string | null; colourHex: string | null; size: string | null; stock: number }[];
+  variants: {
+    id: string;
+    sku: string;
+    colour: string | null;
+    colourHex: string | null;
+    size: string | null;
+    stock: number;
+  }[];
   collections: { collection: { slug: string } }[];
 }
 
@@ -96,7 +103,9 @@ export function ProductEditor({
   });
   if (productId && q.isLoading) return <Skeleton className="h-[600px]" />;
   if (productId && q.isError) return <p className="text-danger">{errorMessage(q.error)}</p>;
-  return <EditorForm initial={q.data?.product ?? null} backHref={backHref} sellerParam={sellerParam} />;
+  return (
+    <EditorForm initial={q.data?.product ?? null} backHref={backHref} sellerParam={sellerParam} />
+  );
 }
 
 function EditorForm({
@@ -126,7 +135,9 @@ function EditorForm({
   const [sizeChartKey, setSizeChartKey] = useState(initial?.sizeChartKey ?? "women-tops");
   const [status, setStatus] = useState<EditableProduct["status"]>(initial?.status ?? "DRAFT");
   const [featured, setFeatured] = useState(initial?.featured ?? false);
-  const [cols, setCols] = useState<string[]>(initial?.collections.map((c) => c.collection.slug) ?? []);
+  const [cols, setCols] = useState<string[]>(
+    initial?.collections.map((c) => c.collection.slug) ?? [],
+  );
   const [images, setImages] = useState(
     initial?.gallery.map((g) => ({ ...g, colour: g.colour ?? "" })) ?? [],
   );
@@ -173,7 +184,9 @@ function EditorForm({
   function applySizes(list: string[]) {
     const base = skuPart(title || "ITEM");
     const next: VariantDraft[] = [];
-    for (const [colour, hex] of colours.length ? colours : [["Default", "#cccccc"] as [string, string]]) {
+    for (const [colour, hex] of colours.length
+      ? colours
+      : [["Default", "#cccccc"] as [string, string]]) {
       for (const size of list) {
         next.push(
           variants.find((v) => v.colour === colour && v.size === size) ?? {
@@ -229,8 +242,14 @@ function EditorForm({
         })),
       };
       return initial
-        ? api<{ product: EditableProduct }>(`/api/products/${initial.id}`, { method: "PATCH", body })
-        : api<{ product: EditableProduct }>(`/api/products${sellerParam ? `?seller=${encodeURIComponent(sellerParam)}` : ""}`, { body });
+        ? api<{ product: EditableProduct }>(`/api/products/${initial.id}`, {
+            method: "PATCH",
+            body,
+          })
+        : api<{ product: EditableProduct }>(
+            `/api/products${sellerParam ? `?seller=${encodeURIComponent(sellerParam)}` : ""}`,
+            { body },
+          );
     },
     onSuccess: (r) => {
       toast.success(initial ? "Product saved" : "Product created");
@@ -239,7 +258,10 @@ function EditorForm({
       if (!initial) router.replace(`${backHref}/${r.product.id}`);
     },
     onError: (err) => {
-      const fe = err instanceof ApiClientError ? (err.details as { fieldErrors?: Record<string, string[]> })?.fieldErrors : null;
+      const fe =
+        err instanceof ApiClientError
+          ? (err.details as { fieldErrors?: Record<string, string[]> })?.fieldErrors
+          : null;
       if (fe) setErrors(Object.fromEntries(Object.entries(fe).map(([k, v]) => [k, v[0] ?? ""])));
       toast.error(errorMessage(err));
     },
@@ -277,14 +299,40 @@ function EditorForm({
           <Field label="Title" htmlFor="p-title" error={errors.title} className="md:col-span-2">
             <Input id="p-title" value={title} onChange={(e) => setTitle(e.target.value)} required />
           </Field>
-          <Field label="Description" htmlFor="p-desc" error={errors.description} className="md:col-span-2">
-            <Textarea id="p-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={4} required />
+          <Field
+            label="Description"
+            htmlFor="p-desc"
+            error={errors.description}
+            className="md:col-span-2"
+          >
+            <Textarea
+              id="p-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+              required
+            />
           </Field>
-          <Field label="Price (USD)" htmlFor="p-price" error={errors.price} hint="Whole cents, e.g. 129.00">
-            <Input id="p-price" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} required />
+          <Field
+            label="Price (USD)"
+            htmlFor="p-price"
+            error={errors.price}
+            hint="Whole cents, e.g. 129.00"
+          >
+            <Input
+              id="p-price"
+              inputMode="decimal"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              required
+            />
           </Field>
           <Field label="Status" htmlFor="p-status">
-            <Select id="p-status" value={status} onChange={(e) => setStatus(e.target.value as EditableProduct["status"])}>
+            <Select
+              id="p-status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as EditableProduct["status"])}
+            >
               <option value="DRAFT">Draft (hidden)</option>
               <option value="ACTIVE">Active (for sale)</option>
               <option value="ARCHIVED">Archived</option>
@@ -309,10 +357,15 @@ function EditorForm({
             </Select>
           </Field>
           <Field label="Style (subcategory)" htmlFor="p-sub" hint="e.g. Maxi dresses">
-            <Input id="p-sub" value={subcategory} onChange={(e) => setSubcategory(e.target.value)} />
+            <Input
+              id="p-sub"
+              value={subcategory}
+              onChange={(e) => setSubcategory(e.target.value)}
+            />
           </Field>
           <label className="flex items-center gap-3 self-end pb-3 text-sm">
-            <Checkbox checked={featured} onCheckedChange={(v) => setFeatured(v === true)} /> Featured (sorted first)
+            <Checkbox checked={featured} onCheckedChange={(v) => setFeatured(v === true)} />{" "}
+            Featured (sorted first)
           </label>
         </div>
       </Section>
@@ -329,7 +382,11 @@ function EditorForm({
             <Textarea id="p-care" value={care} onChange={(e) => setCare(e.target.value)} rows={3} />
           </Field>
           <Field label="Size chart" htmlFor="p-chart">
-            <Select id="p-chart" value={sizeChartKey} onChange={(e) => setSizeChartKey(e.target.value)}>
+            <Select
+              id="p-chart"
+              value={sizeChartKey}
+              onChange={(e) => setSizeChartKey(e.target.value)}
+            >
               <option value="">None</option>
               {Object.values(SIZE_CHARTS).map((c) => (
                 <option key={c.key} value={c.key}>
@@ -350,7 +407,9 @@ function EditorForm({
               <label key={c.slug} className="flex items-center gap-2.5 text-sm">
                 <Checkbox
                   checked={cols.includes(c.slug)}
-                  onCheckedChange={(v) => setCols(v === true ? [...cols, c.slug] : cols.filter((x) => x !== c.slug))}
+                  onCheckedChange={(v) =>
+                    setCols(v === true ? [...cols, c.slug] : cols.filter((x) => x !== c.slug))
+                  }
                 />
                 {c.title}
               </label>
@@ -366,7 +425,10 @@ function EditorForm({
         {errors.images && <p className="mb-3 text-sm text-danger">{errors.images}</p>}
         <ul className="space-y-3">
           {images.map((img, i) => (
-            <li key={`${img.url}-${i}`} className="flex flex-wrap items-start gap-4 border border-border p-3">
+            <li
+              key={`${img.url}-${i}`}
+              className="flex flex-wrap items-start gap-4 border border-border p-3"
+            >
               <div className="w-16 shrink-0">
                 <div className="relative aspect-[3/4] w-16 bg-muted">
                   {img.url.startsWith("/") ? (
@@ -377,15 +439,46 @@ function EditorForm({
                   ) : null}
                 </div>
                 {img.width && img.height ? (
-                  <p className={cn("mt-1 text-[10px]", Math.max(img.width, img.height) < 1600 ? "text-warning" : "text-muted-foreground")}>
+                  <p
+                    className={cn(
+                      "mt-1 text-[10px]",
+                      Math.max(img.width, img.height) < 1600
+                        ? "text-warning"
+                        : "text-muted-foreground",
+                    )}
+                  >
                     {img.width}×{img.height}
                   </p>
                 ) : null}
               </div>
               <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2">
-                <Input aria-label="Image URL" value={img.url} onChange={(e) => setImages(images.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))} className="h-10 text-xs sm:col-span-2" />
-                <Input aria-label="Alt text" placeholder="Alt text (what the image shows)" value={img.alt} onChange={(e) => setImages(images.map((x, j) => (j === i ? { ...x, alt: e.target.value } : x)))} className="h-10" />
-                <Select aria-label="Colour shown" value={img.colour} onChange={(e) => setImages(images.map((x, j) => (j === i ? { ...x, colour: e.target.value } : x)))} className="h-10">
+                <Input
+                  aria-label="Image URL"
+                  value={img.url}
+                  onChange={(e) =>
+                    setImages(images.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))
+                  }
+                  className="h-10 text-xs sm:col-span-2"
+                />
+                <Input
+                  aria-label="Alt text"
+                  placeholder="Alt text (what the image shows)"
+                  value={img.alt}
+                  onChange={(e) =>
+                    setImages(images.map((x, j) => (j === i ? { ...x, alt: e.target.value } : x)))
+                  }
+                  className="h-10"
+                />
+                <Select
+                  aria-label="Colour shown"
+                  value={img.colour}
+                  onChange={(e) =>
+                    setImages(
+                      images.map((x, j) => (j === i ? { ...x, colour: e.target.value } : x)),
+                    )
+                  }
+                  className="h-10"
+                >
                   <option value="">All colours</option>
                   {colours.map(([c]) => (
                     <option key={c}>{c}</option>
@@ -393,13 +486,24 @@ function EditorForm({
                 </Select>
               </div>
               <div className="flex gap-1">
-                <IconBtn label="Move up" disabled={i === 0} onClick={() => setImages(move(images, i, -1))}>
+                <IconBtn
+                  label="Move up"
+                  disabled={i === 0}
+                  onClick={() => setImages(move(images, i, -1))}
+                >
                   <ArrowUp />
                 </IconBtn>
-                <IconBtn label="Move down" disabled={i === images.length - 1} onClick={() => setImages(move(images, i, 1))}>
+                <IconBtn
+                  label="Move down"
+                  disabled={i === images.length - 1}
+                  onClick={() => setImages(move(images, i, 1))}
+                >
                   <ArrowDown />
                 </IconBtn>
-                <IconBtn label="Remove image" onClick={() => setImages(images.filter((_, j) => j !== i))}>
+                <IconBtn
+                  label="Remove image"
+                  onClick={() => setImages(images.filter((_, j) => j !== i))}
+                >
                   <Trash2 />
                 </IconBtn>
               </div>
@@ -410,12 +514,27 @@ function EditorForm({
           onUploaded={(u) =>
             setImages((prev) => [
               ...prev,
-              { url: u.url, alt: title ? `${title}` : "Product image", colour: "", credit: null, license: null, sourceUrl: null, width: u.width, height: u.height },
+              {
+                url: u.url,
+                alt: title ? `${title}` : "Product image",
+                colour: "",
+                credit: null,
+                license: null,
+                sourceUrl: null,
+                width: u.width,
+                height: u.height,
+              },
             ])
           }
         />
         <div className="mt-3 flex gap-2">
-          <Input aria-label="New image URL" placeholder="https://… or /images/…" value={newImage} onChange={(e) => setNewImage(e.target.value)} className="h-10" />
+          <Input
+            aria-label="New image URL"
+            placeholder="https://… or /images/…"
+            value={newImage}
+            onChange={(e) => setNewImage(e.target.value)}
+            className="h-10"
+          />
           <Button
             type="button"
             variant="outline"
@@ -423,7 +542,19 @@ function EditorForm({
             className="h-10"
             onClick={() => {
               if (!newImage.trim()) return;
-              setImages([...images, { url: newImage.trim(), alt: title || "Product image", colour: "", credit: null, license: null, sourceUrl: null, width: null, height: null }]);
+              setImages([
+                ...images,
+                {
+                  url: newImage.trim(),
+                  alt: title || "Product image",
+                  colour: "",
+                  credit: null,
+                  license: null,
+                  sourceUrl: null,
+                  width: null,
+                  height: null,
+                },
+              ]);
               setNewImage("");
             }}
           >
@@ -432,24 +563,50 @@ function EditorForm({
         </div>
       </Section>
 
-      <Section title="Colours, sizes & stock" description="Each colour × size is a SKU with its own stock. Stock 0 shows as sold out.">
+      <Section
+        title="Colours, sizes & stock"
+        description="Each colour × size is a SKU with its own stock. Stock 0 shows as sold out."
+      >
         {errors.variants && <p className="mb-3 text-sm text-danger">{errors.variants}</p>}
         <div className="flex flex-wrap items-end gap-3">
           <Field label="Size range" htmlFor="p-preset">
-            <Select id="p-preset" value={preset} onChange={(e) => setPreset(e.target.value)} className="h-10 w-52">
+            <Select
+              id="p-preset"
+              value={preset}
+              onChange={(e) => setPreset(e.target.value)}
+              className="h-10 w-52"
+            >
               {Object.keys(SIZE_PRESETS).map((k) => (
                 <option key={k}>{k}</option>
               ))}
             </Select>
           </Field>
-          <Button type="button" variant="outline" size="sm" className="h-10" onClick={() => applySizes(SIZE_PRESETS[preset]!)}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-10"
+            onClick={() => applySizes(SIZE_PRESETS[preset]!)}
+          >
             Apply sizes
           </Button>
           <span className="mx-2 hidden h-10 w-px bg-border sm:block" />
           <Field label="New colour" htmlFor="p-ncol">
             <div className="flex gap-2">
-              <Input id="p-ncol" placeholder="e.g. Ecru" value={newColour.name} onChange={(e) => setNewColour({ ...newColour, name: e.target.value })} className="h-10 w-36" />
-              <input aria-label="Colour swatch" type="color" value={newColour.hex} onChange={(e) => setNewColour({ ...newColour, hex: e.target.value })} className="h-10 w-12 cursor-pointer border border-input bg-card p-1" />
+              <Input
+                id="p-ncol"
+                placeholder="e.g. Ecru"
+                value={newColour.name}
+                onChange={(e) => setNewColour({ ...newColour, name: e.target.value })}
+                className="h-10 w-36"
+              />
+              <input
+                aria-label="Colour swatch"
+                type="color"
+                value={newColour.hex}
+                onChange={(e) => setNewColour({ ...newColour, hex: e.target.value })}
+                className="h-10 w-12 cursor-pointer border border-input bg-card p-1"
+              />
             </div>
           </Field>
           <Button type="button" variant="outline" size="sm" className="h-10" onClick={addColour}>
@@ -468,19 +625,37 @@ function EditorForm({
                       type="color"
                       aria-label={`${colour} swatch`}
                       value={hex}
-                      onChange={(e) => setVariants(variants.map((v) => (v.colour === colour ? { ...v, colourHex: e.target.value } : v)))}
+                      onChange={(e) =>
+                        setVariants(
+                          variants.map((v) =>
+                            v.colour === colour ? { ...v, colourHex: e.target.value } : v,
+                          ),
+                        )
+                      }
                       className="size-7 cursor-pointer border border-input bg-card p-0.5"
                     />
                     {colour}
                     <span className="text-muted-foreground">
-                      · {variants.filter((v) => v.colour === colour).reduce((s, v) => s + Number(v.stock || 0), 0)} in stock
+                      ·{" "}
+                      {variants
+                        .filter((v) => v.colour === colour)
+                        .reduce((s, v) => s + Number(v.stock || 0), 0)}{" "}
+                      in stock
                     </span>
                   </div>
-                  <IconBtn label={`Remove ${colour}`} onClick={() => setVariants(variants.filter((v) => v.colour !== colour))}>
+                  <IconBtn
+                    label={`Remove ${colour}`}
+                    onClick={() => setVariants(variants.filter((v) => v.colour !== colour))}
+                  >
                     <X />
                   </IconBtn>
                 </div>
-                <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Table (scrolls horizontally)">
+                <div
+                  className="overflow-x-auto"
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Table (scrolls horizontally)"
+                >
                   <table className="w-full min-w-[520px] text-sm">
                     <thead className="text-left text-xs text-muted-foreground">
                       <tr>
@@ -497,7 +672,18 @@ function EditorForm({
                           <tr key={`${v.colour}-${v.size}`} className="border-t border-border">
                             <td className="px-3 py-2">{v.size}</td>
                             <td className="px-3 py-2">
-                              <Input aria-label={`SKU ${colour} ${v.size}`} value={v.sku} onChange={(e) => setVariants(variants.map((x, j) => (j === idx ? { ...x, sku: e.target.value } : x)))} className="h-9 font-mono text-xs" />
+                              <Input
+                                aria-label={`SKU ${colour} ${v.size}`}
+                                value={v.sku}
+                                onChange={(e) =>
+                                  setVariants(
+                                    variants.map((x, j) =>
+                                      j === idx ? { ...x, sku: e.target.value } : x,
+                                    ),
+                                  )
+                                }
+                                className="h-9 font-mono text-xs"
+                              />
                             </td>
                             <td className="px-3 py-2">
                               <Input
@@ -505,7 +691,15 @@ function EditorForm({
                                 type="number"
                                 min={0}
                                 value={v.stock}
-                                onChange={(e) => setVariants(variants.map((x, j) => (j === idx ? { ...x, stock: Math.max(0, Number(e.target.value)) } : x)))}
+                                onChange={(e) =>
+                                  setVariants(
+                                    variants.map((x, j) =>
+                                      j === idx
+                                        ? { ...x, stock: Math.max(0, Number(e.target.value)) }
+                                        : x,
+                                    ),
+                                  )
+                                }
                                 className={cn("h-9 w-24", Number(v.stock) === 0 && "text-danger")}
                               />
                             </td>
@@ -529,16 +723,29 @@ function EditorForm({
   );
 }
 
-function UploadButton({ onUploaded }: { onUploaded: (u: { url: string; width: number; height: number }) => void }) {
-  const driver = useQuery({ queryKey: ["upload-driver"], queryFn: () => api<{ driver: string | null }>("/api/uploads") });
+function UploadButton({
+  onUploaded,
+}: {
+  onUploaded: (u: { url: string; width: number; height: number }) => void;
+}) {
+  const driver = useQuery({
+    queryKey: ["upload-driver"],
+    queryFn: () => api<{ driver: string | null }>("/api/uploads"),
+  });
   const [busy, setBusy] = useState(false);
   if (driver.isLoading) return null;
   if (!driver.data?.driver)
-    return <p className="mt-4 text-[0.8125rem] text-muted-foreground">Image uploads are not configured on this deployment — paste image URLs below.</p>;
+    return (
+      <p className="mt-4 text-[0.8125rem] text-muted-foreground">
+        Image uploads are not configured on this deployment — paste image URLs below.
+      </p>
+    );
   return (
     <label className="mt-4 flex cursor-pointer items-center justify-center gap-2 border border-dashed border-input px-4 py-6 text-sm text-muted-foreground transition-colors hover:border-foreground hover:text-foreground">
       <Plus className="size-4" />
-      {busy ? "Uploading…" : "Upload images (JPEG, PNG, WebP or AVIF · 1600–2000px long edge recommended)"}
+      {busy
+        ? "Uploading…"
+        : "Upload images (JPEG, PNG, WebP or AVIF · 1600–2000px long edge recommended)"}
       <input
         type="file"
         multiple
@@ -553,11 +760,18 @@ function UploadButton({ onUploaded }: { onUploaded: (u: { url: string; width: nu
             const fd = new FormData();
             fd.append("file", f);
             try {
-              const res = await fetch("/api/uploads", { method: "POST", body: fd, credentials: "same-origin" });
+              const res = await fetch("/api/uploads", {
+                method: "POST",
+                body: fd,
+                credentials: "same-origin",
+              });
               const data = await res.json();
               if (!res.ok) throw new Error(data?.error?.message ?? `Upload failed (${res.status})`);
               onUploaded(data);
-              if (!data.recommended) toast.warning(`${f.name}: ${data.width}×${data.height}px — below the 1600px recommended for zoom`);
+              if (!data.recommended)
+                toast.warning(
+                  `${f.name}: ${data.width}×${data.height}px — below the 1600px recommended for zoom`,
+                );
             } catch (err) {
               toast.error(`${f.name}: ${(err as Error).message}`);
             }
@@ -576,21 +790,48 @@ function move<T>(list: T[], i: number, d: number): T[] {
   return next;
 }
 
-function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="grid gap-6 border-t border-border pt-8 lg:grid-cols-[240px_1fr]">
       <div>
         <h2 className="text-[0.9375rem] font-medium">{title}</h2>
-        {description && <p className="mt-1 text-[0.8125rem] text-muted-foreground">{description}</p>}
+        {description && (
+          <p className="mt-1 text-[0.8125rem] text-muted-foreground">{description}</p>
+        )}
       </div>
       <div>{children}</div>
     </section>
   );
 }
 
-function IconBtn({ label, onClick, disabled, children }: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
+function IconBtn({
+  label,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled} className="grid size-9 place-items-center text-muted-foreground hover:text-foreground disabled:opacity-30 [&_svg]:size-4">
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      disabled={disabled}
+      className="grid size-9 place-items-center text-muted-foreground hover:text-foreground disabled:opacity-30 [&_svg]:size-4"
+    >
       {children}
     </button>
   );

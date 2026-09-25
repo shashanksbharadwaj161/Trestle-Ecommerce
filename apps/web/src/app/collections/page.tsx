@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/link";
 import { listCollections } from "@/server/catalog";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
@@ -11,7 +11,9 @@ export default async function Page() {
   return (
     <div className="container-page pt-6 md:pt-8">
       <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Collections" }]} />
-      <h1 className="mt-6 text-[2rem] tracking-[-0.03em] md:mt-10 md:text-[2.75rem]">Collections</h1>
+      <h1 className="mt-6 text-[2rem] tracking-[-0.03em] md:mt-10 md:text-[2.75rem]">
+        Collections
+      </h1>
       {cols.length === 0 ? (
         <p className="mt-10 text-muted-foreground">No collections are published yet.</p>
       ) : (
@@ -33,7 +35,9 @@ export default async function Page() {
                 </div>
                 <div className="mt-4 flex items-baseline justify-between gap-4">
                   <h2 className="text-xl tracking-tight">{c.title}</h2>
-                  <span className="tabular text-sm text-muted-foreground">{c._count.products} pieces</span>
+                  <span className="tabular text-sm text-muted-foreground">
+                    {c._count.products} pieces
+                  </span>
                 </div>
                 <p className="mt-1 max-w-md text-sm text-muted-foreground">{c.description}</p>
               </Link>

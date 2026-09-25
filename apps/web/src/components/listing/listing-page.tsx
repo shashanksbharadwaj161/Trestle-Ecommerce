@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/link";
 import { CATEGORY_LABEL, type Category, type Department } from "@trestle/shared";
 import { productQuery } from "@/lib/schemas";
 import { listCatalog } from "@/server/catalog";

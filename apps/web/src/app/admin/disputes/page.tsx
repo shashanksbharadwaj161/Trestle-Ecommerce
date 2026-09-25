@@ -1,6 +1,6 @@
 "use client";
 import { CryptoProviders } from "@/components/crypto-providers";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Gavel, Scale } from "lucide-react";

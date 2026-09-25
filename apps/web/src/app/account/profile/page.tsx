@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -12,7 +12,9 @@ import { shortAddress } from "@/lib/format";
 import type { SessionUser } from "@/hooks/use-session";
 
 export default function ProfilePage() {
-  return <RequireAuth title="Sign in to manage your profile">{(u) => <Profile user={u} />}</RequireAuth>;
+  return (
+    <RequireAuth title="Sign in to manage your profile">{(u) => <Profile user={u} />}</RequireAuth>
+  );
 }
 
 function Profile({ user }: { user: SessionUser }) {
@@ -54,16 +56,28 @@ function Profile({ user }: { user: SessionUser }) {
           }}
         >
           <Field label="Name" htmlFor="pname" className="flex-1">
-            <Input id="pname" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
+            <Input
+              id="pname"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoComplete="name"
+            />
           </Field>
-          <Button type="submit" variant="outline" loading={saveName.isPending} disabled={!name.trim()}>
+          <Button
+            type="submit"
+            variant="outline"
+            loading={saveName.isPending}
+            disabled={!name.trim()}
+          >
             Save
           </Button>
         </form>
       </section>
 
       <section className="border-t border-border py-8">
-        <h2 className="text-[0.9375rem] font-medium">{user.hasPassword ? "Email & password" : "Add email sign-in"}</h2>
+        <h2 className="text-[0.9375rem] font-medium">
+          {user.hasPassword ? "Email & password" : "Add email sign-in"}
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {user.hasPassword
             ? "Change the email or password you sign in with."
@@ -77,15 +91,41 @@ function Profile({ user }: { user: SessionUser }) {
           }}
         >
           <Field label="Email" htmlFor="cemail">
-            <Input id="cemail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
+            <Input
+              id="cemail"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              required
+            />
           </Field>
           {user.hasPassword && (
             <Field label="Current password" htmlFor="cur">
-              <Input id="cur" type="password" value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" required />
+              <Input
+                id="cur"
+                type="password"
+                value={current}
+                onChange={(e) => setCurrent(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
             </Field>
           )}
-          <Field label={user.hasPassword ? "New password" : "Password"} htmlFor="npw" hint="At least 10 characters.">
-            <Input id="npw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={10} required />
+          <Field
+            label={user.hasPassword ? "New password" : "Password"}
+            htmlFor="npw"
+            hint="At least 10 characters."
+          >
+            <Input
+              id="npw"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              minLength={10}
+              required
+            />
           </Field>
           {saveCreds.isError && (
             <p role="alert" className="text-sm text-danger">
@@ -103,14 +143,17 @@ function Profile({ user }: { user: SessionUser }) {
         <p className="mt-1 text-sm text-muted-foreground">
           {user.walletAddress ? (
             <>
-              Linked: <span className="font-mono">{shortAddress(user.walletAddress)}</span>. Used for stablecoin escrow,
-              reputation and loyalty.
+              Linked: <span className="font-mono">{shortAddress(user.walletAddress)}</span>. Used
+              for stablecoin escrow, reputation and loyalty.
             </>
           ) : (
             "No wallet linked. You only need one to pay with stablecoins."
           )}
         </p>
-        <Link href="/account/wallet" className="mt-3 inline-block text-sm underline underline-offset-4">
+        <Link
+          href="/account/wallet"
+          className="mt-3 inline-block text-sm underline underline-offset-4"
+        >
           {user.walletAddress ? "Wallet & escrow" : "Link a wallet"}
         </Link>
       </section>

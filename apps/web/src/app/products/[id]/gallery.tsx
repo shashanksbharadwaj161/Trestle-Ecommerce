@@ -33,8 +33,6 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
               key={img.url}
               type="button"
               onClick={() => setZoomAt(i)}
-              data-vt-hero={i === 0 ? "" : undefined}
-              style={i === 0 ? { viewTransitionName: "product-hero" } : undefined}
               className="relative block aspect-[3/4] w-full bg-muted"
               aria-label={`Zoom image ${i + 1}: ${img.alt}`}
             >
@@ -56,8 +54,6 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
             <button
               type="button"
               onClick={() => setZoomAt(i)}
-              data-vt-hero={i === 0 ? "" : undefined}
-              style={i === 0 ? { viewTransitionName: "product-hero" } : undefined}
               onPointerMove={(e) => {
                 const r = e.currentTarget.getBoundingClientRect();
                 e.currentTarget.style.setProperty(

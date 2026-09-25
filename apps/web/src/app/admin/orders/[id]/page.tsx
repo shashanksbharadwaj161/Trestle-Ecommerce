@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/link";
 import { use, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -28,7 +28,13 @@ interface Detail {
     shippingAddress: Record<string, string> | null;
     seller: { storefrontName: string };
     buyer: { displayName: string | null; email: string | null } | null;
-    items: { id: string; titleSnapshot: string; variantSnapshot: string; quantity: number; unitPriceUsdMicros: string }[];
+    items: {
+      id: string;
+      titleSnapshot: string;
+      variantSnapshot: string;
+      quantity: number;
+      unitPriceUsdMicros: string;
+    }[];
     cardPayment: {
       id: string;
       status: string;
@@ -53,7 +59,10 @@ export default function AdminOrder({ params }: { params: Promise<{ id: string }>
 
 function Inner({ id }: { id: string }) {
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["admin-order", id], queryFn: () => api<Detail>(`/api/admin/orders/${id}`) });
+  const q = useQuery({
+    queryKey: ["admin-order", id],
+    queryFn: () => api<Detail>(`/api/admin/orders/${id}`),
+  });
   const [carrier, setCarrier] = useState("UPS");
   const [tracking, setTracking] = useState("");
   const [refund, setRefund] = useState("");
@@ -98,8 +107,15 @@ function Inner({ id }: { id: string }) {
       />
       {o.paymentMethod === "CRYPTO" && (
         <Notice tone="info" className="mb-8">
-          Stablecoin order: funds are governed by the escrow contract. Use <Link href={`/orders/${o.id}`} className="underline">the order page</Link> and{" "}
-          <Link href="/admin/disputes" className="underline">escrow disputes</Link>.
+          Stablecoin order: funds are governed by the escrow contract. Use{" "}
+          <Link href={`/orders/${o.id}`} className="underline">
+            the order page
+          </Link>{" "}
+          and{" "}
+          <Link href="/admin/disputes" className="underline">
+            escrow disputes
+          </Link>
+          .
         </Notice>
       )}
       <div className="grid gap-10 md:grid-cols-2">
@@ -109,7 +125,10 @@ function Inner({ id }: { id: string }) {
             {o.items.map((i) => (
               <li key={i.id} className="flex justify-between gap-3 py-3">
                 <span>
-                  {i.titleSnapshot} <span className="text-muted-foreground">· {i.variantSnapshot} ×{i.quantity}</span>
+                  {i.titleSnapshot}{" "}
+                  <span className="text-muted-foreground">
+                    · {i.variantSnapshot} ×{i.quantity}
+                  </span>
                 </span>
                 <Price micros={(BigInt(i.unitPriceUsdMicros) * BigInt(i.quantity)).toString()} />
               </li>
@@ -118,11 +137,13 @@ function Inner({ id }: { id: string }) {
           <h2 className="mt-8 text-[0.9375rem] font-medium">Ship to</h2>
           {addr ? (
             <address className="mt-2 text-sm not-italic text-muted-foreground">
-              {Object.values(addr).filter(Boolean).map((l, i) => (
-                <span key={i} className="block">
-                  {l}
-                </span>
-              ))}
+              {Object.values(addr)
+                .filter(Boolean)
+                .map((l, i) => (
+                  <span key={i} className="block">
+                    {l}
+                  </span>
+                ))}
             </address>
           ) : (
             <p className="mt-2 text-sm text-muted-foreground">No address yet.</p>
@@ -159,12 +180,25 @@ function Inner({ id }: { id: string }) {
             >
               <h3 className="text-sm font-medium">Mark as shipped</h3>
               <div className="grid grid-cols-[120px_1fr] gap-2">
-                <Select aria-label="Carrier" value={carrier} onChange={(e) => setCarrier(e.target.value)} className="h-10">
+                <Select
+                  aria-label="Carrier"
+                  value={carrier}
+                  onChange={(e) => setCarrier(e.target.value)}
+                  className="h-10"
+                >
                   {["UPS", "USPS", "FEDEX", "DHL", "OTHER"].map((c) => (
                     <option key={c}>{c}</option>
                   ))}
                 </Select>
-                <Input aria-label="Tracking number" placeholder="Tracking number" value={tracking} onChange={(e) => setTracking(e.target.value)} className="h-10" required minLength={4} />
+                <Input
+                  aria-label="Tracking number"
+                  placeholder="Tracking number"
+                  value={tracking}
+                  onChange={(e) => setTracking(e.target.value)}
+                  className="h-10"
+                  required
+                  minLength={4}
+                />
               </div>
               <Button type="submit" size="sm" loading={fulfil.isPending}>
                 Mark shipped
@@ -176,7 +210,12 @@ function Inner({ id }: { id: string }) {
               <p className="text-sm">
                 Shipped {o.shippedAt ? dateTime(o.shippedAt) : ""} · {o.carrier} {o.trackingNumber}
               </p>
-              <Button size="sm" className="mt-3" onClick={() => fulfil.mutate({ action: "deliver" })} loading={fulfil.isPending}>
+              <Button
+                size="sm"
+                className="mt-3"
+                onClick={() => fulfil.mutate({ action: "deliver" })}
+                loading={fulfil.isPending}
+              >
                 Mark delivered
               </Button>
             </div>
@@ -184,13 +223,17 @@ function Inner({ id }: { id: string }) {
           {p && o.status === "PROCESSING" && (
             <div className="border border-border p-4">
               <h3 className="text-sm font-medium">Cancel & refund</h3>
-              <p className="mt-1 text-xs text-muted-foreground">Refunds this order’s share of the payment and returns the items to stock.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Refunds this order’s share of the payment and returns the items to stock.
+              </p>
               <Button
                 size="sm"
                 variant="danger"
                 className="mt-3"
                 loading={act.isPending}
-                onClick={() => confirm("Cancel this order and refund it?") && act.mutate({ action: "cancel" })}
+                onClick={() =>
+                  confirm("Cancel this order and refund it?") && act.mutate({ action: "cancel" })
+                }
               >
                 Cancel order
               </Button>
@@ -207,8 +250,17 @@ function Inner({ id }: { id: string }) {
               }}
             >
               <h3 className="text-sm font-medium">Partial refund</h3>
-              <Field label={`Amount (USD, max ${formatCents(p.totalCents - p.refundedCents)})`} htmlFor="refund">
-                <Input id="refund" inputMode="decimal" value={refund} onChange={(e) => setRefund(e.target.value)} className="h-10" />
+              <Field
+                label={`Amount (USD, max ${formatCents(p.totalCents - p.refundedCents)})`}
+                htmlFor="refund"
+              >
+                <Input
+                  id="refund"
+                  inputMode="decimal"
+                  value={refund}
+                  onChange={(e) => setRefund(e.target.value)}
+                  className="h-10"
+                />
               </Field>
               <Button type="submit" size="sm" variant="outline" loading={act.isPending}>
                 Issue refund
@@ -225,7 +277,10 @@ function Inner({ id }: { id: string }) {
                   </li>
                 ))}
               </ul>
-              <Link href="/admin/returns" className="mt-2 inline-block text-sm underline underline-offset-4">
+              <Link
+                href="/admin/returns"
+                className="mt-2 inline-block text-sm underline underline-offset-4"
+              >
                 Manage returns
               </Link>
             </div>

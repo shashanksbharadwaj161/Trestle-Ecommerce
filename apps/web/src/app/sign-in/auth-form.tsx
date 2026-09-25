@@ -1,11 +1,12 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { api, ApiClientError, errorMessage } from "@/lib/api";
+import { signalNavigation } from "@/components/navigation-progress";
 
 function safeNext(n: string | null) {
   // only same-site relative paths
@@ -39,6 +40,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "register" }) {
       await api(mode === "register" ? "/api/auth/register" : "/api/auth/login", { body });
       await qc.invalidateQueries();
       // no router.refresh(): it can cancel the in-flight navigation, and session state is client-side
+      signalNavigation();
       router.push(next);
     } catch (err) {
       const fe =

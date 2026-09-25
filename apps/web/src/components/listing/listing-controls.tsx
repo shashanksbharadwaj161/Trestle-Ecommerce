@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn";
 import { usd } from "@/lib/format";
 import { GridDensity } from "./grid-density";
 import type { Density } from "@/lib/grid-density";
+import { signalNavigation } from "@/components/navigation-progress";
 
 export interface Facets {
   categories: { value: string; count: number }[];
@@ -89,6 +90,7 @@ export function ListingControls({
     const url = toUrl(basePath, q);
     if (url === toUrl(basePath, query)) return;
     setPending(true);
+    signalNavigation();
     router.push(url, { scroll: false });
   };
   const activeCount =

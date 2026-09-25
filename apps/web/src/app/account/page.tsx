@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useQuery } from "@tanstack/react-query";
 import { RequireAuth } from "@/components/require-auth";
 import { Container, EmptyState, ErrorState, PageHeader } from "@/components/states";
@@ -20,7 +20,13 @@ interface OrderRow {
   isSeedDemo: boolean;
   trackingNumber: string | null;
   seller: { storefrontName: string };
-  items: { titleSnapshot: string; variantSnapshot: string; quantity: number; imageSnapshot: string | null; product: { images: string[] } }[];
+  items: {
+    titleSnapshot: string;
+    variantSnapshot: string;
+    quantity: number;
+    imageSnapshot: string | null;
+    product: { images: string[] };
+  }[];
   cardPayment: { id: string; status: string; totalCents: number } | null;
 }
 
@@ -57,7 +63,10 @@ function Orders({ user }: { user: SessionUser }) {
       ) : (
         <ul className="divide-y divide-border border-y border-border">
           {q.data!.items.map((o) => {
-            const href = o.paymentMethod === "CARD" && o.cardPayment ? `/order-status/${o.cardPayment.id}` : `/orders/${o.id}`;
+            const href =
+              o.paymentMethod === "CARD" && o.cardPayment
+                ? `/order-status/${o.cardPayment.id}`
+                : `/orders/${o.id}`;
             const img = o.items[0]?.imageSnapshot ?? o.items[0]?.product.images[0];
             return (
               <li key={o.id}>
@@ -68,14 +77,19 @@ function Orders({ user }: { user: SessionUser }) {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <OrderStatusBadge status={o.status} />
-                      {o.cardPayment && o.cardPayment.status !== "PAID" && <CardPaymentBadge status={o.cardPayment.status} />}
+                      {o.cardPayment && o.cardPayment.status !== "PAID" && (
+                        <CardPaymentBadge status={o.cardPayment.status} />
+                      )}
                       {o.isSeedDemo && <SeedDemoBadge />}
                     </div>
                     <p className="mt-2 truncate text-sm">
-                      {o.items.map((i) => `${i.titleSnapshot}${i.quantity > 1 ? ` ×${i.quantity}` : ""}`).join(", ")}
+                      {o.items
+                        .map((i) => `${i.titleSnapshot}${i.quantity > 1 ? ` ×${i.quantity}` : ""}`)
+                        .join(", ")}
                     </p>
                     <p className="mt-0.5 text-[0.8125rem] text-muted-foreground">
-                      {o.seller.storefrontName} · {dateTime(o.createdAt)} · {o.paymentMethod === "CARD" ? "Card" : "Stablecoin escrow"}
+                      {o.seller.storefrontName} · {dateTime(o.createdAt)} ·{" "}
+                      {o.paymentMethod === "CARD" ? "Card" : "Stablecoin escrow"}
                     </p>
                   </div>
                   <div className="text-right text-sm">

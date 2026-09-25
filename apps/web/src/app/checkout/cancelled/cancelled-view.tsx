@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useEffect, useRef, useState } from "react";
 import { api, errorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,9 @@ export function CancelledView({ paymentId }: { paymentId: string | null }) {
     return (
       <div>
         <h1 className="text-[1.75rem] tracking-[-0.02em]">This order was already paid</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Your payment went through before you left the payment page.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Your payment went through before you left the payment page.
+        </p>
         <Button asChild className="mt-6">
           <Link href={`/checkout/complete?payment=${paymentId}`}>View your order</Link>
         </Button>

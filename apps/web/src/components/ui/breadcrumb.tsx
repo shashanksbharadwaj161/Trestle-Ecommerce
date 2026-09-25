@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/link";
 import { cn } from "@/lib/cn";
 
 export function Breadcrumb({
@@ -9,7 +9,10 @@ export function Breadcrumb({
   className?: string;
 }) {
   return (
-    <nav aria-label="Breadcrumb" className={cn("text-[0.8125rem] text-muted-foreground", className)}>
+    <nav
+      aria-label="Breadcrumb"
+      className={cn("text-[0.8125rem] text-muted-foreground", className)}
+    >
       <ol className="flex flex-wrap items-center gap-1.5">
         {items.map((it, i) => (
           <li key={`${it.label}-${i}`} className="flex items-center gap-1.5">
@@ -19,7 +22,10 @@ export function Breadcrumb({
                 {it.label}
               </Link>
             ) : (
-              <span aria-current={i === items.length - 1 ? "page" : undefined} className="text-foreground">
+              <span
+                aria-current={i === items.length - 1 ? "page" : undefined}
+                className="text-foreground"
+              >
                 {it.label}
               </span>
             )}

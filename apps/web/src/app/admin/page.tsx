@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useQuery } from "@tanstack/react-query";
 import { RequireAuth } from "@/components/require-auth";
 import { Container, ErrorState, Notice, PageHeader } from "@/components/states";
@@ -25,7 +25,11 @@ export default function AdminHome() {
 }
 
 function Inner() {
-  const q = useQuery({ queryKey: ["admin-overview"], queryFn: () => api<Overview>("/api/admin/overview"), refetchInterval: 30_000 });
+  const q = useQuery({
+    queryKey: ["admin-overview"],
+    queryFn: () => api<Overview>("/api/admin/overview"),
+    refetchInterval: 30_000,
+  });
   return (
     <Container>
       <PageHeader title="Store overview" description="What needs attention right now." />
@@ -52,9 +56,14 @@ function Body({ o }: { o: Overview }) {
   return (
     <div className="space-y-10">
       {!o.card.enabled ? (
-        <Notice tone="warning">Card payments are not configured: {o.card.reason} See docs/CONNECTION_HANDOFF.md.</Notice>
+        <Notice tone="warning">
+          Card payments are not configured: {o.card.reason} See docs/CONNECTION_HANDOFF.md.
+        </Notice>
       ) : (
-        <Notice tone="info">Card payments are in Stripe {o.card.mode} mode — no real charges. Live mode is disabled in this build.</Notice>
+        <Notice tone="info">
+          Card payments are in Stripe {o.card.mode} mode — no real charges. Live mode is disabled in
+          this build.
+        </Notice>
       )}
       <ul className="grid gap-px border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
         {tiles.map((t) => (

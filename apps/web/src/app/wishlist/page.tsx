@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useQuery } from "@tanstack/react-query";
 import { Heart } from "lucide-react";
 import { ProductCard, type CardData } from "@/components/product-card";
@@ -18,7 +18,9 @@ export default function WishlistPage() {
     queryKey: ["wishlist-items", key],
     queryFn: async () => {
       if (!ids.length) return [] as CardData[];
-      const res = await api<{ items: CardData[] }>(`/api/wishlist/cards?ids=${encodeURIComponent(ids.join(","))}`);
+      const res = await api<{ items: CardData[] }>(
+        `/api/wishlist/cards?ids=${encodeURIComponent(ids.join(","))}`,
+      );
       return res.items;
     },
     enabled: hydrated && !loading,
@@ -29,7 +31,10 @@ export default function WishlistPage() {
       {!user && hydrated && (
         <p className="mt-2 text-sm text-muted-foreground">
           Saved on this device.{" "}
-          <Link href="/sign-in?next=/wishlist" className="text-foreground underline underline-offset-4">
+          <Link
+            href="/sign-in?next=/wishlist"
+            className="text-foreground underline underline-offset-4"
+          >
             Sign in
           </Link>{" "}
           to keep your wishlist across devices.
@@ -45,7 +50,9 @@ export default function WishlistPage() {
         <div className="mt-8 border-y border-border py-20 text-center">
           <Heart className="mx-auto size-8 text-muted-foreground" strokeWidth={1.25} />
           <p className="mt-4 text-lg">Nothing saved yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">Tap the heart on any product to save it here.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Tap the heart on any product to save it here.
+          </p>
           <Link href="/new" className="mt-6 inline-block text-sm underline underline-offset-4">
             Browse new arrivals
           </Link>

@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/link";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "Find a guest order" };
 
-export default async function OrderLookup({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function OrderLookup({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { error } = await searchParams;
   return (
     <div className="container-page max-w-2xl pt-10 md:pt-16">
@@ -18,12 +22,12 @@ export default async function OrderLookup({ searchParams }: { searchParams: Prom
       )}
       <div className="prose-trestle mt-6">
         <p>
-          Guest orders are protected by a private link shown on your confirmation page. Open that link on any device
-          to see your order, tracking and returns.
+          Guest orders are protected by a private link shown on your confirmation page. Open that
+          link on any device to see your order, tracking and returns.
         </p>
         <p>
-          For your security we don’t look orders up by email address alone. If you’ve lost the link, contact us with
-          your order number and we’ll help.
+          For your security we don’t look orders up by email address alone. If you’ve lost the link,
+          contact us with your order number and we’ll help.
         </p>
       </div>
       <div className="mt-8 flex flex-wrap gap-3">
