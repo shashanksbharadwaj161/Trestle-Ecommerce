@@ -114,13 +114,17 @@ describe("SIWE authentication", () => {
 
 describe("authorization, validation, CSRF and rate limits", () => {
   const validProduct = {
-    title: "Test Lamp",
-    description: "A very nice test lamp for the test suite.",
+    title: "Test Linen Shirt",
+    description: "A very nice test shirt for the test suite.",
     price: "49.99",
-    category: "Home",
-    images: ["/art/lamp?category=Home"],
+    department: "women",
+    category: "t-shirts",
+    images: [{ url: "/images/catalog/t-shirts-woman-t-shirt_03_1.webp", alt: "Test shirt in white", colour: "White" }],
     chainListingOptions: [31337, 31338],
-    variants: [{ name: "White", sku: "LAMP-TEST-1", stock: 5 }],
+    variants: [
+      { sku: "SHIRT-TEST-WH-S", colour: "White", colourHex: "#f5f3ee", size: "S", stock: 5 },
+      { sku: "SHIRT-TEST-WH-M", colour: "White", colourHex: "#f5f3ee", size: "M", stock: 0 },
+    ],
   };
 
   it("requires a session and a seller role to create products", async () => {
@@ -260,7 +264,7 @@ describe("catalog & cart", () => {
     await fixtureSeller();
     const r1 = await call(
       productsGET,
-      req("/api/products?q=watch&category=Watches&maxPrice=200&chain=31337"),
+      req("/api/products?q=tee&category=t-shirts&department=women&colour=Black&size=M&maxPrice=200&chain=31337"),
     );
     expect(r1.data.total).toBe(1);
     const r2 = await call(productsGET, req("/api/products?minPrice=200"));

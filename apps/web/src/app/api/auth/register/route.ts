@@ -8,6 +8,8 @@ export const POST = route(
   async ({ req, user: current }) => {
     const input = await parseBody(req, registerInput);
     if (current) throw conflict("You are already signed in. Sign out to create another account.");
+    const taken = await prisma.user.findUnique({ where: { email: input.email }, select: { id: true } });
+    if (taken) throw conflict("An account with this email already exists. Sign in instead.");
     let userId: string;
     try {
       const u = await prisma.user.create({

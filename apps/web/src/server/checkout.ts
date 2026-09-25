@@ -143,6 +143,7 @@ export async function createQuote(
   input: { sellerId: string; items?: QuoteItem[]; payChainId?: number; payToken?: string },
 ) {
   const e = env();
+  requireWallet(user);
   const seller = await prisma.seller.findUnique({ where: { id: input.sellerId } });
   if (!seller) throw notFound("Seller");
   if (seller.userId === user.id) throw badRequest("You cannot buy from your own storefront");

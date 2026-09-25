@@ -109,7 +109,7 @@ export async function signIn(pk = generatePrivateKey(), opts: { chainId?: number
 
 export async function resetDb() {
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "AuditLog","Review","Dispute","PaymentIntent","OrderItem","Order","AuthenticityCertificate","ProductVariant","Product","Seller","ReputationEvent","LoyaltyTransaction","SmartAccount","User","ChainEvent","RelayerCheckpoint","SupportedChain" CASCADE`,
+    `TRUNCATE "AuditLog","Review","Dispute","PaymentIntent","ReturnRequest","OrderItem","Order","CardPayment","StripeEvent","PromoCode","ContactMessage","WishlistItem","CollectionProduct","Collection","ProductImage","AuthenticityCertificate","ProductVariant","Product","Seller","ReputationEvent","LoyaltyTransaction","SmartAccount","User","ChainEvent","RelayerCheckpoint","SupportedChain" CASCADE`,
   );
 }
 
@@ -134,16 +134,25 @@ export async function fixtureSeller(
   const product = await prisma.product.create({
     data: {
       sellerId: seller.id,
-      title: "Fixture Watch",
-      description: "A watch used in automated tests.",
-      images: ["/art/fixture?category=Watches"],
+      title: "Fixture Tee",
+      slug: `fixture-tee-${addr.slice(2, 10)}`,
+      description: "A tee used in automated tests.",
+      images: ["/images/catalog/t-shirts-woman-t-shirt_01_1.webp"],
       priceUsdMicros: 125_000_000n,
-      category: "Watches",
+      department: "women",
+      category: "t-shirts",
+      sizeChartKey: "women-tops",
       chainListingOptions: [31337, 31338],
+      gallery: {
+        create: [
+          { url: "/images/catalog/t-shirts-woman-t-shirt_01_1.webp", alt: "Fixture tee in black", colour: "Black", position: 0 },
+          { url: "/images/catalog/t-shirts-woman-t-shirt_01_3.webp", alt: "Fixture tee in sky", colour: "Sky", position: 1 },
+        ],
+      },
       variants: {
         create: [
-          { name: "Black", sku: `FX-${addr.slice(2, 8)}-1`, stock: opts.stock ?? 3 },
-          { name: "Blue", sku: `FX-${addr.slice(2, 8)}-2`, stock: 1 },
+          { name: "Black / M", colour: "Black", size: "M", sku: `FX-${addr.slice(2, 8)}-1`, stock: opts.stock ?? 3, position: 0 },
+          { name: "Sky / M", colour: "Sky", size: "M", sku: `FX-${addr.slice(2, 8)}-2`, stock: 1, position: 1 },
         ],
       },
     },

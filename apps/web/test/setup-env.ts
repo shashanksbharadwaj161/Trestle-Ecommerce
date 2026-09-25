@@ -5,3 +5,8 @@ process.env.RELAYER_WEBHOOK_SECRET = "test-webhook-secret-0123456789abcdef012345
 process.env.SIWE_SECRET = "test-siwe-secret-0123456789abcdef0123456789abcd";
 delete process.env.UPSTASH_REDIS_REST_URL;
 delete process.env.REDIS_URL;
+// Card payments against the LOCAL mock Stripe (test/mock-stripe.ts). sk_test_ + loopback only.
+process.env.STRIPE_SECRET_KEY = "sk_test_mock_0000000000000000000000000000";
+process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_mock_0000000000000000000000000";
+process.env.STRIPE_API_BASE = "http://127.0.0.1:12111";
+process.env.CRON_SECRET = "test-cron-secret-0123456789abcdef";

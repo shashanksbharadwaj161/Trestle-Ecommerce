@@ -130,9 +130,11 @@ function filteredWhere(q: ProductQuery, opts: ListOpts): Prisma.ProductWhereInpu
   const where = baseWhere(q, opts);
   const and = [...((where.AND as Prisma.ProductWhereInput[]) ?? [])];
   if (q.category?.length) and.push({ category: { in: q.category } });
-  if (q.colour?.length) and.push({ variants: { some: { colour: { in: q.colour } } } });
-  if (q.size?.length)
-    and.push({ variants: { some: { size: { in: q.size }, stock: { gt: 0 } } } });
+  // colour + size must be satisfied by the SAME variant (e.g. "black in M, in stock"), not by two different ones
+  if (q.colour?.length && q.size?.length)
+    and.push({ variants: { some: { colour: { in: q.colour }, size: { in: q.size }, stock: { gt: 0 } } } });
+  else if (q.colour?.length) and.push({ variants: { some: { colour: { in: q.colour } } } });
+  else if (q.size?.length) and.push({ variants: { some: { size: { in: q.size }, stock: { gt: 0 } } } });
   if (q.inStock) and.push({ variants: { some: { stock: { gt: 0 } } } });
   const price: Prisma.BigIntFilter = {};
   if (q.minPrice) price.gte = parseUsdToMicros(q.minPrice);
