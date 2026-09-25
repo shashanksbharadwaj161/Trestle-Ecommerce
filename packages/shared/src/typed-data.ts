@@ -2,7 +2,12 @@ import type { Address, Hex } from "viem";
 
 /** EIP-712 domain used by TrestlePaymentRouter on a given chain. */
 export function routerDomain(chainId: number, router: Address) {
-  return { name: "TrestlePaymentRouter", version: "1", chainId, verifyingContract: router } as const;
+  return {
+    name: "TrestlePaymentRouter",
+    version: "1",
+    chainId,
+    verifyingContract: router,
+  } as const;
 }
 
 export const fulfillMessageTypes = {

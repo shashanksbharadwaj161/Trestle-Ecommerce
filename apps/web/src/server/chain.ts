@@ -1,6 +1,11 @@
 import "server-only";
 import { createPublicClient, http, type PublicClient } from "viem";
-import { getChainProfiles, getDeployment, type ChainProfile, type Deployment } from "@trestle/shared";
+import {
+  getChainProfiles,
+  getDeployment,
+  type ChainProfile,
+  type Deployment,
+} from "@trestle/shared";
 import { env, serverRpc } from "./env";
 import { ApiError } from "./http";
 

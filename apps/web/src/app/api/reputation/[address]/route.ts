@@ -16,7 +16,9 @@ export const GET = route<{ address: string }>(
       where: { OR: [{ walletAddress: address }, { smartAccounts: { some: { address } } }] },
       include: { smartAccounts: true },
     });
-    const addresses = user ? [user.walletAddress, ...user.smartAccounts.map((s) => s.address)] : [address];
+    const addresses = user
+      ? [user.walletAddress, ...user.smartAccounts.map((s) => s.address)]
+      : [address];
 
     const accounts = [];
     for (const a of [...new Set(addresses)]) {
@@ -24,7 +26,9 @@ export const GET = route<{ address: string }>(
         const dep = deployment(p.chain.id);
         if (!dep) continue;
         try {
-          const [tokenId, score, lastUpdated, positive, negative] = (await publicClient(p.chain.id).readContract({
+          const [tokenId, score, lastUpdated, positive, negative] = (await publicClient(
+            p.chain.id,
+          ).readContract({
             address: dep.reputation,
             abi: trestleReputationAbi,
             functionName: "getReputation",

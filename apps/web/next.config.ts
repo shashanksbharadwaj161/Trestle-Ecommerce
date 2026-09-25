@@ -22,6 +22,15 @@ const config: NextConfig = {
   webpack: (cfg) => {
     // optional deps pulled in by wallet SDKs that are not needed in the browser bundle
     cfg.externals.push("pino-pretty", "lokijs", "encoding");
+    // @base-org/account (pulled in by wagmi's connectors) imports @coinbase/cdp-sdk only for Base "charge" and
+    // subscription helpers, which in turn import optional x402/Solana modules. Trestle never uses them, so the
+    // package resolves to an empty module instead of breaking the bundle.
+    // MetaMask SDK references a React-Native storage module that doesn't exist on the web.
+    cfg.resolve.alias = {
+      ...(cfg.resolve.alias ?? {}),
+      "@coinbase/cdp-sdk": false,
+      "@react-native-async-storage/async-storage": false,
+    };
     return cfg;
   },
   async headers() {

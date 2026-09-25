@@ -32,7 +32,13 @@ export async function GET() {
       checks[`chain_${p.chain.id}`] = { ok: false, detail: "rpc unreachable" };
     }
   }
-  checks.contracts = { ok: isDeployed(e.mode), detail: isDeployed(e.mode) ? "addresses loaded" : `no ${e.mode} deployment` };
+  checks.contracts = {
+    ok: isDeployed(e.mode),
+    detail: isDeployed(e.mode) ? "addresses loaded" : `no ${e.mode} deployment`,
+  };
   const ok = checks.database!.ok && checks.kv!.ok;
-  return json({ ok, network: e.mode, checks, time: new Date().toISOString() }, { status: ok ? 200 : 503 });
+  return json(
+    { ok, network: e.mode, checks, time: new Date().toISOString() },
+    { status: ok ? 200 : 503 },
+  );
 }

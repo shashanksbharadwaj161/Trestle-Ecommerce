@@ -8,7 +8,11 @@ import type { RelayerConfig } from "./config";
  * /api/webhooks/chain-events (spec §7); `direct` mode applies them with the same shared function.
  * Either way application is idempotent, and callers only advance checkpoints after success.
  */
-export async function deliverEvents(cfg: RelayerConfig, prisma: PrismaClient, events: NormalizedEvent[]) {
+export async function deliverEvents(
+  cfg: RelayerConfig,
+  prisma: PrismaClient,
+  events: NormalizedEvent[],
+) {
   if (events.length === 0) return { applied: 0 };
   if (cfg.syncMode === "direct") {
     const res = await applyChainEvents(prisma, events);
@@ -21,11 +25,16 @@ export async function deliverEvents(cfg: RelayerConfig, prisma: PrismaClient, ev
     const sig = createHmac("sha256", cfg.webhookSecret!).update(`${ts}.${body}`).digest("hex");
     const res = await fetch(cfg.webhookUrl!, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-trestle-timestamp": ts, "x-trestle-signature": sig },
+      headers: {
+        "content-type": "application/json",
+        "x-trestle-timestamp": ts,
+        "x-trestle-signature": sig,
+      },
       body,
       signal: AbortSignal.timeout(30_000),
     });
-    if (!res.ok) throw new Error(`webhook delivery failed: ${res.status} ${await res.text().catch(() => "")}`);
+    if (!res.ok)
+      throw new Error(`webhook delivery failed: ${res.status} ${await res.text().catch(() => "")}`);
     const data = (await res.json()) as { applied?: number };
     applied += data.applied ?? 0;
   }

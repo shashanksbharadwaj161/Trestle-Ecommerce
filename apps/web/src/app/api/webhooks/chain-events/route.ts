@@ -12,7 +12,14 @@ const MAX_SKEW_SECONDS = 300;
 
 const eventSchema = z.object({
   chainId: z.number().int().positive(),
-  contract: z.enum(["escrow", "paymentRouter", "reputation", "loyalty", "authenticity", "paymaster"]),
+  contract: z.enum([
+    "escrow",
+    "paymentRouter",
+    "reputation",
+    "loyalty",
+    "authenticity",
+    "paymaster",
+  ]),
   address: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
   eventName: z.string().min(1).max(64),
   txHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/),
@@ -35,7 +42,8 @@ export function signWebhook(secret: string, timestamp: string, body: string): st
 export async function POST(req: NextRequest) {
   try {
     const secret = env().RELAYER_WEBHOOK_SECRET;
-    if (!secret || secret.length < 32) throw new ApiError(503, "webhook_disabled", "RELAYER_WEBHOOK_SECRET is not configured");
+    if (!secret || secret.length < 32)
+      throw new ApiError(503, "webhook_disabled", "RELAYER_WEBHOOK_SECRET is not configured");
     const ts = req.headers.get("x-trestle-timestamp") ?? "";
     const sig = req.headers.get("x-trestle-signature") ?? "";
     const raw = await req.text();
@@ -49,10 +57,14 @@ export async function POST(req: NextRequest) {
     }
     const { events } = bodySchema.parse(JSON.parse(raw));
     const chains = supportedChainIds();
-    if (events.some((e) => !chains.includes(e.chainId))) throw new ApiError(400, "unsupported_chain", "Unsupported chain in batch");
+    if (events.some((e) => !chains.includes(e.chainId)))
+      throw new ApiError(400, "unsupported_chain", "Unsupported chain in batch");
     const results = await applyChainEvents(prisma, events as NormalizedEvent[]);
     for (const chainId of new Set(events.map((e) => e.chainId))) {
-      await enrichCertificates(chainId, events.filter((e) => e.chainId === chainId) as NormalizedEvent[]);
+      await enrichCertificates(
+        chainId,
+        events.filter((e) => e.chainId === chainId) as NormalizedEvent[],
+      );
     }
     return json({
       received: events.length,

@@ -34,7 +34,9 @@ contract TrestleAuthenticity is ERC721, AccessControl {
     event CertificateMinted(
         uint256 indexed tokenId, address indexed seller, address indexed to, string productId, string batch
     );
-    event ProvenanceRecorded(uint256 indexed tokenId, address indexed from, address indexed to, uint64 timestamp);
+    event ProvenanceRecorded(
+        uint256 indexed tokenId, address indexed from, address indexed to, uint64 timestamp
+    );
 
     error EmptyProductId();
     error ZeroAddress();
@@ -101,11 +103,18 @@ contract TrestleAuthenticity is ERC721, AccessControl {
     function _update(address to, uint256 tokenId, address auth) internal override returns (address from) {
         from = super._update(to, tokenId, auth);
         uint64 ts = uint64(block.timestamp);
-        _history[tokenId].push(TransferRecord({from: from, to: to, timestamp: ts, blockNumber: uint64(block.number)}));
+        _history[tokenId].push(
+            TransferRecord({from: from, to: to, timestamp: ts, blockNumber: uint64(block.number)})
+        );
         emit ProvenanceRecorded(tokenId, from, to, ts);
     }
 
-    function supportsInterface(bytes4 interfaceId) public view override(ERC721, AccessControl) returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, AccessControl)
+        returns (bool)
+    {
         return super.supportsInterface(interfaceId);
     }
 }

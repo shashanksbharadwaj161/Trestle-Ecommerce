@@ -14,7 +14,8 @@ export const BPS = 10_000n;
  */
 export function priceTable(ethUsd?: string | number | bigint): PriceTable {
   let eth = 3_000n * USD_MICROS;
-  if (ethUsd !== undefined && ethUsd !== "" && ethUsd !== null) eth = parseUsdToMicros(String(ethUsd));
+  if (ethUsd !== undefined && ethUsd !== "" && ethUsd !== null)
+    eth = parseUsdToMicros(String(ethUsd));
   if (eth <= 0n) throw new Error("ETH price must be positive");
   return { ETH: eth, USD: USD_MICROS };
 }
@@ -48,12 +49,20 @@ export function formatUsdMicros(micros: bigint, opts: { cents?: boolean } = {}):
 }
 
 /** Floor conversion of a token amount into micro-USD. */
-export function tokenAmountToUsdMicros(amount: bigint, token: TokenInfo, prices: PriceTable): bigint {
+export function tokenAmountToUsdMicros(
+  amount: bigint,
+  token: TokenInfo,
+  prices: PriceTable,
+): bigint {
   return (amount * prices[token.priceKey]) / pow10(token.decimals);
 }
 
 /** Smallest token amount worth at least `usdMicros`. */
-export function usdMicrosToTokenAmountCeil(usdMicros: bigint, token: TokenInfo, prices: PriceTable): bigint {
+export function usdMicrosToTokenAmountCeil(
+  usdMicros: bigint,
+  token: TokenInfo,
+  prices: PriceTable,
+): bigint {
   return ceilDiv(usdMicros * pow10(token.decimals), prices[token.priceKey]);
 }
 

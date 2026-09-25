@@ -100,10 +100,22 @@ const SCENARIOS: Scenario[] = [
     qty: 1,
     target: "COMPLETED",
     tracking: "9400111899223197428490",
-    review: { rating: 4, title: "Great everyday pair", text: "Runs half a size large. Leather quality is excellent." },
+    review: {
+      rating: 4,
+      title: "Great everyday pair",
+      text: "Runs half a size large. Leather quality is excellent.",
+    },
   },
   { key: "s3", buyer: "ava", product: "halo-anc", variant: 0, qty: 1, target: "ESCROWED" },
-  { key: "s4", buyer: "noah", product: "lunar-poster", variant: 0, qty: 1, target: "SHIPPED", tracking: "1Z999AA10123456785" },
+  {
+    key: "s4",
+    buyer: "noah",
+    product: "lunar-poster",
+    variant: 0,
+    qty: 1,
+    target: "SHIPPED",
+    tracking: "1Z999AA10123456785",
+  },
   {
     key: "s5",
     buyer: "ava",
@@ -112,7 +124,10 @@ const SCENARIOS: Scenario[] = [
     qty: 1,
     target: "DISPUTED",
     tracking: "9400111899223197428491",
-    dispute: { reason: "Box arrived crushed and the left sole is separating at the toe. Photos attached in chat." },
+    dispute: {
+      reason:
+        "Box arrived crushed and the left sole is separating at the toe. Photos attached in chat.",
+    },
   },
   {
     key: "s6",
@@ -127,8 +142,23 @@ const SCENARIOS: Scenario[] = [
       notes: "Carrier confirmed return to sender. Full refund to buyer.",
     },
   },
-  { key: "s7", buyer: "noah", product: "arc-lamp", variant: 0, qty: 1, target: "DELIVERED", tracking: "1Z999AA10123456786" },
-  { key: "s8", buyer: "ava", product: "loopback-hoodie", variant: 1, qty: 2, target: "PENDING_PAYMENT" },
+  {
+    key: "s7",
+    buyer: "noah",
+    product: "arc-lamp",
+    variant: 0,
+    qty: 1,
+    target: "DELIVERED",
+    tracking: "1Z999AA10123456786",
+  },
+  {
+    key: "s8",
+    buyer: "ava",
+    product: "loopback-hoodie",
+    variant: 1,
+    qty: 2,
+    target: "PENDING_PAYMENT",
+  },
   {
     key: "s9",
     buyer: "noah",
@@ -136,7 +166,11 @@ const SCENARIOS: Scenario[] = [
     variant: 1,
     qty: 1,
     target: "COMPLETED",
-    review: { rating: 5, title: "Lightest runner I own", text: "Fast shipping, deadstock as promised." },
+    review: {
+      rating: 5,
+      title: "Lightest runner I own",
+      text: "Fast shipping, deadstock as promised.",
+    },
   },
   {
     key: "s10",
@@ -151,7 +185,15 @@ const SCENARIOS: Scenario[] = [
       notes: "Partial damage verified from photos: 30% refunded to buyer, 70% released to seller.",
     },
   },
-  { key: "s11", buyer: "noah", product: "watch-roll", variant: 0, qty: 1, target: "PENDING_PAYMENT", crossChainPending: true },
+  {
+    key: "s11",
+    buyer: "noah",
+    product: "watch-roll",
+    variant: 0,
+    qty: 1,
+    target: "PENDING_PAYMENT",
+    crossChainPending: true,
+  },
 ];
 
 async function wipe() {
@@ -188,7 +230,9 @@ async function main() {
   const onchainRequested = !flag("no-onchain") && mode === "local";
   const onchain =
     onchainRequested && deployed && (await rpcReachable(A)) && (await rpcReachable(B));
-  console.log(`Seeding Trestle (${mode}) — ${onchain ? "ON-CHAIN (real transactions on local Anvil chains)" : "demo records only (no chain writes)"}`);
+  console.log(
+    `Seeding Trestle (${mode}) — ${onchain ? "ON-CHAIN (real transactions on local Anvil chains)" : "demo records only (no chain writes)"}`,
+  );
 
   // ---------------------------------------------------------------- chains
   for (const p of profiles) {
@@ -207,30 +251,65 @@ async function main() {
   }
 
   // ---------------------------------------------------------------- users
-  const addr = (role: AnvilRole, envList: string | undefined, idx: number, label: string): Address => {
+  const addr = (
+    role: AnvilRole,
+    envList: string | undefined,
+    idx: number,
+    label: string,
+  ): Address => {
     if (mode === "local") return anvilAddress(role);
-    const list = envList?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+    const list =
+      envList
+        ?.split(",")
+        .map((s) => s.trim())
+        .filter(Boolean) ?? [];
     return (list[idx] as Address | undefined) ?? placeholderAddress(label);
   };
   const adminAddress =
     mode === "local"
       ? anvilAddress("deployer")
-      : ((process.env.SEED_ADMIN_ADDRESS as Address | undefined) ?? getDeployment(mode, B.chain.id)?.arbiter ?? placeholderAddress("admin"));
+      : ((process.env.SEED_ADMIN_ADDRESS as Address | undefined) ??
+        getDeployment(mode, B.chain.id)?.arbiter ??
+        placeholderAddress("admin"));
 
   const admin = await prisma.user.create({
     data: { walletAddress: lc(adminAddress), displayName: "Trestle Arbitration", role: "ADMIN" },
   });
   const buyers: Record<BuyerKey, { id: string; address: Address }> = {} as never;
-  for (const [i, [key, name]] of ([["ava", "Ava Chen"], ["noah", "Noah Patel"]] as const).entries()) {
+  for (const [i, [key, name]] of (
+    [
+      ["ava", "Ava Chen"],
+      ["noah", "Noah Patel"],
+    ] as const
+  ).entries()) {
     const address = addr(key, process.env.SEED_BUYER_ADDRESSES, i, `buyer-${key}`);
-    const u = await prisma.user.create({ data: { walletAddress: lc(address), displayName: name, role: "BUYER" } });
+    const u = await prisma.user.create({
+      data: { walletAddress: lc(address), displayName: name, role: "BUYER" },
+    });
     buyers[key] = { id: u.id, address };
   }
 
   // ---------------------------------------------------------------- sellers & catalog
-  const sellerRows: Record<SeedSeller["key"], { id: string; address: Address; payoutChain: ChainProfile; payoutToken: Address; symbol: string }> =
-    {} as never;
-  const productRows = new Map<string, { id: string; sellerKey: SeedSeller["key"]; priceMicros: bigint; title: string; variants: { id: string; name: string }[] }>();
+  const sellerRows: Record<
+    SeedSeller["key"],
+    {
+      id: string;
+      address: Address;
+      payoutChain: ChainProfile;
+      payoutToken: Address;
+      symbol: string;
+    }
+  > = {} as never;
+  const productRows = new Map<
+    string,
+    {
+      id: string;
+      sellerKey: SeedSeller["key"];
+      priceMicros: bigint;
+      title: string;
+      variants: { id: string; name: string }[];
+    }
+  >();
 
   for (const [i, s] of SELLERS.entries()) {
     const address = addr(s.key, process.env.SEED_SELLER_ADDRESSES, i, `seller-${s.key}`);
@@ -255,7 +334,13 @@ async function main() {
         bannerUrl: artUrl(`banner-${s.key}`, "banner"),
       },
     });
-    sellerRows[s.key] = { id: seller.id, address, payoutChain: payoutProfile, payoutToken, symbol: s.payoutSymbol };
+    sellerRows[s.key] = {
+      id: seller.id,
+      address,
+      payoutChain: payoutProfile,
+      payoutToken,
+      symbol: s.payoutSymbol,
+    };
 
     for (const p of s.products) {
       const product = await prisma.product.create({
@@ -263,7 +348,11 @@ async function main() {
           sellerId: seller.id,
           title: p.title,
           description: p.description,
-          images: [artUrl(p.key, p.category, 0), artUrl(p.key, p.category, 1), artUrl(p.key, p.category, 2)],
+          images: [
+            artUrl(p.key, p.category, 0),
+            artUrl(p.key, p.category, 1),
+            artUrl(p.key, p.category, 2),
+          ],
           priceUsdMicros: parseUsdToMicros(p.price),
           category: p.category,
           chainListingOptions: profiles.map((x) => x.chain.id),
@@ -299,9 +388,17 @@ async function main() {
       }
     : undefined;
   const startBlocks = new Map<number, bigint>();
-  if (actors) for (const [id, a] of Object.entries(actors)) startBlocks.set(Number(id), await a.public.getBlockNumber());
+  if (actors)
+    for (const [id, a] of Object.entries(actors))
+      startBlocks.set(Number(id), await a.public.getBlockNumber());
 
-  const created: { scenario: Scenario; orderId: string; ref: Hex; sellerKey: SeedSeller["key"]; productId: string }[] = [];
+  const created: {
+    scenario: Scenario;
+    orderId: string;
+    ref: Hex;
+    sellerKey: SeedSeller["key"];
+    productId: string;
+  }[] = [];
 
   for (const sc of SCENARIOS) {
     const prod = productRows.get(sc.product)!;
@@ -317,7 +414,11 @@ async function main() {
     const buyer = buyers[sc.buyer];
 
     // route: seeded orders pay directly on the payout chain; s11 is a live cross-chain intent from the other chain
-    const sourceProfile = sc.crossChainPending ? (seller.payoutChain.role === "A" ? B : A) : seller.payoutChain;
+    const sourceProfile = sc.crossChainPending
+      ? seller.payoutChain.role === "A"
+        ? B
+        : A
+      : seller.payoutChain;
     const payToken = sc.crossChainPending
       ? getTokens(mode, sourceProfile.chain.id).find((t) => t.isNative)
       : payoutToken;
@@ -349,7 +450,8 @@ async function main() {
           onchainRef: ref.toLowerCase(),
           buyerAccount: lc(buyer.address),
           isSeedDemo: !onchain,
-          reservationExpiresAt: sc.target === "PENDING_PAYMENT" ? new Date(Date.now() + 2 * 24 * 3600_000) : null,
+          reservationExpiresAt:
+            sc.target === "PENDING_PAYMENT" ? new Date(Date.now() + 2 * 24 * 3600_000) : null,
           shippingAddress: {
             name: sc.buyer === "ava" ? "Ava Chen" : "Noah Patel",
             line1: sc.buyer === "ava" ? "18 Harbour Street" : "221 Market Lane",
@@ -369,7 +471,10 @@ async function main() {
           },
         },
       });
-      await tx.productVariant.update({ where: { id: variant.id }, data: { stock: { decrement: sc.qty } } });
+      await tx.productVariant.update({
+        where: { id: variant.id },
+        data: { stock: { decrement: sc.qty } },
+      });
       if (quote) {
         await tx.paymentIntent.create({
           data: {
@@ -423,7 +528,10 @@ async function main() {
         ],
         quote.sourceAmount,
       );
-      await prisma.paymentIntent.updateMany({ where: { orderId }, data: { expiresAt: new Date(Number(expiry) * 1000) } });
+      await prisma.paymentIntent.updateMany({
+        where: { orderId },
+        data: { expiresAt: new Date(Number(expiry) * 1000) },
+      });
       continue;
     }
     if (sc.target === "PENDING_PAYMENT") continue;
@@ -444,7 +552,10 @@ async function main() {
     if (sc.dispute) {
       await chain.escrowCall(role, "raiseDispute", [escrowId, sc.dispute.reason]);
       if (sc.dispute.resolveBps !== undefined) {
-        await chain.escrowCall("deployer", "resolveDispute", [escrowId, BigInt(sc.dispute.resolveBps)]);
+        await chain.escrowCall("deployer", "resolveDispute", [
+          escrowId,
+          BigInt(sc.dispute.resolveBps),
+        ]);
       }
     } else if (sc.target === "COMPLETED") {
       await chain.escrowCall(role, "confirmDelivery", [escrowId]);
@@ -473,7 +584,11 @@ async function main() {
       ]);
     }
     // the sold Meridian's certificate moves to its buyer → on-chain provenance
-    await chain.authenticityCall("chronos", "transferFrom", [chronos.address, buyers.ava.address, 1n]);
+    await chain.authenticityCall("chronos", "transferFrom", [
+      chronos.address,
+      buyers.ava.address,
+      1n,
+    ]);
 
     // Ava stakes part of her earned TRST on chain B
     const bChain = actors[B.chain.id]!;
@@ -486,7 +601,13 @@ async function main() {
       const chainId = Number(id);
       const dep = getDeployment(mode, chainId)!;
       const head = await actor.public.getBlockNumber();
-      const events = await fetchTrestleEvents(actor.public, mode, chainId, BigInt(dep.deployBlock), head);
+      const events = await fetchTrestleEvents(
+        actor.public,
+        mode,
+        chainId,
+        BigInt(dep.deployBlock),
+        head,
+      );
       const results = await applyChainEvents(prisma, events);
       const applied = results.filter((r) => r.status === "applied").length;
       console.log(`  chain ${chainId}: ingested ${events.length} events (${applied} applied)`);
@@ -499,7 +620,9 @@ async function main() {
     // certificate metadata that events don't carry
     for (const c of await prisma.authenticityCertificate.findMany()) {
       const p = [...productRows.values()].find((x) => x.id === c.productId);
-      const man = SELLERS.flatMap((s) => s.products).find((x) => productRows.get(x.key)?.id === c.productId)?.manufacturer;
+      const man = SELLERS.flatMap((s) => s.products).find(
+        (x) => productRows.get(x.key)?.id === c.productId,
+      )?.manufacturer;
       await prisma.authenticityCertificate.update({
         where: { id: c.id },
         data: {
@@ -519,7 +642,11 @@ async function main() {
       data.trackingNumber = sc.tracking;
       data.shippedAt = new Date(Date.now() - 3 * 24 * 3600_000);
     }
-    if (onchain && (sc.target === "SHIPPED" || sc.target === "DELIVERED") && order.status === "ESCROWED") {
+    if (
+      onchain &&
+      (sc.target === "SHIPPED" || sc.target === "DELIVERED") &&
+      order.status === "ESCROWED"
+    ) {
       data.status = sc.target; // carrier-side states are off-chain by design
     }
     if (!onchain && sc.target === "COMPLETED") data.completedAt = new Date();
@@ -540,7 +667,10 @@ async function main() {
         },
       });
     } else if (onchain && sc.dispute?.notes) {
-      await prisma.dispute.updateMany({ where: { orderId: c.orderId }, data: { resolutionNotes: sc.dispute.notes } });
+      await prisma.dispute.updateMany({
+        where: { orderId: c.orderId },
+        data: { resolutionNotes: sc.dispute.notes },
+      });
     }
 
     if (sc.review) {
@@ -562,7 +692,13 @@ async function main() {
 
   // ---------------------------------------------------------------- demo reputation/loyalty history (no chain)
   if (!onchain) {
-    const demoRep: [string, string, "PURCHASE_COMPLETED" | "SALE_COMPLETED" | "DISPUTE_LOST" | "DISPUTE_SPLIT", number, string][] = [
+    const demoRep: [
+      string,
+      string,
+      "PURCHASE_COMPLETED" | "SALE_COMPLETED" | "DISPUTE_LOST" | "DISPUTE_SPLIT",
+      number,
+      string,
+    ][] = [
       [buyers.ava.id, buyers.ava.address, "PURCHASE_COMPLETED", 10, "10"],
       [buyers.noah.id, buyers.noah.address, "PURCHASE_COMPLETED", 10, "10"],
       [buyers.noah.id, buyers.noah.address, "PURCHASE_COMPLETED", 10, "20"],
@@ -570,7 +706,15 @@ async function main() {
     ];
     for (const [userId, address, eventType, weight, newScore] of demoRep) {
       await prisma.reputationEvent.create({
-        data: { userId, address: lc(address), chainId: B.chain.id, eventType, weight, newScore, isSeedDemo: true },
+        data: {
+          userId,
+          address: lc(address),
+          chainId: B.chain.id,
+          eventType,
+          weight,
+          newScore,
+          isSeedDemo: true,
+        },
       });
       await prisma.user.update({ where: { id: userId }, data: { reputationScoreCache: newScore } });
     }
@@ -592,9 +736,30 @@ async function main() {
     }
     await prisma.loyaltyTransaction.createMany({
       data: [
-        { userId: buyers.ava.id, address: lc(buyers.ava.address), chainId: B.chain.id, type: "EARNED", amount: (625n * 10n ** 17n).toString(), isSeedDemo: true },
-        { userId: buyers.ava.id, address: lc(buyers.ava.address), chainId: B.chain.id, type: "STAKED", amount: (50n * 10n ** 18n).toString(), isSeedDemo: true },
-        { userId: buyers.noah.id, address: lc(buyers.noah.address), chainId: B.chain.id, type: "EARNED", amount: (825n * 10n ** 16n).toString(), isSeedDemo: true },
+        {
+          userId: buyers.ava.id,
+          address: lc(buyers.ava.address),
+          chainId: B.chain.id,
+          type: "EARNED",
+          amount: (625n * 10n ** 17n).toString(),
+          isSeedDemo: true,
+        },
+        {
+          userId: buyers.ava.id,
+          address: lc(buyers.ava.address),
+          chainId: B.chain.id,
+          type: "STAKED",
+          amount: (50n * 10n ** 18n).toString(),
+          isSeedDemo: true,
+        },
+        {
+          userId: buyers.noah.id,
+          address: lc(buyers.noah.address),
+          chainId: B.chain.id,
+          type: "EARNED",
+          amount: (825n * 10n ** 16n).toString(),
+          isSeedDemo: true,
+        },
       ],
     });
   }
@@ -613,7 +778,9 @@ async function main() {
   );
   console.log("Orders by status:", Object.fromEntries(byStatus.map((s) => [s.status, s._count])));
   if (onchain) {
-    console.log("Demo wallets (Anvil public dev keys — import into your wallet for the local demo only):");
+    console.log(
+      "Demo wallets (Anvil public dev keys — import into your wallet for the local demo only):",
+    );
     for (const r of ["deployer", "ava", "noah", "chronos", "sole", "lumen"] as AnvilRole[]) {
       console.log(`  ${r.padEnd(8)} ${anvilAddress(r)}  ${ANVIL_KEYS[r]}`);
     }

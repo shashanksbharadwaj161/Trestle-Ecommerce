@@ -147,15 +147,28 @@ contract TrestlePaymentRouter is AccessControl, ReentrancyGuard, EIP712 {
         uint256 destAmount,
         bytes32 orderRef
     );
-    event IntentSettled(bytes32 indexed intentId, address indexed solver, uint256 escrowOrderId, uint256 paidToSolver, uint256 fee);
+    event IntentSettled(
+        bytes32 indexed intentId,
+        address indexed solver,
+        uint256 escrowOrderId,
+        uint256 paidToSolver,
+        uint256 fee
+    );
     event IntentFailed(bytes32 indexed intentId, address indexed buyer, uint256 refunded, string reason);
     event DirectCheckout(
-        bytes32 indexed orderRef, address indexed buyer, uint256 indexed escrowOrderId, address token, uint256 amount, uint256 fee
+        bytes32 indexed orderRef,
+        address indexed buyer,
+        uint256 indexed escrowOrderId,
+        address token,
+        uint256 amount,
+        uint256 fee
     );
     event LiquidityDeposited(address indexed solver, address indexed token, uint256 amount);
     event LiquidityWithdrawn(address indexed solver, address indexed token, uint256 amount);
     event RemoteRouterSet(uint256 indexed chainId, address router);
-    event ConfigUpdated(address escrow, address loyalty, address adapter, address treasury, uint256 protocolFeeBps);
+    event ConfigUpdated(
+        address escrow, address loyalty, address adapter, address treasury, uint256 protocolFeeBps
+    );
 
     error UnsupportedDestination(uint256 chainId);
     error UntrustedSource(uint256 chainId, address router);
@@ -175,8 +188,12 @@ contract TrestlePaymentRouter is AccessControl, ReentrancyGuard, EIP712 {
     error ZeroAddress();
     error FeeTooHigh();
 
-    constructor(address admin, address treasury_, uint256 protocolFeeBps_) EIP712("TrestlePaymentRouter", "1") {
-        if (admin == address(0) || treasury_ == address(0)) revert ZeroAddress();
+    constructor(address admin, address treasury_, uint256 protocolFeeBps_)
+        EIP712("TrestlePaymentRouter", "1")
+    {
+        if (admin == address(0) || treasury_ == address(0)) {
+            revert ZeroAddress();
+        }
         if (protocolFeeBps_ > MAX_FEE_BPS) revert FeeTooHigh();
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         treasury = treasury_;
@@ -264,7 +281,9 @@ contract TrestlePaymentRouter is AccessControl, ReentrancyGuard, EIP712 {
     {
         Intent storage i = _intents[r.intentId];
         if (i.status != IntentStatus.Created) revert InvalidIntentStatus(i.status);
-        if (r.destChainId != i.destChainId || r.destRouter != remoteRouters[i.destChainId]) revert ReceiptMismatch();
+        if (r.destChainId != i.destChainId || r.destRouter != remoteRouters[i.destChainId]) {
+            revert ReceiptMismatch();
+        }
         if (r.solver == address(0) || r.escrowOrderId == 0) revert ReceiptMismatch();
         if (!adapter.verify(hashReceipt(r), proof)) revert InvalidProof();
 
@@ -276,7 +295,11 @@ contract TrestlePaymentRouter is AccessControl, ReentrancyGuard, EIP712 {
     }
 
     /// @notice Relayer rejects an intent it cannot fulfil (bad quote, no liquidity…); buyer is refunded in full.
-    function failIntent(bytes32 intentId, string calldata reason) external onlyRole(RELAYER_ROLE) nonReentrant {
+    function failIntent(bytes32 intentId, string calldata reason)
+        external
+        onlyRole(RELAYER_ROLE)
+        nonReentrant
+    {
         _refund(intentId, reason);
     }
 
@@ -308,10 +331,15 @@ contract TrestlePaymentRouter is AccessControl, ReentrancyGuard, EIP712 {
         returns (uint256 escrowOrderId)
     {
         if (m.destChainId != block.chainid) revert WrongChain();
-        if (m.sourceChainId == block.chainid || remoteRouters[m.sourceChainId] != m.sourceRouter || m.sourceRouter == address(0)) {
+        if (
+            m.sourceChainId == block.chainid || remoteRouters[m.sourceChainId] != m.sourceRouter
+                || m.sourceRouter == address(0)
+        ) {
             revert UntrustedSource(m.sourceChainId, m.sourceRouter);
         }
-        if (computeIntentId(m.sourceChainId, m.sourceRouter, m.nonce) != m.intentId) revert IntentIdMismatch();
+        if (computeIntentId(m.sourceChainId, m.sourceRouter, m.nonce) != m.intentId) {
+            revert IntentIdMismatch();
+        }
         if (fulfilledIntents[m.intentId] != 0) revert AlreadyFulfilled(m.intentId);
         if (block.timestamp > m.expiry) revert IntentExpired(m.expiry);
         if (!adapter.verify(hashFulfillMessage(m), proof)) revert InvalidProof();
@@ -321,12 +349,20 @@ contract TrestlePaymentRouter is AccessControl, ReentrancyGuard, EIP712 {
         solverLiquidity[msg.sender][m.destToken] = available - m.destAmount;
         totalLiquidity[m.destToken] -= m.destAmount;
 
-        escrowOrderId = _fundEscrow(m.buyer, m.seller, m.destToken, m.destAmount, m.deliveryWindow, m.orderRef);
+        escrowOrderId =
+            _fundEscrow(m.buyer, m.seller, m.destToken, m.destAmount, m.deliveryWindow, m.orderRef);
         fulfilledIntents[m.intentId] = escrowOrderId;
-        emit IntentFulfilled(m.intentId, m.sourceChainId, escrowOrderId, msg.sender, m.destToken, m.destAmount, m.orderRef);
+        emit IntentFulfilled(
+            m.intentId, m.sourceChainId, escrowOrderId, msg.sender, m.destToken, m.destAmount, m.orderRef
+        );
     }
 
-    function depositLiquidity(address token, uint256 amount) external payable onlyRole(SOLVER_ROLE) nonReentrant {
+    function depositLiquidity(address token, uint256 amount)
+        external
+        payable
+        onlyRole(SOLVER_ROLE)
+        nonReentrant
+    {
         if (amount == 0) revert InvalidAmount();
         _pullExact(token, msg.sender, amount);
         solverLiquidity[msg.sender][token] += amount;
@@ -390,7 +426,11 @@ contract TrestlePaymentRouter is AccessControl, ReentrancyGuard, EIP712 {
     // Hashing & views
     // =============================================================================================
 
-    function computeIntentId(uint256 sourceChainId, address sourceRouter, uint256 nonce) public pure returns (bytes32) {
+    function computeIntentId(uint256 sourceChainId, address sourceRouter, uint256 nonce)
+        public
+        pure
+        returns (bytes32)
+    {
         return keccak256(abi.encode(sourceChainId, sourceRouter, nonce));
     }
 
@@ -418,7 +458,11 @@ contract TrestlePaymentRouter is AccessControl, ReentrancyGuard, EIP712 {
 
     function hashReceipt(FulfillmentReceipt calldata r) public view returns (bytes32) {
         return _hashTypedDataV4(
-            keccak256(abi.encode(RECEIPT_TYPEHASH, r.intentId, r.destChainId, r.destRouter, r.escrowOrderId, r.solver))
+            keccak256(
+                abi.encode(
+                    RECEIPT_TYPEHASH, r.intentId, r.destChainId, r.destRouter, r.escrowOrderId, r.solver
+                )
+            )
         );
     }
 

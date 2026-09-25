@@ -13,9 +13,17 @@ const schema = z.object({
   NETWORK_MODE: z.string().optional(),
   APP_URL: z.string().url().optional(),
   SIWE_SECRET: z.string().optional(),
-  SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(7 * 24 * 3600),
+  SESSION_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(7 * 24 * 3600),
   REDIS_URL: z.string().optional(),
-  UPSTASH_REDIS_REST_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+  UPSTASH_REDIS_REST_URL: z
+    .string()
+    .url()
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   CHAIN_A_RPC_URL: z.string().optional(),
   CHAIN_B_RPC_URL: z.string().optional(),
@@ -36,7 +44,10 @@ const schema = z.object({
   WALLETCONNECT_PROJECT_ID: z.string().optional(),
 });
 
-export type ServerEnv = z.infer<typeof schema> & { mode: ReturnType<typeof parseNetworkMode>; siweSecret: string };
+export type ServerEnv = z.infer<typeof schema> & {
+  mode: ReturnType<typeof parseNetworkMode>;
+  siweSecret: string;
+};
 
 let cached: ServerEnv | undefined;
 
@@ -69,10 +80,13 @@ export function publicConfig() {
   return {
     mode: e.mode,
     rpc: {
-      chainARpcUrl: e.PUBLIC_CHAIN_A_RPC_URL || (e.mode === "local" ? e.CHAIN_A_RPC_URL : undefined),
-      chainBRpcUrl: e.PUBLIC_CHAIN_B_RPC_URL || (e.mode === "local" ? e.CHAIN_B_RPC_URL : undefined),
+      chainARpcUrl:
+        e.PUBLIC_CHAIN_A_RPC_URL || (e.mode === "local" ? e.CHAIN_A_RPC_URL : undefined),
+      chainBRpcUrl:
+        e.PUBLIC_CHAIN_B_RPC_URL || (e.mode === "local" ? e.CHAIN_B_RPC_URL : undefined),
     },
-    walletConnectProjectId: e.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || e.WALLETCONNECT_PROJECT_ID || "",
+    walletConnectProjectId:
+      e.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || e.WALLETCONNECT_PROJECT_ID || "",
     protocolFeeBps: e.PROTOCOL_FEE_BPS,
   };
 }

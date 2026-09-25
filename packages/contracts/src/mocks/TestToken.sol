@@ -15,10 +15,13 @@ contract TestToken is ERC20, Ownable {
 
     error FaucetCooldown(uint256 availableAt);
 
-    constructor(string memory name_, string memory symbol_, uint8 decimals_, uint256 faucetAmount_, address owner_)
-        ERC20(name_, symbol_)
-        Ownable(owner_)
-    {
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        uint256 faucetAmount_,
+        address owner_
+    ) ERC20(name_, symbol_) Ownable(owner_) {
         _decimals = decimals_;
         faucetAmount = faucetAmount_;
     }
@@ -33,7 +36,9 @@ contract TestToken is ERC20, Ownable {
 
     function faucet() external {
         uint256 last = lastFaucetClaim[msg.sender];
-        if (last != 0 && block.timestamp < last + faucetCooldown) revert FaucetCooldown(last + faucetCooldown);
+        if (last != 0 && block.timestamp < last + faucetCooldown) {
+            revert FaucetCooldown(last + faucetCooldown);
+        }
         lastFaucetClaim[msg.sender] = block.timestamp;
         _mint(msg.sender, faucetAmount);
     }

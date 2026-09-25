@@ -1,9 +1,5 @@
 import { decodeEventLog, type Abi, type Log, type PublicClient } from "viem";
-import {
-  getDeployment,
-  type Deployment,
-  type NetworkMode,
-} from "@trestle/shared";
+import { getDeployment, type Deployment, type NetworkMode } from "@trestle/shared";
 import {
   trestleEscrowAbi,
   trestlePaymentRouterAbi,
@@ -76,9 +72,15 @@ export function decodeTrestleLogs(
   const out: NormalizedEvent[] = [];
   for (const log of logs) {
     const key = byAddress.get(log.address.toLowerCase());
-    if (!key || log.transactionHash == null || log.logIndex == null || log.blockNumber == null) continue;
+    if (!key || log.transactionHash == null || log.logIndex == null || log.blockNumber == null)
+      continue;
     try {
-      const decoded = decodeEventLog({ abi: ABIS[key], data: log.data, topics: log.topics, strict: true });
+      const decoded = decodeEventLog({
+        abi: ABIS[key],
+        data: log.data,
+        topics: log.topics,
+        strict: true,
+      });
       if (!decoded.eventName || !INDEXED_EVENTS[key].includes(decoded.eventName)) continue;
       const bt = blockTimes.get(log.blockNumber);
       out.push({
@@ -97,7 +99,9 @@ export function decodeTrestleLogs(
     }
   }
   out.sort((a, b) =>
-    a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : Number(BigInt(a.blockNumber) - BigInt(b.blockNumber)),
+    a.blockNumber === b.blockNumber
+      ? a.logIndex - b.logIndex
+      : Number(BigInt(a.blockNumber) - BigInt(b.blockNumber)),
   );
   return out;
 }
@@ -127,7 +131,12 @@ export async function fetchTransactionEvents(
   mode: NetworkMode,
   chainId: number,
   txHash: `0x${string}`,
-): Promise<{ events: NormalizedEvent[]; status: "success" | "reverted"; blockNumber: bigint; from: string }> {
+): Promise<{
+  events: NormalizedEvent[];
+  status: "success" | "reverted";
+  blockNumber: bigint;
+  from: string;
+}> {
   const receipt = await client.getTransactionReceipt({ hash: txHash });
   const blockTimes = await resolveBlockTimes(client, receipt.logs as Log[]);
   return {

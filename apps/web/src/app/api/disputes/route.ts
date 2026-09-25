@@ -9,7 +9,9 @@ import { conflict, forbidden, parseBody, parseQuery, route } from "@/server/http
 
 export const dynamic = "force-dynamic";
 
-const listQuery = z.object({ status: z.enum(["OPEN", "RESOLVED", "WITHDRAWN", "ALL"]).default("OPEN") });
+const listQuery = z.object({
+  status: z.enum(["OPEN", "RESOLVED", "WITHDRAWN", "ALL"]).default("OPEN"),
+});
 
 /** Admin arbitration queue. */
 export const GET = route({ auth: "admin" }, async ({ req }) => {
@@ -25,8 +27,17 @@ export const GET = route({ auth: "admin" }, async ({ req }) => {
         include: {
           items: true,
           buyer: { select: { displayName: true, walletAddress: true, reputationScoreCache: true } },
-          seller: { select: { storefrontName: true, payoutAddress: true, verified: true, user: { select: { reputationScoreCache: true } } } },
-          paymentIntents: { select: { routeKind: true, sourceChainId: true, destChainId: true, status: true } },
+          seller: {
+            select: {
+              storefrontName: true,
+              payoutAddress: true,
+              verified: true,
+              user: { select: { reputationScoreCache: true } },
+            },
+          },
+          paymentIntents: {
+            select: { routeKind: true, sourceChainId: true, destChainId: true, status: true },
+          },
         },
       },
     },
@@ -40,26 +51,51 @@ export const POST = route(
   async ({ req, user }) => {
     const input = await parseBody(req, disputeInput);
     const { order, viewer } = await loadOrderFor(input.orderId, user!);
-    if (viewer === "admin") throw forbidden("Admins resolve disputes; only the buyer or seller can file one");
+    if (viewer === "admin")
+      throw forbidden("Admins resolve disputes; only the buyer or seller can file one");
     if (order.isSeedDemo) throw conflict("Seeded demo orders have no on-chain escrow");
     const escrow = await readEscrow(order);
-    if (!escrow || escrow.status !== "Created") throw conflict("Only funded, open escrows can be disputed");
-    if (Date.now() / 1000 > escrow.deliveryDeadline) throw conflict("The delivery deadline has passed; funds can now be auto-released");
+    if (!escrow || escrow.status !== "Created")
+      throw conflict("Only funded, open escrows can be disputed");
+    if (Date.now() / 1000 > escrow.deliveryDeadline)
+      throw conflict("The delivery deadline has passed; funds can now be auto-released");
     if (order.dispute?.raiseTxHash) throw conflict("A dispute is already open for this order");
 
-    const raisedByAddress = viewer === "buyer" ? (order.buyerAccount ?? user!.walletAddress) : order.seller.payoutAddress;
+    const raisedByAddress =
+      viewer === "buyer" ? (order.buyerAccount ?? user!.walletAddress) : order.seller.payoutAddress;
     const dispute = await prisma.dispute.upsert({
       where: { orderId: order.id },
-      create: { orderId: order.id, raisedById: user!.id, raisedByAddress, reason: input.reason, evidence: input.evidence },
-      update: { reason: input.reason, evidence: input.evidence, raisedById: user!.id, raisedByAddress },
+      create: {
+        orderId: order.id,
+        raisedById: user!.id,
+        raisedByAddress,
+        reason: input.reason,
+        evidence: input.evidence,
+      },
+      update: {
+        reason: input.reason,
+        evidence: input.evidence,
+        raisedById: user!.id,
+        raisedByAddress,
+      },
     });
     await prisma.auditLog.create({
-      data: { actorId: user!.id, action: "dispute.file", entity: "Dispute", entityId: dispute.id, data: { orderId: order.id } },
+      data: {
+        actorId: user!.id,
+        action: "dispute.file",
+        entity: "Dispute",
+        entityId: dispute.id,
+        data: { orderId: order.id },
+      },
     });
 
     const actions = computeActions(order, viewer, user!, escrow);
     if (viewer === "buyer" && actions.raiseDispute?.via === "smart") {
-      return { dispute, via: "smart", aaAction: { action: "raiseDispute", orderId: order.id, reason: input.reason } };
+      return {
+        dispute,
+        via: "smart",
+        aaAction: { action: "raiseDispute", orderId: order.id, reason: input.reason },
+      };
     }
     const dep = requireDeployment(order.escrowChainId!);
     return {

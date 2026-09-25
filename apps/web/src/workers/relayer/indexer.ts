@@ -10,7 +10,12 @@ import { log } from "./log";
  * bounded ranges, delivers decoded events, and only then persists the new checkpoint. A crash between the two
  * re-delivers the range, which is harmless because event application is idempotent.
  */
-export async function indexChain(cfg: RelayerConfig, prisma: PrismaClient, ctx: ChainCtx, maxRanges = 20) {
+export async function indexChain(
+  cfg: RelayerConfig,
+  prisma: PrismaClient,
+  ctx: ChainCtx,
+  maxRanges = 20,
+) {
   const id = String(ctx.chainId);
   const head = await ctx.client.getBlockNumber();
   const safeHead = head - BigInt(Math.max(0, ctx.profile.confirmations - 1));
@@ -26,7 +31,8 @@ export async function indexChain(cfg: RelayerConfig, prisma: PrismaClient, ctx: 
       create: { id, chainId: ctx.chainId, lastBlock: to },
       update: { lastBlock: to },
     });
-    if (events.length) log.info("indexed", { chainId: ctx.chainId, from, to, events: events.length, applied });
+    if (events.length)
+      log.info("indexed", { chainId: ctx.chainId, from, to, events: events.length, applied });
     total += events.length;
     from = to + 1n;
   }

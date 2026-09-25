@@ -1,0 +1,55 @@
+# Render Blueprint — managed Postgres + the long-running relayer worker.
+# The Next.js app itself is deployed on Vercel (see vercel.json / README → Deployment).
+# Secrets are declared with `sync: false` so Render prompts for them; nothing secret lives in this file.
+databases:
+  - name: trestle-db
+    databaseName: trestle
+    user: trestle
+    plan: basic-256mb
+    postgresMajorVersion: "16"
+
+services:
+  - type: worker
+    name: trestle-relayer
+    runtime: node
+    plan: starter
+    rootDir: .
+    buildCommand: >-
+      (corepack enable || npm install -g pnpm@10.33.0) &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @trestle/db generate &&
+      pnpm --filter @trestle/db migrate:deploy &&
+      pnpm --filter @trestle/web relayer:build
+    startCommand: pnpm --filter @trestle/web relayer:start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NETWORK_MODE
+        value: testnet
+      - key: DATABASE_URL
+        fromDatabase:
+          name: trestle-db
+          property: connectionString
+      - key: SEPOLIA_RPC_URL
+        sync: false
+      - key: BASE_SEPOLIA_RPC_URL
+        sync: false
+      - key: RELAYER_PRIVATE_KEY
+        sync: false
+      - key: ATTESTER_PRIVATE_KEY
+        sync: false
+      # webhook mode: the worker posts HMAC-signed events to the Vercel app (spec §7)
+      - key: RELAYER_SYNC_MODE
+        value: webhook
+      - key: RELAYER_WEBHOOK_URL
+        sync: false
+      - key: RELAYER_WEBHOOK_SECRET
+        sync: false
+      - key: PRICE_ETH_USD
+        value: "3000"
+      - key: RELAYER_POLL_MS
+        value: "6000"
+      - key: RELAYER_MAX_BLOCK_RANGE
+        value: "1000"
+      - key: LOG_LEVEL
+        value: info

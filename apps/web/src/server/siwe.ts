@@ -44,8 +44,18 @@ export async function verifySiwe(args: {
   } catch {
     throw fail("Malformed sign-in message");
   }
-  const { address, nonce, domain, chainId, uri, issuedAt, expirationTime, notBefore, version } = parsed;
-  if (!address || !isAddress(address) || !nonce || !domain || !chainId || !uri || !issuedAt || version !== "1") {
+  const { address, nonce, domain, chainId, uri, issuedAt, expirationTime, notBefore, version } =
+    parsed;
+  if (
+    !address ||
+    !isAddress(address) ||
+    !nonce ||
+    !domain ||
+    !chainId ||
+    !uri ||
+    !issuedAt ||
+    version !== "1"
+  ) {
     throw fail("Sign-in message is missing required fields");
   }
   if (domain !== args.host) throw fail(`Domain mismatch: message is for ${domain}`);
@@ -58,17 +68,24 @@ export async function verifySiwe(args: {
   if (!supportedChainIds().includes(chainId)) throw fail(`Chain ${chainId} is not supported`);
   if (issuedAt.getTime() > now.getTime() + CLOCK_SKEW_MS) throw fail("issuedAt is in the future");
   if (now.getTime() - issuedAt.getTime() > MAX_AGE_MS) throw fail("Sign-in message is too old");
-  if (expirationTime && expirationTime.getTime() <= now.getTime()) throw fail("Sign-in message expired");
-  if (notBefore && notBefore.getTime() > now.getTime() + CLOCK_SKEW_MS) throw fail("Sign-in message not yet valid");
+  if (expirationTime && expirationTime.getTime() <= now.getTime())
+    throw fail("Sign-in message expired");
+  if (notBefore && notBefore.getTime() > now.getTime() + CLOCK_SKEW_MS)
+    throw fail("Sign-in message not yet valid");
 
   // one-time nonce, bound to the requesting browser
   const boundTo = await kv().getdel(`siwe:${nonce}`);
-  if (!boundTo || !args.bind || boundTo !== args.bind) throw fail("Unknown, expired or already-used nonce");
+  if (!boundTo || !args.bind || boundTo !== args.bind)
+    throw fail("Unknown, expired or already-used nonce");
 
   const checksummed = getAddress(address);
   let valid = false;
   try {
-    valid = await verifyMessage({ address: checksummed, message: args.message, signature: args.signature });
+    valid = await verifyMessage({
+      address: checksummed,
+      message: args.message,
+      signature: args.signature,
+    });
   } catch {
     valid = false;
   }

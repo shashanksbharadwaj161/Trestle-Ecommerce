@@ -130,7 +130,9 @@ contract TrestleLoyalty is ERC20, AccessControl, ReentrancyGuard {
         uint256 staked = _stakes[user].amount;
         uint256 n = _tiers.length;
         for (uint256 i; i < n; ++i) {
-            if (staked >= _tiers[i].minStake && _tiers[i].discountBps > discount) discount = _tiers[i].discountBps;
+            if (staked >= _tiers[i].minStake && _tiers[i].discountBps > discount) {
+                discount = _tiers[i].discountBps;
+            }
         }
     }
 

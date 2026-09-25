@@ -14,14 +14,18 @@ export const productCardSelect = {
   chainListingOptions: true,
   createdAt: true,
   manufacturer: true,
-  seller: { select: { id: true, storefrontName: true, slug: true, verified: true, payoutChainId: true } },
+  seller: {
+    select: { id: true, storefrontName: true, slug: true, verified: true, payoutChainId: true },
+  },
   variants: { select: { id: true, name: true, stock: true } },
   _count: { select: { certificates: true, reviews: true } },
 } satisfies Prisma.ProductSelect;
 
 export type ProductCardRow = Prisma.ProductGetPayload<{ select: typeof productCardSelect }>;
 
-export async function ratingsFor(productIds: string[]): Promise<Map<string, { avg: number; count: number }>> {
+export async function ratingsFor(
+  productIds: string[],
+): Promise<Map<string, { avg: number; count: number }>> {
   if (productIds.length === 0) return new Map();
   const rows = await prisma.review.groupBy({
     by: ["productId"],
@@ -104,6 +108,12 @@ export async function getProduct(id: string) {
 }
 
 export async function categoriesWithCounts() {
-  const rows = await prisma.product.groupBy({ by: ["category"], where: { status: "ACTIVE" }, _count: { _all: true } });
-  return rows.map((r) => ({ category: r.category, count: r._count._all })).sort((a, b) => a.category.localeCompare(b.category));
+  const rows = await prisma.product.groupBy({
+    by: ["category"],
+    where: { status: "ACTIVE" },
+    _count: { _all: true },
+  });
+  return rows
+    .map((r) => ({ category: r.category, count: r._count._all }))
+    .sort((a, b) => a.category.localeCompare(b.category));
 }

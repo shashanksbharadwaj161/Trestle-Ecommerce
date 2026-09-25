@@ -131,7 +131,9 @@ contract TrestleEscrowTest is TrestleBase {
     function test_createOrderFor_onlyRouter() public {
         bytes32 role = s.escrow.ROUTER_ROLE();
         vm.prank(stranger);
-        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, stranger, role));
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, stranger, role)
+        );
         s.escrow.createOrderFor(buyer, seller, address(s.usdc), 1e6, deadline, bytes32("ref"));
     }
 
@@ -160,7 +162,9 @@ contract TrestleEscrowTest is TrestleBase {
         uint256 id = _create(1e6);
         vm.startPrank(buyer);
         s.escrow.confirmDelivery(id);
-        vm.expectRevert(abi.encodeWithSelector(TrestleEscrow.InvalidStatus.selector, TrestleEscrow.Status.Released));
+        vm.expectRevert(
+            abi.encodeWithSelector(TrestleEscrow.InvalidStatus.selector, TrestleEscrow.Status.Released)
+        );
         s.escrow.confirmDelivery(id);
         vm.stopPrank();
     }
@@ -185,7 +189,9 @@ contract TrestleEscrowTest is TrestleBase {
         vm.prank(buyer);
         s.escrow.raiseDispute(id, "damaged");
         vm.warp(deadline + 1);
-        vm.expectRevert(abi.encodeWithSelector(TrestleEscrow.InvalidStatus.selector, TrestleEscrow.Status.Disputed));
+        vm.expectRevert(
+            abi.encodeWithSelector(TrestleEscrow.InvalidStatus.selector, TrestleEscrow.Status.Disputed)
+        );
         s.escrow.autoRelease(id);
     }
 
@@ -249,14 +255,18 @@ contract TrestleEscrowTest is TrestleBase {
         s.escrow.raiseDispute(id, "x");
         bytes32 role = s.escrow.ARBITER_ROLE();
         vm.prank(buyer);
-        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, buyer, role));
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, buyer, role)
+        );
         s.escrow.resolveDispute(id, 10_000);
     }
 
     function test_resolveDispute_rejectsInvalidShareAndStatus() public {
         uint256 id = _create(1e6);
         vm.prank(arbiter);
-        vm.expectRevert(abi.encodeWithSelector(TrestleEscrow.InvalidStatus.selector, TrestleEscrow.Status.Created));
+        vm.expectRevert(
+            abi.encodeWithSelector(TrestleEscrow.InvalidStatus.selector, TrestleEscrow.Status.Created)
+        );
         s.escrow.resolveDispute(id, 5_000);
         vm.prank(buyer);
         s.escrow.raiseDispute(id, "x");

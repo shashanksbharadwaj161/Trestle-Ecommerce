@@ -52,11 +52,16 @@ contract TrestlePaymasterTest is TrestleBase {
         vm.stopPrank();
     }
 
-    function _op(bytes memory callData, bool withInitCode, uint48 day) internal view returns (PackedUserOperation memory op) {
+    function _op(bytes memory callData, bool withInitCode, uint48 day)
+        internal
+        view
+        returns (PackedUserOperation memory op)
+    {
         op.sender = account;
         op.nonce = ep.getNonce(account, 0);
         if (withInitCode) {
-            op.initCode = abi.encodePacked(address(factory), abi.encodeCall(factory.createAccount, (owner, 0)));
+            op.initCode =
+                abi.encodePacked(address(factory), abi.encodeCall(factory.createAccount, (owner, 0)));
         }
         op.callData = callData;
         op.accountGasLimits = bytes32((uint256(600_000) << 128) | uint256(800_000));
@@ -103,7 +108,8 @@ contract TrestlePaymasterTest is TrestleBase {
 
     function test_rejectsNonSponsoredTarget() public {
         bytes memory call = abi.encodeCall(
-            SimpleAccount.execute, (address(s.usdc), 0, abi.encodeWithSignature("transfer(address,uint256)", seller, 1))
+            SimpleAccount.execute,
+            (address(s.usdc), 0, abi.encodeWithSignature("transfer(address,uint256)", seller, 1))
         );
         PackedUserOperation memory op = _sign(_op(call, true, _today()));
         vm.expectRevert(
@@ -144,7 +150,8 @@ contract TrestlePaymasterTest is TrestleBase {
     }
 
     function test_rejectsUnsupportedSelector() public {
-        bytes memory call = abi.encodeWithSignature("executeBatch(address[],bytes[])", new address[](0), new bytes[](0));
+        bytes memory call =
+            abi.encodeWithSignature("executeBatch(address[],bytes[])", new address[](0), new bytes[](0));
         PackedUserOperation memory op = _sign(_op(call, true, _today()));
         vm.expectRevert();
         _submit(op);

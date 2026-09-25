@@ -4,7 +4,10 @@ import { notFound, route } from "@/server/http";
 
 /** ERC-721 metadata for certificates (tokenURI points here). */
 export const GET = route<{ productId: string }>({}, async ({ params, req }) => {
-  const p = await prisma.product.findUnique({ where: { id: params.productId }, include: { seller: true } });
+  const p = await prisma.product.findUnique({
+    where: { id: params.productId },
+    include: { seller: true },
+  });
   if (!p) throw notFound("Product");
   const origin = new URL(req.url).origin;
   return {

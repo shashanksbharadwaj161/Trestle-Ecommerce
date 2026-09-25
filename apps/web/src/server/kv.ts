@@ -62,7 +62,9 @@ class RedisKV implements KV {
     const args: (string | number)[] = [];
     if (opts.ex) args.push("EX", opts.ex);
     if (opts.nx) args.push("NX");
-    const res = await (this.r.set as unknown as (...a: (string | number)[]) => Promise<string | null>)(key, value, ...args);
+    const res = await (
+      this.r.set as unknown as (...a: (string | number)[]) => Promise<string | null>
+    )(key, value, ...args);
     return res === "OK";
   }
   async getdel(key: string) {
@@ -135,13 +137,19 @@ export function kv(): KV {
   let store: KV;
   if (e.UPSTASH_REDIS_REST_URL && e.UPSTASH_REDIS_REST_TOKEN) {
     store = new UpstashKV(
-      new Upstash({ url: e.UPSTASH_REDIS_REST_URL, token: e.UPSTASH_REDIS_REST_TOKEN, automaticDeserialization: false }),
+      new Upstash({
+        url: e.UPSTASH_REDIS_REST_URL,
+        token: e.UPSTASH_REDIS_REST_TOKEN,
+        automaticDeserialization: false,
+      }),
     );
   } else if (e.REDIS_URL) {
     store = new RedisKV(new IORedis(e.REDIS_URL, { maxRetriesPerRequest: 2, lazyConnect: false }));
   } else {
     if (e.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build") {
-      throw new Error("Configure UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN (or REDIS_URL) in production");
+      throw new Error(
+        "Configure UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN (or REDIS_URL) in production",
+      );
     }
     store = new MemoryKV();
   }

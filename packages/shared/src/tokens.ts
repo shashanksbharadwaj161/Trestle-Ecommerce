@@ -58,12 +58,20 @@ export function getTokens(mode: NetworkMode, chainId: number): TokenInfo[] {
   return tokens;
 }
 
-export function findToken(mode: NetworkMode, chainId: number, address: string): TokenInfo | undefined {
+export function findToken(
+  mode: NetworkMode,
+  chainId: number,
+  address: string,
+): TokenInfo | undefined {
   const a = address.toLowerCase();
   return getTokens(mode, chainId).find((t) => t.address.toLowerCase() === a);
 }
 
-export function findTokenBySymbol(mode: NetworkMode, chainId: number, symbol: string): TokenInfo | undefined {
+export function findTokenBySymbol(
+  mode: NetworkMode,
+  chainId: number,
+  symbol: string,
+): TokenInfo | undefined {
   return getTokens(mode, chainId).find((t) => t.symbol.toLowerCase() === symbol.toLowerCase());
 }
 

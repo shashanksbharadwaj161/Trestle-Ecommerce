@@ -17,11 +17,15 @@ export class ApiError extends Error {
   }
 }
 
-export const unauthorized = (msg = "Sign in with your wallet to continue") => new ApiError(401, "unauthorized", msg);
-export const forbidden = (msg = "You do not have access to this resource") => new ApiError(403, "forbidden", msg);
+export const unauthorized = (msg = "Sign in with your wallet to continue") =>
+  new ApiError(401, "unauthorized", msg);
+export const forbidden = (msg = "You do not have access to this resource") =>
+  new ApiError(403, "forbidden", msg);
 export const notFound = (what = "Resource") => new ApiError(404, "not_found", `${what} not found`);
-export const badRequest = (msg: string, details?: unknown) => new ApiError(400, "bad_request", msg, details);
-export const conflict = (msg: string, details?: unknown) => new ApiError(409, "conflict", msg, details);
+export const badRequest = (msg: string, details?: unknown) =>
+  new ApiError(400, "bad_request", msg, details);
+export const conflict = (msg: string, details?: unknown) =>
+  new ApiError(409, "conflict", msg, details);
 
 export function json(data: unknown, init?: ResponseInit): NextResponse {
   return NextResponse.json(toJsonSafe(data), init);
@@ -29,7 +33,10 @@ export function json(data: unknown, init?: ResponseInit): NextResponse {
 
 export function errorResponse(err: unknown): NextResponse {
   if (err instanceof ApiError) {
-    return json({ error: { code: err.code, message: err.message, details: err.details } }, { status: err.status });
+    return json(
+      { error: { code: err.code, message: err.message, details: err.details } },
+      { status: err.status },
+    );
   }
   if (err instanceof ZodError) {
     return json(
@@ -38,7 +45,10 @@ export function errorResponse(err: unknown): NextResponse {
     );
   }
   console.error("[api] unhandled error", err);
-  return json({ error: { code: "internal_error", message: "Something went wrong. Please try again." } }, { status: 500 });
+  return json(
+    { error: { code: "internal_error", message: "Something went wrong. Please try again." } },
+    { status: 500 },
+  );
 }
 
 export function clientIp(req: NextRequest): string {
@@ -94,10 +104,20 @@ export function route<P extends Record<string, string> = Record<string, never>>(
       if (auth === "admin" && user!.role !== "ADMIN") throw forbidden("Admin access required");
       const ip = clientIp(req);
       if (opts.rateLimit) {
-        const rl = await rateLimit(opts.rateLimit.bucket, user?.id ?? ip, opts.rateLimit.limit, opts.rateLimit.windowSec);
+        const rl = await rateLimit(
+          opts.rateLimit.bucket,
+          user?.id ?? ip,
+          opts.rateLimit.limit,
+          opts.rateLimit.windowSec,
+        );
         if (!rl.ok) {
           const res = json(
-            { error: { code: "rate_limited", message: `Too many requests. Try again in ${rl.resetSeconds}s.` } },
+            {
+              error: {
+                code: "rate_limited",
+                message: `Too many requests. Try again in ${rl.resetSeconds}s.`,
+              },
+            },
             { status: 429 },
           );
           res.headers.set("Retry-After", String(rl.resetSeconds));
@@ -113,9 +133,13 @@ export function route<P extends Record<string, string> = Record<string, never>>(
   };
 }
 
-export async function parseBody<T>(req: NextRequest, schema: ZodType<T, ZodTypeDef, unknown>): Promise<T> {
+export async function parseBody<T>(
+  req: NextRequest,
+  schema: ZodType<T, ZodTypeDef, unknown>,
+): Promise<T> {
   const ct = req.headers.get("content-type") ?? "";
-  if (!ct.includes("application/json")) throw new ApiError(415, "unsupported_media_type", "Expected application/json");
+  if (!ct.includes("application/json"))
+    throw new ApiError(415, "unsupported_media_type", "Expected application/json");
   let raw: unknown;
   try {
     raw = await req.json();

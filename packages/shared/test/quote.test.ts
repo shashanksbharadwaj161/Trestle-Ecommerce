@@ -26,7 +26,12 @@ const usdcB: TokenInfo = {
   priceKey: "USD",
 };
 const usdcA: TokenInfo = { ...usdcB, chainId: 31337 };
-const daiA: TokenInfo = { ...usdcA, address: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512", symbol: "tDAI", decimals: 18 };
+const daiA: TokenInfo = {
+  ...usdcA,
+  address: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+  symbol: "tDAI",
+  decimals: 18,
+};
 const ethA: TokenInfo = {
   chainId: 31337,
   address: zeroAddress,
@@ -80,7 +85,12 @@ describe("computeRoute", () => {
   };
 
   it("quotes a direct same-chain route with the contract's fee formula", () => {
-    const q = computeRoute({ ...base, payToken: usdcB, payoutToken: usdcB, sourceProfile: B }) as RouteQuote;
+    const q = computeRoute({
+      ...base,
+      payToken: usdcB,
+      payoutToken: usdcB,
+      sourceProfile: B,
+    }) as RouteQuote;
     expect(q.routeId).toBe("direct-escrow");
     expect(q.destAmount).toBe(250_000_000n);
     expect(q.feeAmount).toBe(2_500_000n);

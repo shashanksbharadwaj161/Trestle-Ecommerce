@@ -1,4 +1,10 @@
-import { Prisma, type PrismaClient, type OrderStatus, type ReputationEventType, type LoyaltyTxType } from "@prisma/client";
+import {
+  Prisma,
+  type PrismaClient,
+  type OrderStatus,
+  type ReputationEventType,
+  type LoyaltyTxType,
+} from "@prisma/client";
 import { REPUTATION_EVENT_TYPES } from "@trestle/shared";
 import type { ApplyResult, NormalizedEvent } from "./types";
 
@@ -37,9 +43,14 @@ export interface TimelineEntry {
   note?: string;
 }
 
-export function pushTimeline(existing: Prisma.JsonValue, entry: TimelineEntry): Prisma.InputJsonValue {
+export function pushTimeline(
+  existing: Prisma.JsonValue,
+  entry: TimelineEntry,
+): Prisma.InputJsonValue {
   const list = Array.isArray(existing) ? (existing as unknown as TimelineEntry[]) : [];
-  const clean = Object.fromEntries(Object.entries(entry).filter(([, v]) => v !== undefined)) as TimelineEntry;
+  const clean = Object.fromEntries(
+    Object.entries(entry).filter(([, v]) => v !== undefined),
+  ) as TimelineEntry;
   if (list.some((e) => e.status === clean.status && e.txHash === clean.txHash)) {
     return list as unknown as Prisma.InputJsonValue;
   }
@@ -69,7 +80,12 @@ async function releaseStock(tx: Tx, orderId: string) {
   await tx.order.update({ where: { id: orderId }, data: { stockReleased: true } });
 }
 
-async function advanceOrder(tx: Tx, orderId: string, proposed: OrderStatus, data: Prisma.OrderUpdateInput = {}) {
+async function advanceOrder(
+  tx: Tx,
+  orderId: string,
+  proposed: OrderStatus,
+  data: Prisma.OrderUpdateInput = {},
+) {
   const order = await tx.order.findUnique({ where: { id: orderId }, select: { status: true } });
   if (!order) return;
   const status = nextOrderStatus(order.status, proposed);
@@ -78,7 +94,12 @@ async function advanceOrder(tx: Tx, orderId: string, proposed: OrderStatus, data
 
 async function orderByEscrowId(tx: Tx, chainId: number, escrowOrderId: string) {
   return tx.order.findUnique({
-    where: { escrowChainId_escrowContractOrderId: { escrowChainId: chainId, escrowContractOrderId: escrowOrderId } },
+    where: {
+      escrowChainId_escrowContractOrderId: {
+        escrowChainId: chainId,
+        escrowContractOrderId: escrowOrderId,
+      },
+    },
   });
 }
 
@@ -98,11 +119,20 @@ async function intentForOrderRef(tx: Tx, orderRef: string, kind?: "DIRECT" | "CR
  * the state change; a duplicate delivery is detected up-front, and a concurrent duplicate fails the unique
  * constraint and rolls back.
  */
-export async function applyChainEvent(prisma: PrismaClient, evt: NormalizedEvent): Promise<ApplyResult> {
+export async function applyChainEvent(
+  prisma: PrismaClient,
+  evt: NormalizedEvent,
+): Promise<ApplyResult> {
   try {
     return await prisma.$transaction(async (tx) => {
       const exists = await tx.chainEvent.findUnique({
-        where: { chainId_txHash_logIndex: { chainId: evt.chainId, txHash: lc(evt.txHash), logIndex: evt.logIndex } },
+        where: {
+          chainId_txHash_logIndex: {
+            chainId: evt.chainId,
+            txHash: lc(evt.txHash),
+            logIndex: evt.logIndex,
+          },
+        },
         select: { id: true },
       });
       if (exists) return { status: "duplicate", eventName: evt.eventName } satisfies ApplyResult;
@@ -120,7 +150,11 @@ export async function applyChainEvent(prisma: PrismaClient, evt: NormalizedEvent
         },
       });
       const note = await handle(tx, evt);
-      return { status: note === "ignored" ? "ignored" : "applied", eventName: evt.eventName, note } satisfies ApplyResult;
+      return {
+        status: note === "ignored" ? "ignored" : "applied",
+        eventName: evt.eventName,
+        note,
+      } satisfies ApplyResult;
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
@@ -130,7 +164,10 @@ export async function applyChainEvent(prisma: PrismaClient, evt: NormalizedEvent
   }
 }
 
-export async function applyChainEvents(prisma: PrismaClient, events: NormalizedEvent[]): Promise<ApplyResult[]> {
+export async function applyChainEvents(
+  prisma: PrismaClient,
+  events: NormalizedEvent[],
+): Promise<ApplyResult[]> {
   const results: ApplyResult[] = [];
   for (const e of events) results.push(await applyChainEvent(prisma, e));
   return results;
@@ -167,7 +204,12 @@ async function handle(tx: Tx, evt: NormalizedEvent): Promise<string | undefined>
           onchainNonce: str(a.nonce),
           sourceTxHash: txHash,
           feeAmount: str(a.fee),
-          txHashes: pushTimeline(intent.txHashes, { status: "CREATED", at, chainId: evt.chainId, txHash }),
+          txHashes: pushTimeline(intent.txHashes, {
+            status: "CREATED",
+            at,
+            chainId: evt.chainId,
+            txHash,
+          }),
         },
       });
       return undefined;
@@ -186,7 +228,12 @@ async function handle(tx: Tx, evt: NormalizedEvent): Promise<string | undefined>
           fulfillTxHash: txHash,
           escrowOrderId,
           lastError: null,
-          txHashes: pushTimeline(intent.txHashes, { status: "FULFILLED", at, chainId: evt.chainId, txHash }),
+          txHashes: pushTimeline(intent.txHashes, {
+            status: "FULFILLED",
+            at,
+            chainId: evt.chainId,
+            txHash,
+          }),
         },
       });
       await advanceOrder(tx, intent.orderId, "ESCROWED", {
@@ -196,7 +243,9 @@ async function handle(tx: Tx, evt: NormalizedEvent): Promise<string | undefined>
       return undefined;
     }
     case "paymentRouter.IntentSettled": {
-      const intent = await tx.paymentIntent.findUnique({ where: { onchainIntentId: lc(a.intentId) } });
+      const intent = await tx.paymentIntent.findUnique({
+        where: { onchainIntentId: lc(a.intentId) },
+      });
       if (!intent) return "ignored";
       await tx.paymentIntent.update({
         where: { id: intent.id },
@@ -214,7 +263,9 @@ async function handle(tx: Tx, evt: NormalizedEvent): Promise<string | undefined>
       return undefined;
     }
     case "paymentRouter.IntentFailed": {
-      const intent = await tx.paymentIntent.findUnique({ where: { onchainIntentId: lc(a.intentId) } });
+      const intent = await tx.paymentIntent.findUnique({
+        where: { onchainIntentId: lc(a.intentId) },
+      });
       if (!intent) return "ignored";
       await tx.paymentIntent.update({
         where: { id: intent.id },
@@ -304,7 +355,11 @@ async function handle(tx: Tx, evt: NormalizedEvent): Promise<string | undefined>
           reason: str(a.reason) || "(no reason given)",
           raiseTxHash: txHash,
         },
-        update: { raiseTxHash: txHash, raisedByAddress: raisedBy, raisedById: raisedById ?? undefined },
+        update: {
+          raiseTxHash: txHash,
+          raisedByAddress: raisedBy,
+          raisedById: raisedById ?? undefined,
+        },
       });
       await advanceOrder(tx, order.id, "DISPUTED");
       return undefined;
@@ -334,7 +389,9 @@ async function handle(tx: Tx, evt: NormalizedEvent): Promise<string | undefined>
           resolvedAt: new Date(at),
         },
       });
-      await advanceOrder(tx, order.id, bps === 10_000 ? "REFUNDED" : "COMPLETED", { completedAt: new Date(at) });
+      await advanceOrder(tx, order.id, bps === 10_000 ? "REFUNDED" : "COMPLETED", {
+        completedAt: new Date(at),
+      });
       return undefined;
     }
     case "escrow.OrderRefunded": {
@@ -359,7 +416,8 @@ async function handle(tx: Tx, evt: NormalizedEvent): Promise<string | undefined>
       const address = lc(a.user);
       const userId = await userIdForAddress(tx, evt.chainId, address);
       const typeIdx = Number(a.eventType);
-      const eventType = (REPUTATION_EVENT_TYPES[typeIdx] ?? "PURCHASE_COMPLETED") as ReputationEventType;
+      const eventType = (REPUTATION_EVENT_TYPES[typeIdx] ??
+        "PURCHASE_COMPLETED") as ReputationEventType;
       const newScore = scaledToDecimal(str(a.newScore));
       await tx.reputationEvent.create({
         data: {
@@ -408,7 +466,10 @@ async function handle(tx: Tx, evt: NormalizedEvent): Promise<string | undefined>
     // ------------------------------------------------------------------ authenticity
     case "authenticity.CertificateMinted": {
       const productId = str(a.productId);
-      const product = await tx.product.findUnique({ where: { id: productId }, select: { id: true } });
+      const product = await tx.product.findUnique({
+        where: { id: productId },
+        select: { id: true },
+      });
       if (!product) return "ignored";
       await tx.authenticityCertificate.upsert({
         where: {
@@ -458,7 +519,10 @@ async function refreshReputationCache(tx: Tx, userId: string) {
       WHERE "userId" = ${userId} AND "isSeedDemo" = false
       ORDER BY "chainId", address, "blockNumber" DESC, "logIndex" DESC
     ) latest`;
-  await tx.user.update({ where: { id: userId }, data: { reputationScoreCache: rows[0]?.total ?? "0" } });
+  await tx.user.update({
+    where: { id: userId },
+    data: { reputationScoreCache: rows[0]?.total ?? "0" },
+  });
 }
 
 /** 1e18-scaled signed integer string → Decimal string with 6 fraction digits (exact truncation). */

@@ -21,7 +21,9 @@ contract TrestleAuthenticityTest is Test {
 
     function test_mintCertificate_recordsDetailsAndHistory() public {
         vm.prank(seller);
-        uint256 id = cert.mintCertificateWithDetails(seller, "prod_123", "Acme Watches", "BATCH-7/SN-0001", "ipfs://meta");
+        uint256 id = cert.mintCertificateWithDetails(
+            seller, "prod_123", "Acme Watches", "BATCH-7/SN-0001", "ipfs://meta"
+        );
         TrestleAuthenticity.Certificate memory c = cert.getCertificate(id);
         assertEq(c.productId, "prod_123");
         assertEq(c.manufacturer, "Acme Watches");
@@ -57,7 +59,9 @@ contract TrestleAuthenticityTest is Test {
     function test_mint_onlySeller() public {
         bytes32 role = cert.SELLER_ROLE();
         vm.prank(buyer);
-        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, buyer, role));
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, buyer, role)
+        );
         cert.mintCertificate(buyer, "fake", "ipfs://counterfeit");
     }
 

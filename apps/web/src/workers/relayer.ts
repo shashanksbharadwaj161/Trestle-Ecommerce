@@ -32,7 +32,8 @@ async function tick() {
     relayer: [...chains.values()][0]!.wallet.account.address,
     at: new Date().toISOString(),
   });
-  if (isLeader !== leader) log.info(isLeader ? "acquired leader lease" : "standing by (another relayer holds the lease)");
+  if (isLeader !== leader)
+    log.info(isLeader ? "acquired leader lease" : "standing by (another relayer holds the lease)");
   leader = isLeader;
   if (!isLeader) return;
   for (const ctx of chains.values()) {
@@ -51,7 +52,11 @@ async function main() {
   log.info("relayer starting", {
     mode: cfg.mode,
     syncMode: cfg.syncMode,
-    chains: [...chains.values()].map((c) => ({ chainId: c.chainId, rpc: c.profile.rpcUrl.replace(/\/\/([^/]*@)?([^/]+).*/, "//$2/…"), router: c.dep.paymentRouter })),
+    chains: [...chains.values()].map((c) => ({
+      chainId: c.chainId,
+      rpc: c.profile.rpcUrl.replace(/\/\/([^/]*@)?([^/]+).*/, "//$2/…"),
+      router: c.dep.paymentRouter,
+    })),
     pollMs: cfg.pollMs,
   });
   while (!stopping) {

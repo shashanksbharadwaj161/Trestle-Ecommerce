@@ -1,6 +1,6 @@
 {
   "mode": "local",
-  "generatedAt": "2026-09-25T09:06:29.452Z",
+  "generatedAt": "2026-09-25T10:33:48.103Z",
   "chains": {
     "31337": {
       "accountFactory": "0x4A679253410272dd5232B3Ff7cF5dbB88f295319",
@@ -9,7 +9,7 @@
       "authenticity": "0x3Aa5ebB10DC797CAC828524e59A333d0A371443c",
       "chainId": 31337,
       "dai": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-      "deployBlock": 32,
+      "deployBlock": 4,
       "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
       "entryPoint": "0xa85233C63b9Ee964Add6F2cffe00Fd84eb32338f",
       "escrow": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
@@ -29,7 +29,7 @@
       "authenticity": "0x3Aa5ebB10DC797CAC828524e59A333d0A371443c",
       "chainId": 31338,
       "dai": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-      "deployBlock": 64,
+      "deployBlock": 38,
       "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
       "entryPoint": "0xa85233C63b9Ee964Add6F2cffe00Fd84eb32338f",
       "escrow": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",

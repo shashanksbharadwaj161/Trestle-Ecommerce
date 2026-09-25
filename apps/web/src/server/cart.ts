@@ -18,7 +18,9 @@ export async function readCart(userId: string): Promise<CartLine[]> {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as CartLine[];
-    return Array.isArray(parsed) ? parsed.filter((l) => typeof l.variantId === "string" && l.quantity > 0) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((l) => typeof l.variantId === "string" && l.quantity > 0)
+      : [];
   } catch {
     return [];
   }
@@ -39,7 +41,8 @@ export async function clearCartLines(userId: string, variantIds: string[]) {
 
 /** Joins cart lines with live catalog data; drops variants that no longer exist or are not purchasable. */
 export async function hydrateCart(lines: CartLine[]) {
-  if (lines.length === 0) return { lines: [], groups: [], subtotalUsdMicros: 0n, warnings: [] as string[] };
+  if (lines.length === 0)
+    return { lines: [], groups: [], subtotalUsdMicros: 0n, warnings: [] as string[] };
   const variants = await prisma.productVariant.findMany({
     where: { id: { in: lines.map((l) => l.variantId) } },
     include: {
@@ -51,7 +54,16 @@ export async function hydrateCart(lines: CartLine[]) {
           priceUsdMicros: true,
           status: true,
           chainListingOptions: true,
-          seller: { select: { id: true, storefrontName: true, slug: true, verified: true, payoutChainId: true, payoutToken: true } },
+          seller: {
+            select: {
+              id: true,
+              storefrontName: true,
+              slug: true,
+              verified: true,
+              payoutChainId: true,
+              payoutToken: true,
+            },
+          },
         },
       },
     },
@@ -66,7 +78,8 @@ export async function hydrateCart(lines: CartLine[]) {
       continue;
     }
     const quantity = Math.min(l.quantity, Math.max(v.stock, 0));
-    if (quantity < l.quantity) warnings.push(`Only ${v.stock} left of “${v.product.title} — ${v.name}”.`);
+    if (quantity < l.quantity)
+      warnings.push(`Only ${v.stock} left of “${v.product.title} — ${v.name}”.`);
     if (quantity === 0) continue;
     out.push({
       variantId: v.id,
@@ -78,9 +91,20 @@ export async function hydrateCart(lines: CartLine[]) {
       lineTotalUsdMicros: v.product.priceUsdMicros * BigInt(quantity),
     });
   }
-  const groupsMap = new Map<string, { seller: (typeof out)[number]["product"]["seller"]; lines: typeof out; subtotalUsdMicros: bigint }>();
+  const groupsMap = new Map<
+    string,
+    {
+      seller: (typeof out)[number]["product"]["seller"];
+      lines: typeof out;
+      subtotalUsdMicros: bigint;
+    }
+  >();
   for (const line of out) {
-    const g = groupsMap.get(line.product.seller.id) ?? { seller: line.product.seller, lines: [], subtotalUsdMicros: 0n };
+    const g = groupsMap.get(line.product.seller.id) ?? {
+      seller: line.product.seller,
+      lines: [],
+      subtotalUsdMicros: 0n,
+    };
     g.lines.push(line);
     g.subtotalUsdMicros += line.lineTotalUsdMicros;
     groupsMap.set(line.product.seller.id, g);
@@ -118,7 +142,8 @@ export function applyCartMutation(
       map.clear();
       break;
     case "merge":
-      for (const it of m.items) map.set(it.variantId, Math.min(20, Math.max(map.get(it.variantId) ?? 0, it.quantity)));
+      for (const it of m.items)
+        map.set(it.variantId, Math.min(20, Math.max(map.get(it.variantId) ?? 0, it.quantity)));
       break;
   }
   return [...map.entries()].map(([variantId, quantity]) => ({ variantId, quantity }));

@@ -105,9 +105,17 @@ contract TrestlePaymentRouterTest is TrestleBase {
         escrowId = b.router.fulfillIntent(m, proof);
     }
 
-    function _receipt(bytes32 id, uint256 escrowId) internal view returns (TrestlePaymentRouter.FulfillmentReceipt memory) {
+    function _receipt(bytes32 id, uint256 escrowId)
+        internal
+        view
+        returns (TrestlePaymentRouter.FulfillmentReceipt memory)
+    {
         return TrestlePaymentRouter.FulfillmentReceipt({
-            intentId: id, destChainId: CHAIN_B, destRouter: address(b.router), escrowOrderId: escrowId, solver: relayer
+            intentId: id,
+            destChainId: CHAIN_B,
+            destRouter: address(b.router),
+            escrowOrderId: escrowId,
+            solver: relayer
         });
     }
 
@@ -217,7 +225,9 @@ contract TrestlePaymentRouterTest is TrestleBase {
         m.sourceRouter = stranger;
         vm.chainId(CHAIN_B);
         vm.prank(relayer);
-        vm.expectRevert(abi.encodeWithSelector(TrestlePaymentRouter.UntrustedSource.selector, CHAIN_A, stranger));
+        vm.expectRevert(
+            abi.encodeWithSelector(TrestlePaymentRouter.UntrustedSource.selector, CHAIN_A, stranger)
+        );
         b.router.fulfillIntent(m, "");
 
         m = _message(id);
@@ -233,7 +243,9 @@ contract TrestlePaymentRouterTest is TrestleBase {
         vm.chainId(CHAIN_B);
         bytes memory proof = _proof(attesterKey, b.router.hashFulfillMessage(m));
         vm.prank(relayer);
-        vm.expectRevert(abi.encodeWithSelector(TrestlePaymentRouter.InsufficientLiquidity.selector, 5_000e6, 6_000e6));
+        vm.expectRevert(
+            abi.encodeWithSelector(TrestlePaymentRouter.InsufficientLiquidity.selector, 5_000e6, 6_000e6)
+        );
         b.router.fulfillIntent(m, proof);
     }
 
@@ -254,7 +266,9 @@ contract TrestlePaymentRouterTest is TrestleBase {
         vm.chainId(CHAIN_B);
         bytes32 role = b.router.RELAYER_ROLE();
         vm.prank(stranger);
-        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, stranger, role));
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, stranger, role)
+        );
         b.router.fulfillIntent(m, "");
     }
 
@@ -297,7 +311,9 @@ contract TrestlePaymentRouterTest is TrestleBase {
         TrestlePaymentRouter.Intent memory i = a.router.getIntent(id);
         vm.warp(i.expiry + 1);
         vm.expectRevert(
-            abi.encodeWithSelector(TrestlePaymentRouter.NotYetRefundable.selector, uint256(i.expiry) + 30 minutes)
+            abi.encodeWithSelector(
+                TrestlePaymentRouter.NotYetRefundable.selector, uint256(i.expiry) + 30 minutes
+            )
         );
         a.router.refundExpired(id);
         vm.warp(uint256(i.expiry) + 30 minutes + 1);
@@ -344,7 +360,8 @@ contract TrestlePaymentRouterTest is TrestleBase {
         assertEq(b.router.quoteDirectFee(buyer, 100e6), 0.75e6);
 
         vm.prank(buyer);
-        uint256 escrowId = b.router.checkoutDirect(keccak256("o2"), address(b.usdc), 100e6, seller, buyerAccountB, 3 days);
+        uint256 escrowId =
+            b.router.checkoutDirect(keccak256("o2"), address(b.usdc), 100e6, seller, buyerAccountB, 3 days);
         assertEq(b.usdc.balanceOf(buyer), 1_000e6 - 100.75e6);
         assertEq(b.usdc.balanceOf(treasury), 0.75e6);
         TrestleEscrow.Order memory o = b.escrow.getOrder(escrowId);

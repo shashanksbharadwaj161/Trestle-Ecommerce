@@ -23,7 +23,9 @@ contract TrestleLoyaltyTest is Test {
     function test_mintReward_onlyMinter() public {
         bytes32 role = loyalty.MINTER_ROLE();
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, alice, role));
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, alice, role)
+        );
         loyalty.mintReward(alice, 1);
     }
 

@@ -134,7 +134,8 @@ contract Deploy is Script {
 
     function _deployAccountAbstraction(Cfg memory c, Deployed memory d) internal {
         // reuse the canonical v0.7 EntryPoint when present (public testnets), else deploy one
-        d.entryPoint = CANONICAL_ENTRYPOINT_V07.code.length > 0 ? CANONICAL_ENTRYPOINT_V07 : address(new EntryPoint());
+        d.entryPoint =
+            CANONICAL_ENTRYPOINT_V07.code.length > 0 ? CANONICAL_ENTRYPOINT_V07 : address(new EntryPoint());
         d.accountFactory = address(new SimpleAccountFactory(IEntryPoint(d.entryPoint)));
         TrestlePaymaster paymaster = new TrestlePaymaster(IEntryPoint(d.entryPoint), c.deployer, c.capWei);
         paymaster.setSponsoredTarget(d.escrow, true);

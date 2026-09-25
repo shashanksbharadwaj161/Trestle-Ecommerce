@@ -7,7 +7,11 @@ import { deliverEvents } from "./deliver";
 import { log } from "./log";
 
 /** Anyone may call TrestleEscrow.autoRelease after the delivery deadline; the relayer does it as a keeper. */
-export async function autoReleaseDue(cfg: RelayerConfig, prisma: PrismaClient, chains: Map<number, ChainCtx>) {
+export async function autoReleaseDue(
+  cfg: RelayerConfig,
+  prisma: PrismaClient,
+  chains: Map<number, ChainCtx>,
+) {
   if (!cfg.autoRelease) return;
   const due = await prisma.order.findMany({
     where: {
@@ -54,7 +58,9 @@ export async function sweepExpiredReservations(prisma: PrismaClient) {
     where: {
       status: "PENDING_PAYMENT",
       reservationExpiresAt: { lt: new Date() },
-      paymentIntents: { none: { OR: [{ onchainIntentId: { not: null } }, { sourceTxHash: { not: null } }] } },
+      paymentIntents: {
+        none: { OR: [{ onchainIntentId: { not: null } }, { sourceTxHash: { not: null } }] },
+      },
     },
     include: { items: true },
     take: 50,
@@ -67,11 +73,17 @@ export async function sweepExpiredReservations(prisma: PrismaClient) {
       });
       if (res.count !== 1) return;
       for (const it of o.items) {
-        await tx.productVariant.update({ where: { id: it.productVariantId }, data: { stock: { increment: it.quantity } } });
+        await tx.productVariant.update({
+          where: { id: it.productVariantId },
+          data: { stock: { increment: it.quantity } },
+        });
       }
       await tx.paymentIntent.updateMany({
         where: { orderId: o.id, status: "CREATED" },
-        data: { status: "FAILED", failureReason: "payment not received before reservation expired" },
+        data: {
+          status: "FAILED",
+          failureReason: "payment not received before reservation expired",
+        },
       });
     });
     log.info("released expired reservation", { orderId: o.id });

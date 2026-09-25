@@ -40,7 +40,8 @@ import { smartAccountFor } from "./accounts";
 import type { AuthedUser } from "./session";
 
 /** Anvil account #7 (public dev key) — the default local bundler. Never used outside NETWORK_MODE=local. */
-const LOCAL_BUNDLER_KEY = "0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356" as const;
+const LOCAL_BUNDLER_KEY =
+  "0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356" as const;
 
 const GAS = {
   verificationWithInit: 450_000n,
@@ -75,11 +76,16 @@ async function resolveAction(user: AuthedUser, action: AAAction): Promise<Resolv
   if (action.action === "confirmDelivery" || action.action === "raiseDispute") {
     const order = await prisma.order.findUnique({ where: { id: action.orderId } });
     if (!order || order.buyerId !== user.id) throw notFound("Order");
-    if (!order.escrowChainId || !order.escrowContractOrderId) throw badRequest("This order is not in escrow yet");
+    if (!order.escrowChainId || !order.escrowContractOrderId)
+      throw badRequest("This order is not in escrow yet");
     const dep = requireDeployment(order.escrowChainId);
     const data =
       action.action === "confirmDelivery"
-        ? encodeFunctionData({ abi: trestleEscrowAbi, functionName: "confirmDelivery", args: [BigInt(order.escrowContractOrderId)] })
+        ? encodeFunctionData({
+            abi: trestleEscrowAbi,
+            functionName: "confirmDelivery",
+            args: [BigInt(order.escrowContractOrderId)],
+          })
         : encodeFunctionData({
             abi: trestleEscrowAbi,
             functionName: "raiseDispute",
@@ -91,7 +97,10 @@ async function resolveAction(user: AuthedUser, action: AAAction): Promise<Resolv
       value: 0n,
       data,
       orderId: order.id,
-      description: action.action === "confirmDelivery" ? "Confirm delivery & release escrow" : "Raise a dispute",
+      description:
+        action.action === "confirmDelivery"
+          ? "Confirm delivery & release escrow"
+          : "Raise a dispute",
     };
   }
   const dep = requireDeployment(action.chainId);
@@ -102,7 +111,11 @@ async function resolveAction(user: AuthedUser, action: AAAction): Promise<Resolv
         chainId: action.chainId,
         target: dep.loyalty,
         value: 0n,
-        data: encodeFunctionData({ abi: trestleLoyaltyAbi, functionName: action.action, args: [BigInt(action.amount)] }),
+        data: encodeFunctionData({
+          abi: trestleLoyaltyAbi,
+          functionName: action.action,
+          args: [BigInt(action.amount)],
+        }),
         description: action.action === "stake" ? "Stake TRST" : "Unstake TRST",
       };
     case "claimRewards":
@@ -110,22 +123,37 @@ async function resolveAction(user: AuthedUser, action: AAAction): Promise<Resolv
         chainId: action.chainId,
         target: dep.loyalty,
         value: 0n,
-        data: encodeFunctionData({ abi: trestleLoyaltyAbi, functionName: "claimRewards", args: [] }),
+        data: encodeFunctionData({
+          abi: trestleLoyaltyAbi,
+          functionName: "claimRewards",
+          args: [],
+        }),
         description: "Claim staking rewards",
       };
     case "sweep": {
       const owner = getAddress(user.walletAddress);
       const token = getAddress(action.token);
       if (token === zeroAddress) {
-        return { chainId: action.chainId, target: owner, value: BigInt(action.amount), data: "0x", description: "Withdraw ETH to your wallet" };
+        return {
+          chainId: action.chainId,
+          target: owner,
+          value: BigInt(action.amount),
+          data: "0x",
+          description: "Withdraw ETH to your wallet",
+        };
       }
       const allowed = [dep.usdc, dep.dai, dep.loyalty].map((a) => a.toLowerCase());
-      if (!allowed.includes(token.toLowerCase())) throw badRequest("Only Trestle demo tokens and TRST can be withdrawn gaslessly");
+      if (!allowed.includes(token.toLowerCase()))
+        throw badRequest("Only Trestle demo tokens and TRST can be withdrawn gaslessly");
       return {
         chainId: action.chainId,
         target: token,
         value: 0n,
-        data: encodeFunctionData({ abi: testTokenAbi, functionName: "transfer", args: [owner, BigInt(action.amount)] }),
+        data: encodeFunctionData({
+          abi: testTokenAbi,
+          functionName: "transfer",
+          args: [owner, BigInt(action.amount)],
+        }),
         description: "Withdraw tokens to your wallet",
       };
     }
@@ -164,7 +192,12 @@ function deserializeOp(o: SerializedUserOp): PackedUserOperation {
 
 /** Builds an unsigned, paymaster-sponsored PackedUserOperation for the user's smart account. */
 export async function prepareUserOp(user: AuthedUser, action: AAAction) {
-  if (!gaslessAvailable()) throw new ApiError(503, "gasless_unavailable", "Gasless transactions are not configured on this deployment");
+  if (!gaslessAvailable())
+    throw new ApiError(
+      503,
+      "gasless_unavailable",
+      "Gasless transactions are not configured on this deployment",
+    );
   const call = await resolveAction(user, action);
   const dep = requireDeployment(call.chainId);
   const client = publicClient(call.chainId);
@@ -174,7 +207,9 @@ export async function prepareUserOp(user: AuthedUser, action: AAAction) {
   if (call.orderId) {
     const order = await prisma.order.findUniqueOrThrow({ where: { id: call.orderId } });
     if (order.buyerAccount?.toLowerCase() !== sender.toLowerCase()) {
-      throw badRequest("This order's escrow buyer is your wallet, not your smart account — send a normal transaction instead");
+      throw badRequest(
+        "This order's escrow buyer is your wallet, not your smart account — send a normal transaction instead",
+      );
     }
   }
 
@@ -184,7 +219,11 @@ export async function prepareUserOp(user: AuthedUser, action: AAAction) {
     ? "0x"
     : concat([
         dep.accountFactory,
-        encodeFunctionData({ abi: simpleAccountFactoryAbi, functionName: "createAccount", args: [owner, 0n] }),
+        encodeFunctionData({
+          abi: simpleAccountFactoryAbi,
+          functionName: "createAccount",
+          args: [owner, 0n],
+        }),
       ]);
   const nonce = (await client.readContract({
     address: dep.entryPoint,
@@ -200,17 +239,34 @@ export async function prepareUserOp(user: AuthedUser, action: AAAction) {
     sender,
     nonce,
     initCode,
-    callData: encodeFunctionData({ abi: simpleAccountAbi, functionName: "execute", args: [call.target, call.value, call.data] }),
-    accountGasLimits: packUint128Pair(deployed ? GAS.verification : GAS.verificationWithInit, GAS.call),
+    callData: encodeFunctionData({
+      abi: simpleAccountAbi,
+      functionName: "execute",
+      args: [call.target, call.value, call.data],
+    }),
+    accountGasLimits: packUint128Pair(
+      deployed ? GAS.verification : GAS.verificationWithInit,
+      GAS.call,
+    ),
     preVerificationGas: GAS.preVerification,
     gasFees: packUint128Pair(maxPriority, maxFee),
-    paymasterAndData: buildPaymasterAndData(dep.paymaster, GAS.paymasterVerification, GAS.paymasterPostOp, utcDay()),
+    paymasterAndData: buildPaymasterAndData(
+      dep.paymaster,
+      GAS.paymasterVerification,
+      GAS.paymasterPostOp,
+      utcDay(),
+    ),
     signature: "0x",
   };
   const userOpHash = getUserOpHash(op, dep.entryPoint, call.chainId);
   await kv().set(
     `aa:${userOpHash}`,
-    JSON.stringify({ userId: user.id, chainId: call.chainId, op: serializeOp(op), orderId: call.orderId ?? null }),
+    JSON.stringify({
+      userId: user.id,
+      chainId: call.chainId,
+      op: serializeOp(op),
+      orderId: call.orderId ?? null,
+    }),
     { ex: 600 },
   );
   return {
@@ -226,7 +282,9 @@ export async function prepareUserOp(user: AuthedUser, action: AAAction) {
 
 function decodeRevert(err: unknown): string {
   if (err instanceof BaseError) {
-    const revert = err.walk((e) => e instanceof ContractFunctionRevertedError) as ContractFunctionRevertedError | null;
+    const revert = err.walk(
+      (e) => e instanceof ContractFunctionRevertedError,
+    ) as ContractFunctionRevertedError | null;
     if (revert?.data?.errorName) {
       const args = (revert.data.args ?? []).map((a) => (typeof a === "string" ? a : String(a)));
       return `${revert.data.errorName}(${args.join(", ")})`;
@@ -237,24 +295,50 @@ function decodeRevert(err: unknown): string {
 }
 
 /** Verifies the owner's signature and submits the op through EntryPoint.handleOps (self-hosted mini bundler). */
-export async function submitUserOp(user: AuthedUser, input: { chainId: number; userOpHash: Hex; signature: Hex }) {
+export async function submitUserOp(
+  user: AuthedUser,
+  input: { chainId: number; userOpHash: Hex; signature: Hex },
+) {
   const key = bundlerKey();
-  if (!key) throw new ApiError(503, "gasless_unavailable", "Gasless transactions are not configured on this deployment");
+  if (!key)
+    throw new ApiError(
+      503,
+      "gasless_unavailable",
+      "Gasless transactions are not configured on this deployment",
+    );
   // one-shot: consuming the pending op prevents double submission
   const raw = await kv().getdel(`aa:${input.userOpHash}`);
-  if (!raw) throw new ApiError(410, "userop_expired", "This operation expired or was already submitted — please retry");
-  const pending = JSON.parse(raw) as { userId: string; chainId: number; op: SerializedUserOp; orderId: string | null };
+  if (!raw)
+    throw new ApiError(
+      410,
+      "userop_expired",
+      "This operation expired or was already submitted — please retry",
+    );
+  const pending = JSON.parse(raw) as {
+    userId: string;
+    chainId: number;
+    op: SerializedUserOp;
+    orderId: string | null;
+  };
   if (pending.userId !== user.id || pending.chainId !== input.chainId) throw forbidden();
 
-  const signer = await recoverMessageAddress({ message: { raw: input.userOpHash }, signature: input.signature });
-  if (signer.toLowerCase() !== user.walletAddress) throw forbidden("Signature was not produced by your wallet");
+  const signer = await recoverMessageAddress({
+    message: { raw: input.userOpHash },
+    signature: input.signature,
+  });
+  if (signer.toLowerCase() !== user.walletAddress)
+    throw forbidden("Signature was not produced by your wallet");
 
   const dep = requireDeployment(input.chainId);
   const profile = chainProfile(input.chainId)!;
   const client = publicClient(input.chainId);
   const op = { ...deserializeOp(pending.op), signature: input.signature };
   const bundler = privateKeyToAccount(key);
-  const wallet = createWalletClient({ account: bundler, chain: profile.chain, transport: http(profile.rpcUrl) });
+  const wallet = createWalletClient({
+    account: bundler,
+    chain: profile.chain,
+    transport: http(profile.rpcUrl),
+  });
 
   try {
     await client.simulateContract({
@@ -265,7 +349,11 @@ export async function submitUserOp(user: AuthedUser, input: { chainId: number; u
       account: bundler,
     });
   } catch (err) {
-    throw new ApiError(422, "userop_rejected", `The sponsored operation would fail: ${decodeRevert(err)}`);
+    throw new ApiError(
+      422,
+      "userop_rejected",
+      `The sponsored operation would fail: ${decodeRevert(err)}`,
+    );
   }
   const txHash = await wallet.writeContract({
     address: dep.entryPoint,
@@ -275,13 +363,26 @@ export async function submitUserOp(user: AuthedUser, input: { chainId: number; u
     chain: profile.chain,
   });
   const receipt = await client.waitForTransactionReceipt({ hash: txHash, timeout: 90_000 });
-  const opEvents = parseEventLogs({ abi: entryPointAbi, logs: receipt.logs, eventName: "UserOperationEvent" });
-  const mine = opEvents.find((l) => (l.args as { userOpHash: Hex }).userOpHash.toLowerCase() === input.userOpHash.toLowerCase());
+  const opEvents = parseEventLogs({
+    abi: entryPointAbi,
+    logs: receipt.logs,
+    eventName: "UserOperationEvent",
+  });
+  const mine = opEvents.find(
+    (l) =>
+      (l.args as { userOpHash: Hex }).userOpHash.toLowerCase() === input.userOpHash.toLowerCase(),
+  );
   const success = Boolean(mine && (mine.args as { success: boolean }).success);
   let reason: string | undefined;
   if (!success) {
-    const reverts = parseEventLogs({ abi: entryPointAbi, logs: receipt.logs, eventName: "UserOperationRevertReason" });
-    reason = reverts[0] ? `Call reverted (${(reverts[0].args as { revertReason: Hex }).revertReason})` : "Call reverted";
+    const reverts = parseEventLogs({
+      abi: entryPointAbi,
+      logs: receipt.logs,
+      eventName: "UserOperationRevertReason",
+    });
+    reason = reverts[0]
+      ? `Call reverted (${(reverts[0].args as { revertReason: Hex }).revertReason})`
+      : "Call reverted";
   }
   const { events } = await fetchTransactionEvents(client, env().mode, input.chainId, txHash);
   await applyChainEvents(prisma, events);

@@ -5,9 +5,8 @@ const min = threshold[(process.env.LOG_LEVEL as Level) ?? "info"] ?? 20;
 
 function emit(level: Level, msg: string, data?: Record<string, unknown>) {
   if (threshold[level] < min) return;
-  const line = JSON.stringify(
-    { t: new Date().toISOString(), level, msg, ...data },
-    (_k, v) => (typeof v === "bigint" ? v.toString() : v instanceof Error ? v.message : v),
+  const line = JSON.stringify({ t: new Date().toISOString(), level, msg, ...data }, (_k, v) =>
+    typeof v === "bigint" ? v.toString() : v instanceof Error ? v.message : v,
   );
   (level === "error" || level === "warn" ? console.error : console.log)(line);
 }

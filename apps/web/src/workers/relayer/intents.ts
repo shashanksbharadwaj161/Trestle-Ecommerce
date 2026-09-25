@@ -1,6 +1,11 @@
 import { encodeAbiParameters, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { prisma as defaultPrisma, type PrismaClient, type PaymentIntent, type Prisma } from "@trestle/db";
+import {
+  prisma as defaultPrisma,
+  type PrismaClient,
+  type PaymentIntent,
+  type Prisma,
+} from "@trestle/db";
 import { fetchTransactionEvents, pushTimeline } from "@trestle/db/sync";
 import {
   findToken,
@@ -82,12 +87,23 @@ export class IntentProcessor {
     return hash;
   }
 
-  private async note(intent: PaymentIntent, data: Prisma.PaymentIntentUpdateInput, timeline?: { status: string; note?: string; chainId?: number; txHash?: string }) {
+  private async note(
+    intent: PaymentIntent,
+    data: Prisma.PaymentIntentUpdateInput,
+    timeline?: { status: string; note?: string; chainId?: number; txHash?: string },
+  ) {
     await this.prisma.paymentIntent.update({
       where: { id: intent.id },
       data: {
         ...data,
-        ...(timeline ? { txHashes: pushTimeline(intent.txHashes, { at: new Date().toISOString(), ...timeline }) } : {}),
+        ...(timeline
+          ? {
+              txHashes: pushTimeline(intent.txHashes, {
+                at: new Date().toISOString(),
+                ...timeline,
+              }),
+            }
+          : {}),
       },
     });
   }
@@ -104,19 +120,24 @@ export class IntentProcessor {
 
   /** Validates the on-chain intent against the server-issued quote/order before fulfilling it. */
   private async validate(intent: PaymentIntent, onchain: OnchainIntent): Promise<string | null> {
-    const order = await this.prisma.order.findUnique({ where: { id: intent.orderId }, include: { seller: true } });
+    const order = await this.prisma.order.findUnique({
+      where: { id: intent.orderId },
+      include: { seller: true },
+    });
     if (!order) return "unknown order";
     if (order.status === "CANCELLED") return "order was cancelled";
     const eq = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
     if (!eq(onchain.orderRef, order.onchainRef)) return "order reference mismatch";
     if (!eq(onchain.sourceToken, intent.sourceToken)) return "source token mismatch";
-    if (onchain.sourceAmount < BigInt(intent.sourceAmount.toFixed())) return "source amount below quote";
+    if (onchain.sourceAmount < BigInt(intent.sourceAmount.toFixed()))
+      return "source amount below quote";
     if (Number(onchain.destChainId) !== intent.destChainId) return "destination chain mismatch";
     if (!eq(onchain.destToken, intent.destToken)) return "destination token mismatch";
     if (onchain.destAmount !== BigInt(intent.destAmount.toFixed())) return "payout amount mismatch";
     if (!eq(onchain.seller, order.seller.payoutAddress)) return "seller address mismatch";
     if (!eq(onchain.destBuyer, intent.destBuyer)) return "buyer account mismatch";
-    if (Number(onchain.deliveryWindow) !== intent.deliveryWindowSec) return "delivery window mismatch";
+    if (Number(onchain.deliveryWindow) !== intent.deliveryWindowSec)
+      return "delivery window mismatch";
     const payToken = findToken(this.cfg.mode, intent.sourceChainId, onchain.sourceToken);
     const payoutToken = findToken(this.cfg.mode, intent.destChainId, onchain.destToken);
     if (!payToken || !payoutToken) return "unsupported token";
@@ -129,7 +150,8 @@ export class IntentProcessor {
       prices: this.cfg.prices,
       toleranceBps: this.cfg.priceToleranceBps,
     });
-    if (!econ.ok) return `payment no longer covers payout at current prices (net $${econ.netUsd} < $${econ.payoutUsd} µUSD)`;
+    if (!econ.ok)
+      return `payment no longer covers payout at current prices (net $${econ.netUsd} < $${econ.payoutUsd} µUSD)`;
     return null;
   }
 
@@ -152,7 +174,9 @@ export class IntentProcessor {
       args: [dest.wallet.account.address, onchain.destToken],
     })) as bigint;
     if (liquidity < onchain.destAmount) {
-      throw new NonRetryable(`insufficient destination liquidity (${liquidity} < ${onchain.destAmount})`);
+      throw new NonRetryable(
+        `insufficient destination liquidity (${liquidity} < ${onchain.destAmount})`,
+      );
     }
     const message: FulfillMessage = {
       intentId,
@@ -176,7 +200,15 @@ export class IntentProcessor {
       message,
     });
     const proof = encodeAbiParameters([{ type: "bytes[]" }], [[signature]]);
-    await this.note(intent, { status: "ROUTING" }, { status: "ROUTING", chainId: intent.destChainId, note: `attested by ${this.attester.address}` });
+    await this.note(
+      intent,
+      { status: "ROUTING" },
+      {
+        status: "ROUTING",
+        chainId: intent.destChainId,
+        note: `attested by ${this.attester.address}`,
+      },
+    );
     const hash = await this.send(dest, "fulfillIntent", [message, proof]);
     log.info("intent fulfilled", { intentId, destChainId: intent.destChainId, tx: hash });
     return (await dest.client.readContract({
@@ -234,14 +266,22 @@ export class IntentProcessor {
     for (const intent of pending) await this.processOne(intent);
 
     const unsettled = await this.prisma.paymentIntent.findMany({
-      where: { routeKind: "CROSS_CHAIN", status: "FULFILLED", settleTxHash: null, onchainIntentId: { not: null } },
+      where: {
+        routeKind: "CROSS_CHAIN",
+        status: "FULFILLED",
+        settleTxHash: null,
+        onchainIntentId: { not: null },
+      },
       take: 20,
     });
     for (const intent of unsettled) {
       try {
         await this.settle(intent);
       } catch (err) {
-        log.error("settle failed", { intentId: intent.onchainIntentId, err: (err as Error).message });
+        log.error("settle failed", {
+          intentId: intent.onchainIntentId,
+          err: (err as Error).message,
+        });
       }
     }
     await this.refundOrphans();
@@ -256,7 +296,8 @@ export class IntentProcessor {
       const onchain = await this.readIntent(intent.sourceChainId, intentId);
       if (onchain.status !== STATUS.Created) return; // settled/failed on-chain; the indexer syncs the DB
       const nowSec = BigInt(Math.floor(Date.now() / 1000));
-      if (nowSec + FULFILL_SAFETY_SECONDS > onchain.expiry) throw new NonRetryable("intent expired before it could be fulfilled");
+      if (nowSec + FULFILL_SAFETY_SECONDS > onchain.expiry)
+        throw new NonRetryable("intent expired before it could be fulfilled");
       const problem = await this.validate(intent, onchain);
       if (problem) throw new NonRetryable(problem);
       await this.fulfill(intent, onchain);
@@ -266,9 +307,17 @@ export class IntentProcessor {
       const message = (err as Error).message ?? String(err);
       const attempts = intent.relayAttempts + 1;
       if (err instanceof NonRetryable || attempts >= this.cfg.maxAttempts) {
-        await this.note(intent, { relayAttempts: attempts, lastError: message, nextAttemptAt: null });
+        await this.note(intent, {
+          relayAttempts: attempts,
+          lastError: message,
+          nextAttemptAt: null,
+        });
         try {
-          await this.fail(intent.sourceChainId, intentId, err instanceof NonRetryable ? message : "relay failed after retries");
+          await this.fail(
+            intent.sourceChainId,
+            intentId,
+            err instanceof NonRetryable ? message : "relay failed after retries",
+          );
         } catch (failErr) {
           log.error("could not refund intent", { intentId, err: (failErr as Error).message });
           await this.note(intent, { nextAttemptAt: new Date(Date.now() + 60_000) });
@@ -276,28 +325,44 @@ export class IntentProcessor {
         return;
       }
       const backoff = Math.min(300_000, 5_000 * 2 ** (attempts - 1));
-      await this.note(intent, { relayAttempts: attempts, lastError: message.slice(0, 500), nextAttemptAt: new Date(Date.now() + backoff) });
-      log.warn("intent attempt failed; will retry", { intentId, attempts, backoffMs: backoff, err: message });
+      await this.note(intent, {
+        relayAttempts: attempts,
+        lastError: message.slice(0, 500),
+        nextAttemptAt: new Date(Date.now() + backoff),
+      });
+      log.warn("intent attempt failed; will retry", {
+        intentId,
+        attempts,
+        backoffMs: backoff,
+        err: message,
+      });
     }
   }
 
   /** Intents created on-chain without a matching Trestle order (e.g. crafted by hand) are refunded. */
   private async refundOrphans() {
     const created = await this.prisma.chainEvent.findMany({
-      where: { eventName: "IntentCreated", createdAt: { gte: new Date(Date.now() - 7 * 86_400_000) } },
+      where: {
+        eventName: "IntentCreated",
+        createdAt: { gte: new Date(Date.now() - 7 * 86_400_000) },
+      },
       orderBy: { createdAt: "desc" },
       take: 200,
     });
     for (const e of created) {
       const intentId = String((e.args as Record<string, unknown>).intentId).toLowerCase() as Hex;
-      const known = await this.prisma.paymentIntent.findUnique({ where: { onchainIntentId: intentId }, select: { id: true } });
+      const known = await this.prisma.paymentIntent.findUnique({
+        where: { onchainIntentId: intentId },
+        select: { id: true },
+      });
       if (known) continue;
       if (!this.chains.has(e.chainId)) continue;
       const age = Date.now() - e.createdAt.getTime();
       if (age < 20_000) continue; // give the matching indexer pass a moment
       try {
         const onchain = await this.readIntent(e.chainId, intentId);
-        if (onchain.status === STATUS.Created) await this.fail(e.chainId, intentId, "no matching Trestle order");
+        if (onchain.status === STATUS.Created)
+          await this.fail(e.chainId, intentId, "no matching Trestle order");
       } catch (err) {
         log.warn("orphan refund failed", { intentId, err: (err as Error).message });
       }
@@ -306,4 +371,3 @@ export class IntentProcessor {
 }
 
 export class NonRetryable extends Error {}
-

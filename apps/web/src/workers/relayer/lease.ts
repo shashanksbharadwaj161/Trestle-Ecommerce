@@ -6,7 +6,12 @@ const LEASE_ID = "relayer-leader";
  * Postgres-backed leader lease: acquire if free/expired or already ours; renew every tick.
  * Guarantees a single active relayer even if Render briefly runs two instances during a deploy.
  */
-export async function acquireLease(prisma: PrismaClient, holder: string, ttlMs: number, info: Record<string, unknown>) {
+export async function acquireLease(
+  prisma: PrismaClient,
+  holder: string,
+  ttlMs: number,
+  info: Record<string, unknown>,
+) {
   const expires = new Date(Date.now() + ttlMs);
   const rows = await prisma.$queryRaw<{ holder: string }[]>`
     INSERT INTO "RelayerLease" ("id", "holder", "expiresAt", "updatedAt", "info")

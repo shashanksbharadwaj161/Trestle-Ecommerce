@@ -27,7 +27,11 @@ export interface SeedSeller {
 }
 
 const sizes = (stock: number[]) =>
-  ["US 8", "US 9", "US 10", "US 11"].map((s, i) => ({ name: s, attributes: { size: s }, stock: stock[i] ?? 0 }));
+  ["US 8", "US 9", "US 10", "US 11"].map((s, i) => ({
+    name: s,
+    attributes: { size: s },
+    stock: stock[i] ?? 0,
+  }));
 const apparel = (stock: number[]) =>
   ["S", "M", "L", "XL"].map((s, i) => ({ name: s, attributes: { size: s }, stock: stock[i] ?? 0 }));
 
@@ -88,7 +92,8 @@ export const SELLERS: SeedSeller[] = [
       {
         key: "watch-roll",
         title: "Hand-bound Leather Watch Roll",
-        description: "Vegetable-tanned leather roll that holds three watches, lined with undyed wool felt.",
+        description:
+          "Vegetable-tanned leather roll that holds three watches, lined with undyed wool felt.",
         price: "145.00",
         category: "Home",
         manufacturer: "Chronos Atelier",
@@ -111,7 +116,8 @@ export const SELLERS: SeedSeller[] = [
       {
         key: "aurora-runner",
         title: "Aurora Runner “Glacier”",
-        description: "Engineered-mesh runner with a supercritical foam midsole and reflective heel counter.",
+        description:
+          "Engineered-mesh runner with a supercritical foam midsole and reflective heel counter.",
         price: "220.00",
         category: "Sneakers",
         manufacturer: "Aurora Athletics",
@@ -121,7 +127,8 @@ export const SELLERS: SeedSeller[] = [
       {
         key: "court-classic",
         title: "Court Classic Low “Chalk”",
-        description: "Full-grain leather court shoe with a cupsole and gum outsole. An everyday classic.",
+        description:
+          "Full-grain leather court shoe with a cupsole and gum outsole. An everyday classic.",
         price: "165.00",
         category: "Sneakers",
         manufacturer: "Aurora Athletics",
@@ -130,7 +137,8 @@ export const SELLERS: SeedSeller[] = [
       {
         key: "retro-high",
         title: "Retro High OG “Ember”",
-        description: "Limited retro high-top in tumbled leather. Deadstock, original box, extra laces.",
+        description:
+          "Limited retro high-top in tumbled leather. Deadstock, original box, extra laces.",
         price: "340.00",
         category: "Sneakers",
         manufacturer: "Heritage Court",
@@ -169,7 +177,8 @@ export const SELLERS: SeedSeller[] = [
       {
         key: "halo-anc",
         title: "Halo ANC Headphones",
-        description: "Hybrid active noise cancelling headphones with 40mm beryllium drivers and 38h battery life.",
+        description:
+          "Hybrid active noise cancelling headphones with 40mm beryllium drivers and 38h battery life.",
         price: "349.00",
         category: "Electronics",
         manufacturer: "Lumen Labs",
@@ -182,7 +191,8 @@ export const SELLERS: SeedSeller[] = [
       {
         key: "pocket-keyboard",
         title: "Pocket Mechanical Keyboard 65%",
-        description: "Gasket-mounted aluminium 65% keyboard with hot-swap sockets and tri-mode wireless.",
+        description:
+          "Gasket-mounted aluminium 65% keyboard with hot-swap sockets and tri-mode wireless.",
         price: "189.00",
         category: "Electronics",
         manufacturer: "Lumen Labs",
@@ -194,7 +204,8 @@ export const SELLERS: SeedSeller[] = [
       {
         key: "arc-lamp",
         title: "Arc Desk Lamp",
-        description: "Dimmable, high-CRI desk lamp with an asymmetric light guide that keeps glare off your screen.",
+        description:
+          "Dimmable, high-CRI desk lamp with an asymmetric light guide that keeps glare off your screen.",
         price: "129.00",
         category: "Home",
         manufacturer: "Lumen Labs",

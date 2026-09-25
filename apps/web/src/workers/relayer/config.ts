@@ -1,7 +1,15 @@
 import { z } from "zod";
-import { getChainProfiles, parseNetworkMode, priceTable, type ChainProfile, type PriceTable } from "@trestle/shared";
+import {
+  getChainProfiles,
+  parseNetworkMode,
+  priceTable,
+  type ChainProfile,
+  type PriceTable,
+} from "@trestle/shared";
 
-const hexKey = z.string().regex(/^0x[0-9a-fA-F]{64}$/, "must be a 0x-prefixed 32-byte hex private key");
+const hexKey = z
+  .string()
+  .regex(/^0x[0-9a-fA-F]{64}$/, "must be a 0x-prefixed 32-byte hex private key");
 
 const schema = z.object({
   NETWORK_MODE: z.string().optional(),
@@ -42,16 +50,23 @@ export interface RelayerConfig {
 }
 
 /** Anvil account #1 — the relayer/attester in the local demo (public dev key, NETWORK_MODE=local only). */
-const LOCAL_RELAYER_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" as const;
+const LOCAL_RELAYER_KEY =
+  "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" as const;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): RelayerConfig {
   const e = schema.parse(env);
   const mode = parseNetworkMode(e.NETWORK_MODE);
-  const relayerKey = (e.RELAYER_PRIVATE_KEY ?? (mode === "local" ? LOCAL_RELAYER_KEY : undefined)) as `0x${string}` | undefined;
+  const relayerKey = (e.RELAYER_PRIVATE_KEY ??
+    (mode === "local" ? LOCAL_RELAYER_KEY : undefined)) as `0x${string}` | undefined;
   if (!relayerKey) throw new Error("RELAYER_PRIVATE_KEY is required when NETWORK_MODE=testnet");
   const syncMode = e.RELAYER_SYNC_MODE ?? (e.RELAYER_WEBHOOK_URL ? "webhook" : "direct");
-  if (syncMode === "webhook" && (!e.RELAYER_WEBHOOK_URL || !e.RELAYER_WEBHOOK_SECRET || e.RELAYER_WEBHOOK_SECRET.length < 32)) {
-    throw new Error("webhook sync mode needs RELAYER_WEBHOOK_URL and RELAYER_WEBHOOK_SECRET (>= 32 chars)");
+  if (
+    syncMode === "webhook" &&
+    (!e.RELAYER_WEBHOOK_URL || !e.RELAYER_WEBHOOK_SECRET || e.RELAYER_WEBHOOK_SECRET.length < 32)
+  ) {
+    throw new Error(
+      "webhook sync mode needs RELAYER_WEBHOOK_URL and RELAYER_WEBHOOK_SECRET (>= 32 chars)",
+    );
   }
   const profiles = getChainProfiles(mode, {
     chainARpcUrl: mode === "local" ? e.CHAIN_A_RPC_URL : e.SEPOLIA_RPC_URL,

@@ -33,7 +33,8 @@ export const GET = route<{ id: string }>({}, async ({ params, user }) => {
 async function ownedProduct(id: string, sellerId: string | null) {
   const p = await prisma.product.findUnique({ where: { id }, include: { variants: true } });
   if (!p) throw notFound("Product");
-  if (!sellerId || p.sellerId !== sellerId) throw forbidden("You can only manage your own products");
+  if (!sellerId || p.sellerId !== sellerId)
+    throw forbidden("You can only manage your own products");
   return p;
 }
 
@@ -43,7 +44,8 @@ export const PATCH = route<{ id: string }>(
     const existing = await ownedProduct(params.id, user!.sellerId);
     const input = await parseBody(req, productInput);
     const chains = supportedChainIds();
-    if (input.chainListingOptions.some((c) => !chains.includes(c))) throw badRequest("Unsupported chain in chainListingOptions");
+    if (input.chainListingOptions.some((c) => !chains.includes(c)))
+      throw badRequest("Unsupported chain in chainListingOptions");
     const skus = input.variants.map((v) => v.sku);
     if (new Set(skus).size !== skus.length) throw badRequest("Variant SKUs must be unique");
     const taken = await prisma.productVariant.findFirst({
@@ -71,7 +73,13 @@ export const PATCH = route<{ id: string }>(
           });
         } else {
           await tx.productVariant.create({
-            data: { productId: existing.id, name: v.name, sku: v.sku, stock: v.stock, attributes: v.attributes },
+            data: {
+              productId: existing.id,
+              name: v.name,
+              sku: v.sku,
+              stock: v.stock,
+              attributes: v.attributes,
+            },
           });
         }
       }
@@ -91,7 +99,13 @@ export const PATCH = route<{ id: string }>(
       });
     });
     await prisma.auditLog.create({
-      data: { actorId: user!.id, action: "product.update", entity: "Product", entityId: product.id, data: {} },
+      data: {
+        actorId: user!.id,
+        action: "product.update",
+        entity: "Product",
+        entityId: product.id,
+        data: {},
+      },
     });
     return { product };
   },
@@ -104,7 +118,11 @@ export const DELETE = route<{ id: string }>(
     const orders = await prisma.orderItem.count({ where: { productId: p.id } });
     if (orders > 0) {
       await prisma.product.update({ where: { id: p.id }, data: { status: "ARCHIVED" } });
-      return { archived: true, deleted: false, reason: "Product has order history, so it was archived instead of deleted." };
+      return {
+        archived: true,
+        deleted: false,
+        reason: "Product has order history, so it was archived instead of deleted.",
+      };
     }
     await prisma.product.delete({ where: { id: p.id } });
     return { archived: false, deleted: true };

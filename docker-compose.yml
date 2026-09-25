@@ -1,0 +1,77 @@
+# Local development infrastructure: Postgres, Redis, and two Anvil chains ("Chain A" / "Chain B").
+# The Next.js app and relayer run on the host (`pnpm dev`, `pnpm relayer`) for fast iteration.
+name: trestle
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: trestle
+      POSTGRES_PASSWORD: trestle
+      POSTGRES_DB: trestle
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trestle"]
+      interval: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 20
+
+  # Upstash-compatible REST facade over the local Redis, for exercising the Upstash code path locally
+  # (set UPSTASH_REDIS_REST_URL=http://localhost:8079 and UPSTASH_REDIS_REST_TOKEN=local_token).
+  redis-http:
+    image: hiett/serverless-redis-http:latest
+    environment:
+      SRH_MODE: env
+      SRH_TOKEN: local_token
+      SRH_CONNECTION_STRING: redis://redis:6379
+    ports: ["8079:80"]
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  chain-a:
+    image: ghcr.io/foundry-rs/foundry:stable
+    entrypoint:
+      [
+        "anvil",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8545",
+        "--chain-id",
+        "31337",
+        "--block-time",
+        "1",
+        "--balance",
+        "10000",
+      ]
+    ports: ["8545:8545"]
+
+  chain-b:
+    image: ghcr.io/foundry-rs/foundry:stable
+    entrypoint:
+      [
+        "anvil",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8546",
+        "--chain-id",
+        "31338",
+        "--block-time",
+        "1",
+        "--balance",
+        "10000",
+      ]
+    ports: ["8546:8546"]
+
+volumes:
+  pgdata:

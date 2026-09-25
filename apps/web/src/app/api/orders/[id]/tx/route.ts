@@ -19,7 +19,10 @@ export const POST = route<{ id: string }>(
     const { order, viewer } = await loadOrderFor(params.id, user!);
     const escrow = await readEscrow(order);
     const actions = computeActions(order, viewer, user!, escrow);
-    const escrowCall = (fn: "confirmDelivery" | "raiseDispute" | "refundBySeller", description: string): TxCall => {
+    const escrowCall = (
+      fn: "confirmDelivery" | "raiseDispute" | "refundBySeller",
+      description: string,
+    ): TxCall => {
       const dep = requireDeployment(order.escrowChainId!);
       const id = BigInt(order.escrowContractOrderId!);
       const data =
@@ -34,14 +37,17 @@ export const POST = route<{ id: string }>(
         return planFor(actions.payNow.paymentIntentId);
       }
       case "confirmDelivery":
-        if (actions.confirmDelivery?.via !== "wallet") throw conflict("Use the gasless flow for this order");
+        if (actions.confirmDelivery?.via !== "wallet")
+          throw conflict("Use the gasless flow for this order");
         return { calls: [escrowCall("confirmDelivery", "Confirm delivery & release escrow")] };
       case "raiseDispute":
-        if (actions.raiseDispute?.via !== "wallet") throw conflict("Use the gasless flow for this order");
+        if (actions.raiseDispute?.via !== "wallet")
+          throw conflict("Use the gasless flow for this order");
         if (!reason) throw badRequest("A reason is required");
         return { calls: [escrowCall("raiseDispute", "Raise a dispute")] };
       case "sellerRefund":
-        if (!actions.sellerRefund) throw conflict("This order cannot be refunded by the seller now");
+        if (!actions.sellerRefund)
+          throw conflict("This order cannot be refunded by the seller now");
         return {
           calls: [escrowCall("refundBySeller", "Refund the buyer in full")],
           signer: getAddress(order.seller.payoutAddress),

@@ -85,7 +85,8 @@ export function grossUpForFee(net: bigint, feeBps: bigint): { gross: bigint; fee
 
 export function computeRoute(p: QuoteParams): RouteQuote | QuoteUnavailable {
   if (p.subtotalUsdMicros <= 0n) return { routeId: "unavailable", reason: "Empty order" };
-  if (!p.payoutToken.isStable) return { routeId: "unavailable", reason: "Payout token must be a stablecoin" };
+  if (!p.payoutToken.isStable)
+    return { routeId: "unavailable", reason: "Payout token must be a stablecoin" };
   const destAmount = usdMicrosToStableAmount(p.subtotalUsdMicros, p.payoutToken);
   const sameChain = p.payToken.chainId === p.payoutToken.chainId;
 
@@ -113,7 +114,11 @@ export function computeRoute(p: QuoteParams): RouteQuote | QuoteUnavailable {
       estimatedSeconds: p.destProfile.blockTimeSec * (p.destProfile.confirmations + 1),
       securityScore: SECURITY.direct.score,
       securityNotes: [...SECURITY.direct.notes],
-      steps: ["Approve token (if ERC-20)", "Pay into escrow via TrestlePaymentRouter.checkoutDirect", "Escrowed"],
+      steps: [
+        "Approve token (if ERC-20)",
+        "Pay into escrow via TrestlePaymentRouter.checkoutDirect",
+        "Escrowed",
+      ],
     };
   }
 
@@ -124,7 +129,9 @@ export function computeRoute(p: QuoteParams): RouteQuote | QuoteUnavailable {
   const { gross, fee } = grossUpForFee(net, p.effectiveFeeBps);
   const poll = p.relayPollSeconds ?? 4;
   const est =
-    p.sourceProfile.blockTimeSec * (p.sourceProfile.confirmations + 1) + poll + p.destProfile.blockTimeSec * 2;
+    p.sourceProfile.blockTimeSec * (p.sourceProfile.confirmations + 1) +
+    poll +
+    p.destProfile.blockTimeSec * 2;
   return {
     routeId: "attested-relay",
     kind: "cross-chain",

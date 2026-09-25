@@ -19,8 +19,14 @@ export type OrderDetail = Prisma.OrderGetPayload<{ include: typeof orderDetailIn
 
 export type Viewer = "buyer" | "seller" | "admin";
 
-export async function loadOrderFor(orderId: string, user: AuthedUser): Promise<{ order: OrderDetail; viewer: Viewer }> {
-  const order = await prisma.order.findUnique({ where: { id: orderId }, include: orderDetailInclude });
+export async function loadOrderFor(
+  orderId: string,
+  user: AuthedUser,
+): Promise<{ order: OrderDetail; viewer: Viewer }> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: orderDetailInclude,
+  });
   if (!order) throw notFound("Order");
   let viewer: Viewer | null = null;
   if (order.buyerId === user.id) viewer = "buyer";
@@ -40,7 +46,10 @@ export interface OnchainEscrow {
   deliveryDeadline: number;
 }
 
-export async function readEscrow(order: { escrowChainId: number | null; escrowContractOrderId: string | null }): Promise<OnchainEscrow | null> {
+export async function readEscrow(order: {
+  escrowChainId: number | null;
+  escrowContractOrderId: string | null;
+}): Promise<OnchainEscrow | null> {
   if (!order.escrowChainId || !order.escrowContractOrderId) return null;
   const dep = deployment(order.escrowChainId);
   if (!dep) return null;
@@ -50,7 +59,14 @@ export async function readEscrow(order: { escrowChainId: number | null; escrowCo
       abi: trestleEscrowAbi,
       functionName: "getOrder",
       args: [BigInt(order.escrowContractOrderId)],
-    })) as { buyer: string; seller: string; token: string; amount: bigint; deliveryDeadline: bigint; status: number };
+    })) as {
+      buyer: string;
+      seller: string;
+      token: string;
+      amount: bigint;
+      deliveryDeadline: bigint;
+      status: number;
+    };
     return {
       status: ESCROW_STATUS[o.status] ?? "None",
       buyer: o.buyer.toLowerCase(),
@@ -64,7 +80,10 @@ export async function readEscrow(order: { escrowChainId: number | null; escrowCo
   }
 }
 
-export async function readIntentStatus(intent: { sourceChainId: number; onchainIntentId: string | null }) {
+export async function readIntentStatus(intent: {
+  sourceChainId: number;
+  onchainIntentId: string | null;
+}) {
   if (!intent.onchainIntentId) return null;
   const dep = deployment(intent.sourceChainId);
   if (!dep) return null;
@@ -75,7 +94,10 @@ export async function readIntentStatus(intent: { sourceChainId: number; onchainI
       functionName: "getIntent",
       args: [intent.onchainIntentId as `0x${string}`],
     })) as { status: number; expiry: bigint };
-    return { status: ["None", "Created", "Settled", "Failed"][i.status] ?? "None", expiry: Number(i.expiry) };
+    return {
+      status: ["None", "Created", "Settled", "Failed"][i.status] ?? "None",
+      expiry: Number(i.expiry),
+    };
   } catch {
     return null;
   }
@@ -112,29 +134,51 @@ export function computeActions(
       if (beforeDeadline) a.raiseDispute = { via };
     }
     if (order.status === "COMPLETED" && !order.review) a.review = true;
-    const pending = order.paymentIntents.find((i) => i.status === "CREATED" && !i.onchainIntentId && !i.sourceTxHash);
-    if (order.status === "PENDING_PAYMENT" && pending && pending.expiresAt.getTime() > now + 5 * 60_000) {
+    const pending = order.paymentIntents.find(
+      (i) => i.status === "CREATED" && !i.onchainIntentId && !i.sourceTxHash,
+    );
+    if (
+      order.status === "PENDING_PAYMENT" &&
+      pending &&
+      pending.expiresAt.getTime() > now + 5 * 60_000
+    ) {
       a.payNow = { paymentIntentId: pending.id };
     }
   }
-  if (viewer === "buyer" && order.isSeedDemo && order.status === "COMPLETED" && !order.review) a.review = true;
+  if (viewer === "buyer" && order.isSeedDemo && order.status === "COMPLETED" && !order.review)
+    a.review = true;
   if (viewer === "seller") {
     if (order.status === "ESCROWED") a.markShipped = true;
     if (order.status === "SHIPPED") a.markDelivered = true;
-    if (!order.isSeedDemo && (escrowOpen || escrow?.status === "Disputed") && ["ESCROWED", "SHIPPED", "DELIVERED", "DISPUTED"].includes(order.status)) {
+    if (
+      !order.isSeedDemo &&
+      (escrowOpen || escrow?.status === "Disputed") &&
+      ["ESCROWED", "SHIPPED", "DELIVERED", "DISPUTED"].includes(order.status)
+    ) {
       a.sellerRefund = true;
     }
   }
   for (const i of order.paymentIntents) {
-    if (i.routeKind === "CROSS_CHAIN" && i.status !== "FAILED" && i.status !== "FULFILLED" && i.onchainIntentId) {
-      if (i.expiresAt.getTime() + 30 * 60_000 < now) a.refundExpiredIntent = { intentId: i.onchainIntentId, chainId: i.sourceChainId };
+    if (
+      i.routeKind === "CROSS_CHAIN" &&
+      i.status !== "FAILED" &&
+      i.status !== "FULFILLED" &&
+      i.onchainIntentId
+    ) {
+      if (i.expiresAt.getTime() + 30 * 60_000 < now)
+        a.refundExpiredIntent = { intentId: i.onchainIntentId, chainId: i.sourceChainId };
     }
   }
   return a;
 }
 
-export async function listOrders(user: AuthedUser, as: "buyer" | "seller", opts: { status?: OrderStatus; take?: number; cursor?: string } = {}) {
-  const where: Prisma.OrderWhereInput = as === "buyer" ? { buyerId: user.id } : { seller: { userId: user.id } };
+export async function listOrders(
+  user: AuthedUser,
+  as: "buyer" | "seller",
+  opts: { status?: OrderStatus; take?: number; cursor?: string } = {},
+) {
+  const where: Prisma.OrderWhereInput =
+    as === "buyer" ? { buyerId: user.id } : { seller: { userId: user.id } };
   if (opts.status) where.status = opts.status;
   const take = Math.min(opts.take ?? 20, 50);
   const rows = await prisma.order.findMany({
@@ -146,7 +190,11 @@ export async function listOrders(user: AuthedUser, as: "buyer" | "seller", opts:
       items: { include: { product: { select: { images: true } } } },
       seller: { select: { storefrontName: true, slug: true } },
       buyer: { select: { displayName: true, walletAddress: true } },
-      paymentIntents: { select: { routeKind: true, status: true, sourceChainId: true, destChainId: true }, orderBy: { createdAt: "desc" }, take: 1 },
+      paymentIntents: {
+        select: { routeKind: true, status: true, sourceChainId: true, destChainId: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
       dispute: { select: { status: true } },
     },
   });

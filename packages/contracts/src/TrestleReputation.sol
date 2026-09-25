@@ -40,7 +40,11 @@ contract TrestleReputation is ERC721, AccessControl, IERC5192 {
     mapping(address account => Reputation) private _reputation;
 
     event ReputationEventRecorded(
-        address indexed user, ReputationEventType indexed eventType, int256 weight, int256 newScore, uint256 tokenId
+        address indexed user,
+        ReputationEventType indexed eventType,
+        int256 weight,
+        int256 newScore,
+        uint256 tokenId
     );
     /// @dev ERC-4906 metadata refresh signal.
     event MetadataUpdate(uint256 _tokenId);
@@ -60,7 +64,10 @@ contract TrestleReputation is ERC721, AccessControl, IERC5192 {
     // Recording
     // ---------------------------------------------------------------------------------------------
 
-    function recordEvent(address user, ReputationEventType eventType, int256 weight) external onlyRole(RECORDER_ROLE) {
+    function recordEvent(address user, ReputationEventType eventType, int256 weight)
+        external
+        onlyRole(RECORDER_ROLE)
+    {
         if (user == address(0)) revert ZeroAddress();
         Reputation storage rep = _reputation[user];
         if (rep.tokenId == 0) {
@@ -97,10 +104,22 @@ contract TrestleReputation is ERC721, AccessControl, IERC5192 {
     function getReputation(address user)
         external
         view
-        returns (uint256 tokenId, int256 score, uint64 lastUpdated, uint32 positiveEvents, uint32 negativeEvents)
+        returns (
+            uint256 tokenId,
+            int256 score,
+            uint64 lastUpdated,
+            uint32 positiveEvents,
+            uint32 negativeEvents
+        )
     {
         Reputation storage rep = _reputation[user];
-        return (rep.tokenId, _decayed(rep.score, rep.lastUpdated), rep.lastUpdated, rep.positiveEvents, rep.negativeEvents);
+        return (
+            rep.tokenId,
+            _decayed(rep.score, rep.lastUpdated),
+            rep.lastUpdated,
+            rep.positiveEvents,
+            rep.negativeEvents
+        );
     }
 
     function tokenOf(address user) external view returns (uint256) {
@@ -116,9 +135,8 @@ contract TrestleReputation is ERC721, AccessControl, IERC5192 {
         address owner = _requireOwned(tokenId);
         Reputation storage rep = _reputation[owner];
         int256 score = _decayed(rep.score, rep.lastUpdated) / SCALE;
-        string memory scoreStr = score < 0
-            ? string.concat("-", uint256(-score).toString())
-            : uint256(score).toString();
+        string memory scoreStr =
+            score < 0 ? string.concat("-", uint256(-score).toString()) : uint256(score).toString();
         bytes memory json = abi.encodePacked(
             '{"name":"Trestle Reputation #',
             tokenId.toString(),
@@ -165,7 +183,12 @@ contract TrestleReputation is ERC721, AccessControl, IERC5192 {
         revert Soulbound();
     }
 
-    function supportsInterface(bytes4 interfaceId) public view override(ERC721, AccessControl) returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, AccessControl)
+        returns (bool)
+    {
         return interfaceId == 0xb45a3c0e // ERC-5192
             || interfaceId == 0x49064906 // ERC-4906
             || super.supportsInterface(interfaceId);

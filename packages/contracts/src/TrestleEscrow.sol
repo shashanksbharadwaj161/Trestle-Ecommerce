@@ -73,7 +73,11 @@ contract TrestleEscrow is AccessControl, ReentrancyGuard {
     event FundsReleased(uint256 indexed orderId, address indexed seller, uint256 amount, bool automatic);
     event DisputeRaised(uint256 indexed orderId, address indexed raisedBy, string reason);
     event DisputeResolved(
-        uint256 indexed orderId, address indexed arbiter, uint256 buyerShareBps, uint256 buyerAmount, uint256 sellerAmount
+        uint256 indexed orderId,
+        address indexed arbiter,
+        uint256 buyerShareBps,
+        uint256 buyerAmount,
+        uint256 sellerAmount
     );
     event OrderRefunded(uint256 indexed orderId, address indexed buyer, uint256 amount);
     event HookFailed(uint256 indexed orderId, bytes32 hook);
@@ -128,13 +132,20 @@ contract TrestleEscrow is AccessControl, ReentrancyGuard {
         orderId = _create(buyer, seller, token, amount, deliveryDeadline, ref);
     }
 
-    function _create(address buyer, address seller, address token, uint256 amount, uint64 deadline, bytes32 ref)
-        internal
-        returns (uint256 orderId)
-    {
+    function _create(
+        address buyer,
+        address seller,
+        address token,
+        uint256 amount,
+        uint64 deadline,
+        bytes32 ref
+    ) internal returns (uint256 orderId) {
         if (seller == address(0)) revert ZeroAddress();
         if (seller == buyer) revert NotParticipant();
-        if (deadline < block.timestamp + MIN_DELIVERY_WINDOW || deadline > block.timestamp + MAX_DELIVERY_WINDOW) {
+        if (
+            deadline < block.timestamp + MIN_DELIVERY_WINDOW
+                || deadline > block.timestamp + MAX_DELIVERY_WINDOW
+        ) {
             revert InvalidDeadline();
         }
         orderId = nextOrderId++;
@@ -180,7 +191,11 @@ contract TrestleEscrow is AccessControl, ReentrancyGuard {
     }
 
     /// @param buyerShareBps share of escrowed funds returned to the buyer (0 = seller wins, 10000 = full refund).
-    function resolveDispute(uint256 orderId, uint256 buyerShareBps) external onlyRole(ARBITER_ROLE) nonReentrant {
+    function resolveDispute(uint256 orderId, uint256 buyerShareBps)
+        external
+        onlyRole(ARBITER_ROLE)
+        nonReentrant
+    {
         Order storage o = _orders[orderId];
         if (o.status != Status.Disputed) revert InvalidStatus(o.status);
         if (buyerShareBps > BPS) revert InvalidShare();

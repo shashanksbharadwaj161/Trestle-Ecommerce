@@ -32,7 +32,14 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
 };
 
 /** On-chain escrow status enum (TrestleEscrow.Status). */
-export const ESCROW_STATUS = ["None", "Created", "Disputed", "Released", "Refunded", "Split"] as const;
+export const ESCROW_STATUS = [
+  "None",
+  "Created",
+  "Disputed",
+  "Released",
+  "Refunded",
+  "Split",
+] as const;
 export type EscrowStatus = (typeof ESCROW_STATUS)[number];
 
 /** TrestleReputation ReputationEventType enum. */

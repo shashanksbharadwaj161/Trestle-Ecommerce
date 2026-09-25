@@ -51,7 +51,12 @@ interface StoredQuote {
   id: string;
   userId: string;
   sellerId: string;
-  items: (QuoteItem & { unitPriceUsdMicros: string; productId: string; title: string; variantName: string })[];
+  items: (QuoteItem & {
+    unitPriceUsdMicros: string;
+    productId: string;
+    title: string;
+    variantName: string;
+  })[];
   subtotalUsdMicros: string;
   payoutChainId: number;
   payoutToken: string;
@@ -98,14 +103,25 @@ function serialize(q: RouteQuote, key: string, liquidity?: bigint): SerializedRo
   return {
     key,
     available: sufficient,
-    reason: sufficient ? undefined : "Solver liquidity on the destination chain is insufficient for this order right now.",
+    reason: sufficient
+      ? undefined
+      : "Solver liquidity on the destination chain is insufficient for this order right now.",
     routeId: q.routeId,
     kind: q.kind,
     label: q.label,
     sourceChainId: q.sourceChainId,
     destChainId: q.destChainId,
-    payToken: { address: q.payToken.address, symbol: q.payToken.symbol, decimals: q.payToken.decimals, isNative: q.payToken.isNative },
-    payoutToken: { address: q.payoutToken.address, symbol: q.payoutToken.symbol, decimals: q.payoutToken.decimals },
+    payToken: {
+      address: q.payToken.address,
+      symbol: q.payToken.symbol,
+      decimals: q.payToken.decimals,
+      isNative: q.payToken.isNative,
+    },
+    payoutToken: {
+      address: q.payoutToken.address,
+      symbol: q.payoutToken.symbol,
+      decimals: q.payoutToken.decimals,
+    },
     sourceAmount: q.sourceAmount.toString(),
     destAmount: q.destAmount.toString(),
     feeAmount: q.feeAmount.toString(),
@@ -115,7 +131,10 @@ function serialize(q: RouteQuote, key: string, liquidity?: bigint): SerializedRo
     securityScore: q.securityScore,
     securityNotes: q.securityNotes,
     steps: q.steps,
-    liquidity: q.kind === "cross-chain" ? { available: (liquidity ?? 0n).toString(), sufficient } : undefined,
+    liquidity:
+      q.kind === "cross-chain"
+        ? { available: (liquidity ?? 0n).toString(), sufficient }
+        : undefined,
   };
 }
 
@@ -153,11 +172,18 @@ export async function createQuote(
   const lines: StoredQuote["items"] = [];
   for (const v of variants) {
     const qty = merged.get(v.id)!;
-    if (v.product.sellerId !== seller.id) throw badRequest("All items must come from the same seller");
-    if (v.product.status !== "ACTIVE") throw conflict(`“${v.product.title}” is not currently for sale`);
-    if (v.stock < qty) throw conflict(`Only ${v.stock} left of “${v.product.title} — ${v.name}”`, { variantId: v.id });
+    if (v.product.sellerId !== seller.id)
+      throw badRequest("All items must come from the same seller");
+    if (v.product.status !== "ACTIVE")
+      throw conflict(`“${v.product.title}” is not currently for sale`);
+    if (v.stock < qty)
+      throw conflict(`Only ${v.stock} left of “${v.product.title} — ${v.name}”`, {
+        variantId: v.id,
+      });
     subtotal += v.product.priceUsdMicros * BigInt(qty);
-    chains = chains ? chains.filter((c) => v.product.chainListingOptions.includes(c)) : [...v.product.chainListingOptions];
+    chains = chains
+      ? chains.filter((c) => v.product.chainListingOptions.includes(c))
+      : [...v.product.chainListingOptions];
     lines.push({
       variantId: v.id,
       quantity: qty,
@@ -170,12 +196,19 @@ export async function createQuote(
 
   const destProfile = chainProfile(seller.payoutChainId);
   const payoutToken = findToken(e.mode, seller.payoutChainId, seller.payoutToken);
-  if (!destProfile || !payoutToken) throw new ApiError(409, "seller_payout_unavailable", "Seller payout configuration is not supported on this network");
+  if (!destProfile || !payoutToken)
+    throw new ApiError(
+      409,
+      "seller_payout_unavailable",
+      "Seller payout configuration is not supported on this network",
+    );
 
   const prices = priceTable(e.PRICE_ETH_USD);
   const payer = getAddress(user.walletAddress);
   const routes: SerializedRoute[] = [];
-  const allowedChains = chainProfiles().filter((p) => (chains ?? []).includes(p.chain.id) && deployment(p.chain.id));
+  const allowedChains = chainProfiles().filter(
+    (p) => (chains ?? []).includes(p.chain.id) && deployment(p.chain.id),
+  );
   const liquidityCache = new Map<string, bigint | undefined>();
 
   for (const src of allowedChains) {
@@ -199,14 +232,20 @@ export async function createQuote(
           reason: q.reason,
           sourceChainId: src.chain.id,
           destChainId: destProfile.chain.id,
-          payToken: { address: token.address, symbol: token.symbol, decimals: token.decimals, isNative: token.isNative },
+          payToken: {
+            address: token.address,
+            symbol: token.symbol,
+            decimals: token.decimals,
+            isNative: token.isNative,
+          },
         });
         continue;
       }
       let liq: bigint | undefined;
       if (q.kind === "cross-chain") {
         const lk = `${q.destChainId}:${q.payoutToken.address}`;
-        if (!liquidityCache.has(lk)) liquidityCache.set(lk, await solverLiquidity(q.destChainId, q.payoutToken.address));
+        if (!liquidityCache.has(lk))
+          liquidityCache.set(lk, await solverLiquidity(q.destChainId, q.payoutToken.address));
         liq = liquidityCache.get(lk);
       }
       routes.push(serialize(q, key, liq));
@@ -229,7 +268,8 @@ export async function createQuote(
   };
   await kv().set(`quote:${stored.id}`, JSON.stringify(stored), { ex: e.QUOTE_TTL_SECONDS });
 
-  const requested = input.payChainId && input.payToken ? routeKey(input.payChainId, input.payToken) : undefined;
+  const requested =
+    input.payChainId && input.payToken ? routeKey(input.payChainId, input.payToken) : undefined;
   const best =
     routes.find((r) => r.key === requested && r.available)?.key ??
     routes.find((r) => r.available && r.kind === "direct")?.key ??
@@ -238,7 +278,11 @@ export async function createQuote(
   return {
     quoteId: stored.id,
     expiresAt: new Date(stored.expiresAt).toISOString(),
-    seller: { id: seller.id, storefrontName: seller.storefrontName, payoutChainId: seller.payoutChainId },
+    seller: {
+      id: seller.id,
+      storefrontName: seller.storefrontName,
+      payoutChainId: seller.payoutChainId,
+    },
     items: lines,
     subtotalUsdMicros: subtotal.toString(),
     routes,
@@ -258,7 +302,10 @@ export interface TxCall {
 }
 
 export async function planFor(intentId: string) {
-  const intent = await prisma.paymentIntent.findUniqueOrThrow({ where: { id: intentId }, include: { order: { include: { seller: true } } } });
+  const intent = await prisma.paymentIntent.findUniqueOrThrow({
+    where: { id: intentId },
+    include: { order: { include: { seller: true } } },
+  });
   const dep = requireDeployment(intent.sourceChainId);
   const payer = getAddress(intent.payer);
   const token = getAddress(intent.sourceToken) as Address;
@@ -269,10 +316,19 @@ export async function planFor(intentId: string) {
     calls.push({
       chainId: intent.sourceChainId,
       to: token,
-      data: encodeFunctionData({ abi: testTokenAbi, functionName: "approve", args: [dep.paymentRouter, sourceAmount] }),
+      data: encodeFunctionData({
+        abi: testTokenAbi,
+        functionName: "approve",
+        args: [dep.paymentRouter, sourceAmount],
+      }),
       value: "0",
       description: "Approve Trestle router to move your tokens",
-      requiresAllowance: { token, owner: payer, spender: dep.paymentRouter, amount: sourceAmount.toString() },
+      requiresAllowance: {
+        token,
+        owner: payer,
+        spender: dep.paymentRouter,
+        amount: sourceAmount.toString(),
+      },
     });
   }
   if (intent.routeKind === "DIRECT") {
@@ -320,12 +376,23 @@ export async function planFor(intentId: string) {
       description: "Lock payment and create cross-chain intent",
     });
   }
-  return { orderId: intent.orderId, paymentIntentId: intent.id, chainId: intent.sourceChainId, calls, expiresAt: intent.expiresAt };
+  return {
+    orderId: intent.orderId,
+    paymentIntentId: intent.id,
+    chainId: intent.sourceChainId,
+    calls,
+    expiresAt: intent.expiresAt,
+  };
 }
 
 export async function initiateCheckout(
   user: AuthedUser,
-  input: { quoteId: string; routeKey: string; buyerAccountMode: "smart" | "wallet"; shippingAddress: Prisma.InputJsonValue },
+  input: {
+    quoteId: string;
+    routeKey: string;
+    buyerAccountMode: "smart" | "wallet";
+    shippingAddress: Prisma.InputJsonValue;
+  },
 ) {
   const e = env();
   // idempotent retry: the same quote always maps to the same order
@@ -337,10 +404,12 @@ export async function initiateCheckout(
   }
 
   const raw = await kv().get(`quote:${input.quoteId}`);
-  if (!raw) throw new ApiError(410, "quote_expired", "This quote has expired — please refresh the quote");
+  if (!raw)
+    throw new ApiError(410, "quote_expired", "This quote has expired — please refresh the quote");
   const quote = JSON.parse(raw) as StoredQuote;
   if (quote.userId !== user.id) throw forbidden("Quote belongs to another session");
-  if (quote.expiresAt < Date.now()) throw new ApiError(410, "quote_expired", "This quote has expired — please refresh the quote");
+  if (quote.expiresAt < Date.now())
+    throw new ApiError(410, "quote_expired", "This quote has expired — please refresh the quote");
   const route = quote.routes.find((r) => r.key === input.routeKey);
   if (!route || !route.available || !route.sourceAmount || !route.destAmount || !route.kind) {
     throw badRequest(route?.reason ?? "Selected route is not available");
@@ -365,7 +434,10 @@ export async function initiateCheckout(
           where: { id: it.variantId, stock: { gte: it.quantity }, product: { status: "ACTIVE" } },
           data: { stock: { decrement: it.quantity } },
         });
-        if (res.count !== 1) throw conflict(`“${it.title} — ${it.variantName}” just sold out`, { variantId: it.variantId });
+        if (res.count !== 1)
+          throw conflict(`“${it.title} — ${it.variantName}” just sold out`, {
+            variantId: it.variantId,
+          });
       }
       await tx.order.create({
         data: {
@@ -416,9 +488,18 @@ export async function initiateCheckout(
         },
       });
     });
-    await clearCartLines(user.id, quote.items.map((i) => i.variantId));
+    await clearCartLines(
+      user.id,
+      quote.items.map((i) => i.variantId),
+    );
     await prisma.auditLog.create({
-      data: { actorId: user.id, action: "checkout.initiate", entity: "Order", entityId: orderId, data: { routeKey: route.key } },
+      data: {
+        actorId: user.id,
+        action: "checkout.initiate",
+        entity: "Order",
+        entityId: orderId,
+        data: { routeKey: route.key },
+      },
     });
     return { ...(await planFor(intent.id)), idempotentReplay: false };
   } catch (err) {
@@ -426,4 +507,3 @@ export async function initiateCheckout(
     throw err;
   }
 }
-

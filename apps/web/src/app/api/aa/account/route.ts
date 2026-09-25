@@ -18,7 +18,12 @@ export const GET = route({ auth: "user" }, async ({ user }) => {
       const client = publicClient(p.chain.id);
       const [code, remaining] = await Promise.all([
         client.getCode({ address }),
-        client.readContract({ address: dep.paymaster, abi: trestlePaymasterAbi, functionName: "remainingToday", args: [address] }),
+        client.readContract({
+          address: dep.paymaster,
+          abi: trestlePaymasterAbi,
+          functionName: "remainingToday",
+          args: [address],
+        }),
       ]);
       accounts.push({
         chainId: p.chain.id,
@@ -28,7 +33,13 @@ export const GET = route({ auth: "user" }, async ({ user }) => {
         sponsoredGasRemainingWei: (remaining as bigint).toString(),
       });
     } catch {
-      accounts.push({ chainId: p.chain.id, chainName: p.label, address: null, deployed: false, sponsoredGasRemainingWei: null });
+      accounts.push({
+        chainId: p.chain.id,
+        chainName: p.label,
+        address: null,
+        deployed: false,
+        sponsoredGasRemainingWei: null,
+      });
     }
   }
   return { owner, accounts, gasless: gaslessAvailable() };

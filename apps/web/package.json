@@ -13,7 +13,9 @@
     "relayer:dev": "tsx watch src/workers/relayer.ts",
     "relayer:build": "node scripts/build-relayer.mjs",
     "relayer:start": "node dist/relayer.mjs",
-    "e2e:local": "tsx scripts/e2e-local.ts"
+    "e2e:local": "tsx scripts/e2e-local.ts",
+    "e2e:ui": "tsx scripts/ui-e2e.ts",
+    "smoke": "tsx scripts/smoke-pages.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
@@ -56,6 +58,7 @@
     "esbuild": "^0.25.12",
     "eslint": "^9.39.5",
     "eslint-config-next": "15.5.26",
+    "playwright": "1.56.1",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",

@@ -9,8 +9,16 @@ const config = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     rules: {
-      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
     },
+  },
+  {
+    // API tests inspect loosely-typed JSON responses
+    files: ["test/**/*.ts", "scripts/**/*.ts"],
+    rules: { "@typescript-eslint/no-explicit-any": "off" },
   },
 ];
 export default config;

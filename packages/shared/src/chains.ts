@@ -1,5 +1,30 @@
 import { defineChain, type Chain } from "viem";
-import { baseSepolia, sepolia } from "viem/chains";
+
+// Defined here (rather than imported from "viem/chains") so client bundles don't pull in every chain definition.
+const multicall3 = {
+  address: "0xcA11bde05977b3631167028862bE2a173976CA11",
+  blockCreated: 1,
+} as const;
+
+export const sepolia = defineChain({
+  id: 11_155_111,
+  name: "Sepolia",
+  nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
+  rpcUrls: { default: { http: ["https://ethereum-sepolia-rpc.publicnode.com"] } },
+  blockExplorers: { default: { name: "Etherscan", url: "https://sepolia.etherscan.io" } },
+  contracts: { multicall3: { ...multicall3, blockCreated: 751_532 } },
+  testnet: true,
+});
+
+export const baseSepolia = defineChain({
+  id: 84_532,
+  name: "Base Sepolia",
+  nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
+  rpcUrls: { default: { http: ["https://sepolia.base.org"] } },
+  blockExplorers: { default: { name: "Basescan", url: "https://sepolia.basescan.org" } },
+  contracts: { multicall3: { ...multicall3, blockCreated: 1_059_647 } },
+  testnet: true,
+});
 
 export type NetworkMode = "local" | "testnet";
 
@@ -43,7 +68,10 @@ export function parseNetworkMode(value: string | undefined | null): NetworkMode 
   return value === "testnet" ? "testnet" : "local";
 }
 
-export function getChainProfiles(mode: NetworkMode, rpc: RpcOverrides = {}): [ChainProfile, ChainProfile] {
+export function getChainProfiles(
+  mode: NetworkMode,
+  rpc: RpcOverrides = {},
+): [ChainProfile, ChainProfile] {
   if (mode === "testnet") {
     return [
       {
@@ -98,10 +126,16 @@ export function getChainProfiles(mode: NetworkMode, rpc: RpcOverrides = {}): [Ch
   ];
 }
 
-export function explorerTxUrl(profile: ChainProfile | undefined, txHash: string): string | undefined {
+export function explorerTxUrl(
+  profile: ChainProfile | undefined,
+  txHash: string,
+): string | undefined {
   return profile?.explorerUrl ? `${profile.explorerUrl}/tx/${txHash}` : undefined;
 }
 
-export function explorerAddressUrl(profile: ChainProfile | undefined, address: string): string | undefined {
+export function explorerAddressUrl(
+  profile: ChainProfile | undefined,
+  address: string,
+): string | undefined {
   return profile?.explorerUrl ? `${profile.explorerUrl}/address/${address}` : undefined;
 }

@@ -2,7 +2,7 @@
   "name": "trestle",
   "private": true,
   "version": "0.1.0",
-  "description": "Trestle — cross-chain-native ecommerce marketplace. Buy from any chain. Sell without limits.",
+  "description": "Trestle \u2014 cross-chain-native ecommerce marketplace. Buy from any chain. Sell without limits.",
   "packageManager": "pnpm@10.33.0",
   "engines": {
     "node": ">=20.11"
@@ -27,19 +27,19 @@
     "seed": "pnpm --filter @trestle/db seed",
     "relayer": "pnpm --filter @trestle/web relayer:dev",
     "e2e:local": "pnpm --filter @trestle/web e2e:local",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "e2e:ui": "pnpm --filter @trestle/web e2e:ui",
+    "smoke": "pnpm --filter @trestle/web smoke"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.2",
     "prettier": "^3.6.2",
-    "prettier-plugin-solidity": "^2.1.0",
     "typescript": "^5.9.3"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,mjs,json,md,css,yml,yaml}": "prettier --write",
-    "*.sol": "prettier --write"
+    "*.{ts,tsx,js,mjs,json,md,css,yml,yaml}": "prettier --write"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

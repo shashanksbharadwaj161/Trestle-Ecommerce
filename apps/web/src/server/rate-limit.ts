@@ -9,7 +9,12 @@ export interface RateLimitResult {
 }
 
 /** Fixed-window limiter (INCR + EXPIRE) — works on Upstash REST and TCP Redis alike. */
-export async function rateLimit(bucket: string, identity: string, limit: number, windowSec: number): Promise<RateLimitResult> {
+export async function rateLimit(
+  bucket: string,
+  identity: string,
+  limit: number,
+  windowSec: number,
+): Promise<RateLimitResult> {
   const window = Math.floor(Date.now() / 1000 / windowSec);
   const key = `rl:${bucket}:${identity}:${window}`;
   const store = kv();

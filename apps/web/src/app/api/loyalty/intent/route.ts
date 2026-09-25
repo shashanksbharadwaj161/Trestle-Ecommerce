@@ -7,7 +7,10 @@ import { badRequest, parseBody, route } from "@/server/http";
 const body = z.object({
   chainId: z.coerce.number().int().positive(),
   action: z.enum(["stake", "unstake", "claimRewards"]),
-  amount: z.string().regex(/^\d{1,40}$/).optional(),
+  amount: z
+    .string()
+    .regex(/^\d{1,40}$/)
+    .optional(),
 });
 
 /** Builds stake / unstake / claim calldata for the user's own wallet (the gasless path uses /api/aa/prepare). */
@@ -16,11 +19,16 @@ export const POST = route(
   async ({ req }) => {
     const input = await parseBody(req, body);
     const dep = requireDeployment(input.chainId);
-    if (input.action !== "claimRewards" && (!input.amount || BigInt(input.amount) === 0n)) throw badRequest("Amount required");
+    if (input.action !== "claimRewards" && (!input.amount || BigInt(input.amount) === 0n))
+      throw badRequest("Amount required");
     const data =
       input.action === "claimRewards"
         ? encodeFunctionData({ abi: trestleLoyaltyAbi, functionName: "claimRewards", args: [] })
-        : encodeFunctionData({ abi: trestleLoyaltyAbi, functionName: input.action, args: [BigInt(input.amount!)] });
+        : encodeFunctionData({
+            abi: trestleLoyaltyAbi,
+            functionName: input.action,
+            args: [BigInt(input.amount!)],
+          });
     return {
       calls: [
         {
@@ -28,7 +36,12 @@ export const POST = route(
           to: dep.loyalty,
           data,
           value: "0",
-          description: input.action === "stake" ? "Stake TRST" : input.action === "unstake" ? "Unstake TRST" : "Claim staking rewards",
+          description:
+            input.action === "stake"
+              ? "Stake TRST"
+              : input.action === "unstake"
+                ? "Unstake TRST"
+                : "Claim staking rewards",
         },
       ],
     };

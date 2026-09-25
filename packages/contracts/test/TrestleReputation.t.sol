@@ -37,7 +37,9 @@ contract TrestleReputationTest is Test {
     function test_recordEvent_onlyRecorder() public {
         bytes32 role = rep.RECORDER_ROLE();
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, alice, role));
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, alice, role)
+        );
         rep.recordEvent(alice, ReputationEventType.PurchaseCompleted, 100);
     }
 

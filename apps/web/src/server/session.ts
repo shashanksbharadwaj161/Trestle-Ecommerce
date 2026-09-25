@@ -26,7 +26,10 @@ function key() {
   return new TextEncoder().encode(env().siweSecret);
 }
 
-export async function issueSession(uid: string, addr: string): Promise<{ token: string; maxAge: number; sid: string }> {
+export async function issueSession(
+  uid: string,
+  addr: string,
+): Promise<{ token: string; maxAge: number; sid: string }> {
   const sid = randomBytes(16).toString("hex");
   const maxAge = env().SESSION_TTL_SECONDS;
   await kv().set(`sess:${sid}`, uid, { ex: maxAge });
@@ -40,7 +43,9 @@ export async function issueSession(uid: string, addr: string): Promise<{ token: 
   return { token, maxAge, sid };
 }
 
-export async function verifySessionToken(token: string | undefined | null): Promise<SessionClaims | null> {
+export async function verifySessionToken(
+  token: string | undefined | null,
+): Promise<SessionClaims | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, key(), { issuer: "trestle", algorithms: ["HS256"] });
@@ -59,7 +64,10 @@ export async function verifySessionToken(token: string | undefined | null): Prom
 export async function userFromToken(token: string | undefined | null): Promise<AuthedUser | null> {
   const claims = await verifySessionToken(token);
   if (!claims) return null;
-  const user = await prisma.user.findUnique({ where: { id: claims.uid }, include: { seller: { select: { id: true } } } });
+  const user = await prisma.user.findUnique({
+    where: { id: claims.uid },
+    include: { seller: { select: { id: true } } },
+  });
   if (!user || user.walletAddress !== claims.addr) return null;
   return {
     id: user.id,

@@ -17,7 +17,13 @@ function cookieHeader(jar?: Jar) {
 
 export function req(
   path: string,
-  init: { method?: string; body?: unknown; jar?: Jar; headers?: Record<string, string>; rawBody?: string } = {},
+  init: {
+    method?: string;
+    body?: unknown;
+    jar?: Jar;
+    headers?: Record<string, string>;
+    rawBody?: string;
+  } = {},
 ) {
   const headers: Record<string, string> = { host: "localhost:3000", ...(init.headers ?? {}) };
   const ck = cookieHeader(init.jar);
@@ -31,20 +37,33 @@ export function req(
 }
 
 export function absorb(jar: Jar, res: Response) {
-  const setCookies = (res.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie?.() ?? [];
+  const setCookies =
+    (res.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie?.() ?? [];
   for (const c of setCookies) {
     const [pair] = c.split(";");
     const [k, ...v] = pair!.split("=");
     const value = v.join("=");
-    if (!value || /expires=Thu, 01 Jan 1970/i.test(c) || /max-age=0/i.test(c)) jar.cookies.delete(k!.trim());
+    if (!value || /expires=Thu, 01 Jan 1970/i.test(c) || /max-age=0/i.test(c))
+      jar.cookies.delete(k!.trim());
     else jar.cookies.set(k!.trim(), value);
   }
 }
 
-type Handler = (r: NextRequest, ctx?: { params?: Promise<Record<string, string>> }) => Promise<Response>;
+type Handler = (
+  r: NextRequest,
+  ctx?: { params?: Promise<Record<string, string>> },
+) => Promise<Response>;
 
-export async function call(handler: unknown, r: NextRequest, params?: Record<string, string>, jar?: Jar) {
-  const res = await (handler as Handler)(r, params ? { params: Promise.resolve(params) } : undefined);
+export async function call(
+  handler: unknown,
+  r: NextRequest,
+  params?: Record<string, string>,
+  jar?: Jar,
+) {
+  const res = await (handler as Handler)(
+    r,
+    params ? { params: Promise.resolve(params) } : undefined,
+  );
   if (jar) absorb(jar, res);
   const text = await res.text();
   let data: any;
@@ -73,17 +92,31 @@ export async function signIn(pk = generatePrivateKey(), opts: { chainId?: number
     issuedAt: new Date(),
   });
   const signature = await account.signMessage({ message });
-  const v = await call(verifyPOST, req("/api/auth/verify", { method: "POST", body: { message, signature }, jar, headers: { origin: ORIGIN } }), undefined, jar);
+  const v = await call(
+    verifyPOST,
+    req("/api/auth/verify", {
+      method: "POST",
+      body: { message, signature },
+      jar,
+      headers: { origin: ORIGIN },
+    }),
+    undefined,
+    jar,
+  );
   if (v.status !== 200) throw new Error(`sign-in failed: ${JSON.stringify(v.data)}`);
   return { jar, account, user: v.data.user as { id: string; walletAddress: string; role: string } };
 }
 
 export async function resetDb() {
-  await prisma.$executeRawUnsafe(`TRUNCATE "AuditLog","Review","Dispute","PaymentIntent","OrderItem","Order","AuthenticityCertificate","ProductVariant","Product","Seller","ReputationEvent","LoyaltyTransaction","SmartAccount","User","ChainEvent","RelayerCheckpoint","SupportedChain" CASCADE`);
+  await prisma.$executeRawUnsafe(
+    `TRUNCATE "AuditLog","Review","Dispute","PaymentIntent","OrderItem","Order","AuthenticityCertificate","ProductVariant","Product","Seller","ReputationEvent","LoyaltyTransaction","SmartAccount","User","ChainEvent","RelayerCheckpoint","SupportedChain" CASCADE`,
+  );
 }
 
 /** Creates a seller (with its own user) and one product with two variants on local chain B. */
-export async function fixtureSeller(opts: { payoutChainId?: number; payoutToken?: string; stock?: number } = {}) {
+export async function fixtureSeller(
+  opts: { payoutChainId?: number; payoutToken?: string; stock?: number } = {},
+) {
   const pk = generatePrivateKey();
   const addr = privateKeyToAccount(pk).address.toLowerCase();
   const user = await prisma.user.create({ data: { walletAddress: addr, role: "SELLER" } });

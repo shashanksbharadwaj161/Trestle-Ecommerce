@@ -56,7 +56,10 @@ export class ChainActor {
     });
   }
 
-  async send(role: AnvilRole, req: Parameters<ReturnType<ChainActor["wallet"]>["writeContract"]>[0]): Promise<Hex> {
+  async send(
+    role: AnvilRole,
+    req: Parameters<ReturnType<ChainActor["wallet"]>["writeContract"]>[0],
+  ): Promise<Hex> {
     const hash = await this.wallet(role).writeContract(req as never);
     const receipt = await this.public.waitForTransactionReceipt({ hash });
     if (receipt.status !== "success") throw new Error(`tx reverted: ${hash}`);
@@ -64,12 +67,24 @@ export class ChainActor {
   }
 
   async mintToken(token: Address, to: Address, amount: bigint) {
-    return this.send("deployer", { address: token, abi: testTokenAbi, functionName: "mint", args: [to, amount] } as never);
+    return this.send("deployer", {
+      address: token,
+      abi: testTokenAbi,
+      functionName: "mint",
+      args: [to, amount],
+    } as never);
   }
 
   async checkoutDirect(
     buyer: AnvilRole,
-    args: { orderRef: Hex; token: Address; escrowAmount: bigint; seller: Address; buyerAccount: Address; window: bigint },
+    args: {
+      orderRef: Hex;
+      token: Address;
+      escrowAmount: bigint;
+      seller: Address;
+      buyerAccount: Address;
+      window: bigint;
+    },
   ) {
     await this.send(buyer, {
       address: args.token,
@@ -81,23 +96,50 @@ export class ChainActor {
       address: this.dep.paymentRouter,
       abi: trestlePaymentRouterAbi,
       functionName: "checkoutDirect",
-      args: [args.orderRef, args.token, args.escrowAmount, args.seller, args.buyerAccount, args.window],
+      args: [
+        args.orderRef,
+        args.token,
+        args.escrowAmount,
+        args.seller,
+        args.buyerAccount,
+        args.window,
+      ],
     } as never);
   }
 
   async escrowCall(role: AnvilRole, functionName: string, args: readonly unknown[]) {
-    return this.send(role, { address: this.dep.escrow, abi: trestleEscrowAbi, functionName, args } as never);
+    return this.send(role, {
+      address: this.dep.escrow,
+      abi: trestleEscrowAbi,
+      functionName,
+      args,
+    } as never);
   }
 
   async loyaltyCall(role: AnvilRole, functionName: string, args: readonly unknown[]) {
-    return this.send(role, { address: this.dep.loyalty, abi: trestleLoyaltyAbi, functionName, args } as never);
+    return this.send(role, {
+      address: this.dep.loyalty,
+      abi: trestleLoyaltyAbi,
+      functionName,
+      args,
+    } as never);
   }
 
   async authenticityCall(role: AnvilRole, functionName: string, args: readonly unknown[]) {
-    return this.send(role, { address: this.dep.authenticity, abi: trestleAuthenticityAbi, functionName, args } as never);
+    return this.send(role, {
+      address: this.dep.authenticity,
+      abi: trestleAuthenticityAbi,
+      functionName,
+      args,
+    } as never);
   }
 
-  async routerCall(role: AnvilRole, functionName: string, args: readonly unknown[], value?: bigint) {
+  async routerCall(
+    role: AnvilRole,
+    functionName: string,
+    args: readonly unknown[],
+    value?: bigint,
+  ) {
     return this.send(role, {
       address: this.dep.paymentRouter,
       abi: trestlePaymentRouterAbi,
@@ -114,14 +156,19 @@ export class ChainActor {
       eventName: "OrderCreated",
       fromBlock,
     });
-    const hit = logs.find((l) => (l.args as { ref?: Hex }).ref?.toLowerCase() === orderRef.toLowerCase());
+    const hit = logs.find(
+      (l) => (l.args as { ref?: Hex }).ref?.toLowerCase() === orderRef.toLowerCase(),
+    );
     return (hit?.args as { orderId?: bigint } | undefined)?.orderId;
   }
 }
 
 export async function rpcReachable(profile: ChainProfile): Promise<boolean> {
   try {
-    const c = createPublicClient({ chain: profile.chain, transport: http(profile.rpcUrl, { timeout: 2_500, retryCount: 0 }) });
+    const c = createPublicClient({
+      chain: profile.chain,
+      transport: http(profile.rpcUrl, { timeout: 2_500, retryCount: 0 }),
+    });
     const id = await c.getChainId();
     return id === profile.chain.id;
   } catch {

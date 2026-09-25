@@ -10,7 +10,10 @@ export const txHash = z
   .regex(/^0x[0-9a-fA-F]{64}$/, "Invalid transaction hash")
   .transform((h) => h.toLowerCase() as `0x${string}`);
 export const hex = z.string().regex(/^0x[0-9a-fA-F]*$/, "Invalid hex");
-export const usdAmount = z.string().trim().regex(/^\d{1,9}(\.\d{1,2})?$/, "Enter a USD amount like 129.99");
+export const usdAmount = z
+  .string()
+  .trim()
+  .regex(/^\d{1,9}(\.\d{1,2})?$/, "Enter a USD amount like 129.99");
 export const chainId = z.coerce.number().int().positive();
 export const id = z.string().min(1).max(64);
 
@@ -18,7 +21,10 @@ const imageUrl = z
   .string()
   .trim()
   .max(500)
-  .refine((u) => u.startsWith("/art/") || /^https:\/\/[^\s]+$/.test(u), "Use an https:// image URL");
+  .refine(
+    (u) => u.startsWith("/art/") || /^https:\/\/[^\s]+$/.test(u),
+    "Use an https:// image URL",
+  );
 
 export const variantInput = z.object({
   id: z.string().optional(),
@@ -77,7 +83,11 @@ export const shippingAddress = z.object({
   line2: z.string().trim().max(120).optional(),
   city: z.string().trim().min(2).max(80),
   postalCode: z.string().trim().min(2).max(20),
-  country: z.string().trim().length(2, "2-letter country code").transform((c) => c.toUpperCase()),
+  country: z
+    .string()
+    .trim()
+    .length(2, "2-letter country code")
+    .transform((c) => c.toUpperCase()),
 });
 
 export const quoteInput = z.object({
@@ -85,7 +95,10 @@ export const quoteInput = z.object({
   payChainId: chainId.optional(),
   payToken: address.optional(),
   /** Optional explicit items (Buy Now); defaults to the seller's items in the server cart. */
-  items: z.array(z.object({ variantId: id, quantity: z.number().int().min(1).max(20) })).max(30).optional(),
+  items: z
+    .array(z.object({ variantId: id, quantity: z.number().int().min(1).max(20) }))
+    .max(30)
+    .optional(),
 });
 
 export const initiateInput = z.object({
@@ -125,7 +138,10 @@ export const onboardingInput = z.object({
     .string()
     .trim()
     .toLowerCase()
-    .regex(/^[a-z0-9](?:[a-z0-9-]{1,38})[a-z0-9]$/, "3-40 chars: lowercase letters, digits, dashes"),
+    .regex(
+      /^[a-z0-9](?:[a-z0-9-]{1,38})[a-z0-9]$/,
+      "3-40 chars: lowercase letters, digits, dashes",
+    ),
   bio: z.string().trim().max(600).default(""),
   payoutChainId: chainId,
   payoutToken: address,
@@ -134,7 +150,11 @@ export const onboardingInput = z.object({
 
 export const aaAction = z.discriminatedUnion("action", [
   z.object({ action: z.literal("confirmDelivery"), orderId: id }),
-  z.object({ action: z.literal("raiseDispute"), orderId: id, reason: z.string().trim().min(10).max(1000) }),
+  z.object({
+    action: z.literal("raiseDispute"),
+    orderId: id,
+    reason: z.string().trim().min(10).max(1000),
+  }),
   z.object({ action: z.literal("stake"), chainId, amount: z.string().regex(/^\d{1,40}$/) }),
   z.object({ action: z.literal("unstake"), chainId, amount: z.string().regex(/^\d{1,40}$/) }),
   z.object({ action: z.literal("claimRewards"), chainId }),
