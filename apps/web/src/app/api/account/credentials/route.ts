@@ -1,7 +1,7 @@
 import { prisma, hashPassword, verifyPassword, Prisma } from "@trestle/db";
 import { credentialsInput } from "@/lib/schemas";
-import { ApiError, conflict, parseBody, route } from "@/server/http";
-import { publicUser } from "@/server/auth";
+import { ApiError, conflict, json, parseBody, route } from "@/server/http";
+import { publicUser, startSession } from "@/server/auth";
 
 /**
  * Adds (wallet-only accounts) or changes email + password for the signed-in account.
@@ -23,6 +23,8 @@ export const POST = route(
         data: {
           email: input.email,
           passwordHash: await hashPassword(input.password),
+          // changing the password signs out other sessions (this one is re-issued below)
+          passwordChangedAt: row.passwordHash ? new Date() : row.passwordChangedAt,
           // a changed address is unverified until a verification flow confirms it
           emailVerifiedAt: input.email === row.email ? row.emailVerifiedAt : null,
         },
@@ -40,6 +42,8 @@ export const POST = route(
         entityId: row.id,
       },
     });
-    return { user: await publicUser(row.id) };
+    const res = json({ user: await publicUser(row.id) });
+    if (row.passwordHash) await startSession(req, res, row.id, user!.walletAddress ?? "");
+    return res;
   },
 );

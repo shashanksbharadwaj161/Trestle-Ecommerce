@@ -10,3 +10,4 @@ process.env.STRIPE_SECRET_KEY = "sk_test_mock_0000000000000000000000000000";
 process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_mock_0000000000000000000000000";
 process.env.STRIPE_API_BASE = "http://127.0.0.1:12111";
 process.env.CRON_SECRET = "test-cron-secret-0123456789abcdef";
+process.env.EMAIL_PROVIDER = "log"; // DEV/TEST-only email driver: nothing is ever sent

@@ -10,6 +10,8 @@ export const SESSION_COOKIE = "trestle_session";
 export interface SessionClaims {
   sid: string;
   uid: string;
+  /** issued-at, seconds */
+  iat: number;
   /** wallet address proven at sign-in ("" for email sign-in) */
   addr: string;
 }
@@ -57,7 +59,7 @@ export async function verifySessionToken(
     // server-side revocation: the session must still exist in the KV store
     const uid = await kv().get(`sess:${sid}`);
     if (uid !== payload.uid) return null;
-    return { sid, uid, addr: payload.addr };
+    return { sid, uid, addr: payload.addr, iat: payload.iat ?? 0 };
   } catch {
     return null;
   }
@@ -72,6 +74,8 @@ export async function userFromToken(token: string | undefined | null): Promise<A
     include: { seller: { select: { id: true } } },
   });
   if (!user) return null;
+  // a password change/reset revokes every session issued before it
+  if (user.passwordChangedAt && claims.iat * 1000 < user.passwordChangedAt.getTime() - 1000) return null;
   // a wallet session is bound to the wallet it proved; if the account's wallet changed, re-authenticate
   if (claims.addr && user.walletAddress !== claims.addr) return null;
   return {

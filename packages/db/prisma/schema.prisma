@@ -123,6 +123,8 @@ model User {
   /// scrypt hash (see apps/web/src/server/password.ts); null for wallet-only accounts
   passwordHash         String?
   emailVerifiedAt      DateTime?
+  /// sessions issued before this instant are rejected (set on password change/reset)
+  passwordChangedAt    DateTime?
   role                 Role      @default(BUYER)
   /// cached decayed on-chain reputation score (whole points) from the latest ReputationEventRecorded
   reputationScoreCache Decimal?  @db.Decimal(38, 6)
@@ -141,6 +143,7 @@ model User {
   wishlist            WishlistItem[]
   cardPayments        CardPayment[]
   returnRequests      ReturnRequest[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 /// Counterfactual ERC-4337 SimpleAccount owned by the user's EOA on a given chain.
@@ -690,4 +693,18 @@ model ContactMessage {
   createdAt DateTime @default(now())
 
   @@index([handled, createdAt])
+}
+
+/// Single-use password reset tokens. Only the SHA-256 of the token is stored.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

@@ -56,6 +56,11 @@ const schema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   SUPABASE_STORAGE_BUCKET: z.string().default("product-images"),
   STORAGE_DRIVER: z.enum(["supabase", "local"]).optional(),
+  // ---- transactional email (password reset). Free-compatible: Resend free tier or any SMTP account.
+  EMAIL_PROVIDER: z.enum(["resend", "smtp", "log"]).optional(),
+  EMAIL_FROM: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  SMTP_URL: z.string().optional(),
   WALLETCONNECT_PROJECT_ID: z.string().optional(),
 });
 

@@ -319,3 +319,6 @@ export const adminReturnAction = z.object({
 export const stockPatch = z.object({
   variants: z.array(z.object({ id, stock: z.number().int().min(0).max(100_000) })).min(1).max(200),
 });
+
+export const forgotInput = z.object({ email });
+export const resetInput = z.object({ token: z.string().min(20).max(100), password });

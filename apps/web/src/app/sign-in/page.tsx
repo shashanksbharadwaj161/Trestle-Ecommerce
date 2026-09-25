@@ -17,11 +17,9 @@ export default function SignInPage() {
       </div>
       <div className="mt-10 border-t border-border pt-6 text-[0.8125rem] text-muted-foreground">
         <p>
-          Forgot your password? Password reset by email isn’t available in this store yet —{" "}
-          <Link href="/contact?topic=Other" className="text-foreground underline underline-offset-4">
-            contact us
-          </Link>{" "}
-          and we’ll help.
+          <Link href="/forgot-password" className="text-foreground underline underline-offset-4">
+            Forgot your password?
+          </Link>
         </p>
         <p className="mt-3">
           Paying with stablecoins? You can also{" "}
