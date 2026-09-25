@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { RequireAuth } from "@/components/require-auth";
+import { ConnectWallet } from "@/components/connect";
 import { Container, EmptyState, ErrorState, Notice, PageHeader } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -112,14 +113,21 @@ export function CheckoutFlow() {
       <Container>
         <EmptyState
           title="Choose what to check out"
-          description="Open your cart and pick a seller to check out with."
-          action={{ href: "/cart", label: "Go to cart" }}
+          description="Stablecoin escrow checks out one label at a time. Start from checkout and choose “Pay with stablecoin”."
+          action={{ href: "/checkout", label: "Go to checkout" }}
         />
       </Container>
     );
   }
   return (
-    <RequireAuth title="Sign in to check out">{() => <Flow sellerId={sellerId} />}</RequireAuth>
+    <RequireAuth
+      title="Sign in to pay with stablecoin"
+      description="Stablecoin escrow needs an account with a verified wallet. Card checkout does not."
+      wallet
+      walletAction={<ConnectWallet label="Connect wallet" />}
+    >
+      {() => <Flow sellerId={sellerId} />}
+    </RequireAuth>
   );
 }
 

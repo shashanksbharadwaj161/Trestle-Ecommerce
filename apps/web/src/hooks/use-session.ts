@@ -4,10 +4,12 @@ import { api } from "@/lib/api";
 
 export interface SessionUser {
   id: string;
-  walletAddress: string;
+  walletAddress: string | null;
+  email: string | null;
   role: "BUYER" | "SELLER" | "ADMIN";
   displayName: string | null;
   sellerId: string | null;
+  hasPassword: boolean;
 }
 
 export function useSession() {

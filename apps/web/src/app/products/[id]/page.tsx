@@ -1,45 +1,53 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { BadgeCheck, Lock, ShieldCheck, Star } from "lucide-react";
-import { prisma } from "@trestle/db";
-import { getProduct } from "@/server/products";
-import { chainProfiles } from "@/server/chain";
-import { Container } from "@/components/states";
-import { Badge } from "@/components/ui/badge";
-import { usd } from "@/lib/format";
-import { PurchasePanel } from "./purchase-panel";
-import { Gallery } from "./gallery";
+import { notFound, permanentRedirect } from "next/navigation";
+import { prisma, toJsonSafe } from "@trestle/db";
+import { CATEGORY_LABEL, DEPARTMENT_LABEL, SIZE_CHARTS, type Category, type Department } from "@trestle/shared";
+import { getProductDetail, relatedProducts } from "@/server/catalog";
+import { cardConfig } from "@/server/stripe";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { ProductShelf } from "@/components/product-shelf";
+import type { CardData } from "@/components/product-card";
 import { CertificateViewer, type CertView } from "./certificates";
+import { PurchasePanel, type PdpProduct } from "./purchase-panel";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
-  const { id } = await params;
-  const p = await prisma.product.findUnique({
-    where: { id },
-    select: { title: true, description: true },
-  });
-  return p
-    ? { title: p.title, description: p.description.slice(0, 160) }
-    : { title: "Product not found" };
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const p = await getProductDetail((await params).id);
+  if (!p) return { title: "Product not found" };
+  return {
+    title: p.title,
+    description: p.description.slice(0, 160),
+    openGraph: { images: p.gallery[0] ? [{ url: p.gallery[0].url }] : undefined },
+  };
 }
 
-export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const product = await getProduct(id);
-  if (!product || product.status === "DRAFT") notFound();
-  const chains = chainProfiles();
+const deptHref: Record<string, string> = { women: "/women", men: "/men", unisex: "/accessories" };
 
-  const provenance = await prisma.chainEvent.findMany({
-    where: {
-      eventName: "ProvenanceRecorded",
-      OR: product.certificates.map((c) => ({ chainId: c.chainId, address: c.contractAddress })),
-    },
-    orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }],
-  });
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ colour?: string }>;
+}) {
+  const { id } = await params;
+  const sp = await searchParams;
+  const product = await getProductDetail(id);
+  if (!product || product.status === "DRAFT") notFound();
+  // canonical URL is the slug
+  if (product.slug && id !== product.slug) {
+    permanentRedirect(`/products/${product.slug}${sp.colour ? `?colour=${encodeURIComponent(sp.colour)}` : ""}`);
+  }
+
+  const provenance = product.certificates.length
+    ? await prisma.chainEvent.findMany({
+        where: {
+          eventName: "ProvenanceRecorded",
+          OR: product.certificates.map((c) => ({ chainId: c.chainId, address: c.contractAddress })),
+        },
+        orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }],
+      })
+    : [];
   const certs: CertView[] = product.certificates.map((c) => ({
     id: c.id,
     tokenId: c.tokenId,
@@ -52,154 +60,128 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
     mintTxHash: c.mintTxHash,
     createdAt: c.createdAt.toISOString(),
     history: provenance
-      .filter(
-        (e) =>
-          e.chainId === c.chainId &&
-          String((e.args as Record<string, unknown>).tokenId) === c.tokenId,
-      )
+      .filter((e) => e.chainId === c.chainId && String((e.args as Record<string, unknown>).tokenId) === c.tokenId)
       .map((e) => {
         const a = e.args as Record<string, string>;
-        return {
-          from: a.from!,
-          to: a.to!,
-          at: e.blockTime?.toISOString() ?? null,
-          txHash: e.txHash,
-        };
+        return { from: a.from!, to: a.to!, at: e.blockTime?.toISOString() ?? null, txHash: e.txHash };
       }),
   }));
 
-  const payoutChain = chains.find((c) => c.chain.id === product.seller.payoutChainId);
+  const related = toJsonSafe(await relatedProducts(product)) as unknown as CardData[];
+  const dept = (product.department ?? "unisex") as Department;
+  const cat = product.category as Category;
+  const chart = product.sizeChartKey ? SIZE_CHARTS[product.sizeChartKey] ?? null : null;
+  const soldOut = product.status !== "ACTIVE";
+
+  const pdp: PdpProduct = {
+    id: product.id,
+    slug: product.slug ?? product.id,
+    title: product.title,
+    description: product.description,
+    priceUsdMicros: product.priceUsdMicros.toString(),
+    department: dept,
+    category: cat,
+    subcategory: product.subcategory,
+    material: product.material,
+    fit: product.fit,
+    care: product.care,
+    isNew: product.isNew,
+    archived: soldOut,
+    seller: { name: product.seller.storefrontName, verified: product.seller.verified },
+    gallery: product.gallery.map((g) => ({ url: g.url, alt: g.alt, colour: g.colour })),
+    variants: product.variants.map((v) => ({
+      id: v.id,
+      colour: v.colour ?? "Default",
+      colourHex: v.colourHex,
+      size: v.size ?? "One size",
+      stock: v.stock,
+      sku: v.sku,
+    })),
+    chart,
+    certificates: certs.length,
+    rating: product.rating,
+    cardEnabled: cardConfig().enabled,
+    stablecoin: product.chainListingOptions.length > 0,
+  };
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.title,
+    description: product.description,
+    image: product.gallery.map((g) => g.url),
+    sku: product.variants[0]?.sku,
+    brand: { "@type": "Brand", name: "Trestle" },
+    offers: {
+      "@type": "Offer",
+      priceCurrency: "USD",
+      price: (Number(product.priceUsdMicros) / 1e6).toFixed(2),
+      availability: product.variants.some((v) => v.stock > 0) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+    },
+  };
+
   return (
-    <Container>
-      <nav aria-label="Breadcrumb" className="mb-4 text-sm text-muted-foreground">
-        <Link href="/products" className="hover:text-foreground">
-          Shop
-        </Link>{" "}
-        /{" "}
-        <Link
-          href={`/products?category=${encodeURIComponent(product.category)}`}
-          className="hover:text-foreground"
-        >
-          {product.category}
-        </Link>
-      </nav>
-      <div className="grid gap-10 lg:grid-cols-2">
-        <Gallery images={product.images} title={product.title} />
-        <div>
-          <p className="text-sm text-muted-foreground">
-            {product.manufacturer ?? product.category}
-          </p>
-          <h1 className="mt-1 text-3xl font-semibold">{product.title}</h1>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="tabular text-2xl font-semibold">{usd(product.priceUsdMicros)}</span>
-            {product.rating.count > 0 && (
-              <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                <Star className="size-4 fill-accent text-accent" aria-hidden />{" "}
-                {product.rating.avg.toFixed(1)} ({product.rating.count} review
-                {product.rating.count === 1 ? "" : "s"})
-              </span>
-            )}
-            {certs.length > 0 && (
-              <Badge tone="primary">
-                <ShieldCheck /> {certs.length} on-chain certificate{certs.length === 1 ? "" : "s"}
-              </Badge>
-            )}
-          </div>
-          <p className="mt-5 whitespace-pre-line text-muted-foreground">{product.description}</p>
-
-          <div className="mt-6 rounded-xl border border-border bg-card p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="flex items-center gap-1 font-medium">
-                  {product.seller.storefrontName}
-                  {product.seller.verified && (
-                    <BadgeCheck className="size-4 text-primary" aria-label="Verified seller" />
-                  )}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Paid out on {payoutChain?.label ?? `chain ${product.seller.payoutChainId}`} ·
-                  reputation{" "}
-                  {product.seller.user.reputationScoreCache
-                    ? Number(product.seller.user.reputationScoreCache).toFixed(1)
-                    : "new"}
-                </p>
-              </div>
-              {!product.seller.verified && <Badge tone="warning">Unverified seller</Badge>}
-            </div>
-          </div>
-
-          <PurchasePanel
-            product={{
-              id: product.id,
-              title: product.title,
-              sellerId: product.sellerId,
-              status: product.status,
-              chainListingOptions: product.chainListingOptions,
-              variants: product.variants.map((v) => ({
-                id: v.id,
-                name: v.name,
-                stock: v.stock,
-                sku: v.sku,
-              })),
-            }}
-            chains={chains.map((c) => ({ id: c.chain.id, name: c.label }))}
-          />
-
-          <ul className="mt-6 space-y-2 text-sm text-muted-foreground">
-            <li className="flex gap-2">
-              <Lock className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden /> Your payment is
-              held in escrow until you confirm delivery (or the delivery window ends).
-            </li>
-            <li className="flex gap-2">
-              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden /> Open a
-              dispute any time before the deadline — funds freeze until an arbiter decides.
-            </li>
-          </ul>
-        </div>
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <div className="container-page pt-4 md:pt-6">
+        <Breadcrumb
+          items={[
+            { label: DEPARTMENT_LABEL[dept], href: deptHref[dept] },
+            { label: CATEGORY_LABEL[cat] ?? product.category, href: `${deptHref[dept]}?category=${cat}` },
+            { label: product.title },
+          ]}
+        />
       </div>
+      <PurchasePanel product={pdp} initialColour={sp.colour} />
 
-      <section className="mt-14" aria-labelledby="auth-heading">
-        <h2 id="auth-heading" className="text-xl font-semibold">
-          Authenticity &amp; provenance
-        </h2>
-        <CertificateViewer certs={certs} />
-      </section>
-
-      <section className="mt-14" aria-labelledby="reviews-heading">
-        <h2 id="reviews-heading" className="text-xl font-semibold">
-          Verified reviews
-        </h2>
-        {product.reviews.length === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">
-            No reviews yet. Only buyers with a completed order can review.
+      {product.reviews.length > 0 && (
+        <section aria-labelledby="reviews" className="container-page mt-20">
+          <h2 id="reviews" className="text-xl">
+            Reviews <span className="text-muted-foreground">({product.rating.count})</span>
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Reviews can only be written after a completed purchase. Average {product.rating.avg.toFixed(1)} / 5.
           </p>
-        ) : (
-          <ul className="mt-4 grid gap-4 md:grid-cols-2">
+          <ul className="mt-6 divide-y divide-border border-y border-border">
             {product.reviews.map((r) => (
-              <li key={r.id} className="rounded-xl border border-border bg-card p-5">
-                <div className="flex items-center justify-between">
-                  <span className="flex gap-0.5" aria-label={`${r.rating} out of 5 stars`}>
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`size-4 ${i < r.rating ? "fill-accent text-accent" : "text-border"}`}
-                        aria-hidden
-                      />
-                    ))}
-                  </span>
-                  <Badge tone="success">Verified purchase</Badge>
-                </div>
+              <li key={r.id} className="py-5">
+                <p className="text-sm" aria-label={`${r.rating} out of 5`}>
+                  {"★".repeat(r.rating)}
+                  <span className="text-muted-foreground">{"★".repeat(5 - r.rating)}</span>
+                </p>
                 {r.title && <p className="mt-2 font-medium">{r.title}</p>}
                 <p className="mt-1 text-sm text-muted-foreground">{r.text}</p>
-                <p className="mt-3 text-xs text-muted-foreground">
-                  {r.author.displayName ?? `${r.author.walletAddress.slice(0, 8)}…`} ·{" "}
-                  {r.createdAt.toLocaleDateString("en")}
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {r.author.displayName ?? "Verified buyer"} · verified purchase
                 </p>
               </li>
             ))}
           </ul>
-        )}
-      </section>
-    </Container>
+        </section>
+      )}
+
+      {certs.length > 0 && (
+        <section aria-labelledby="provenance" className="container-page mt-20">
+          <h2 id="provenance" className="text-xl">Provenance record</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            The seller minted an on-chain certificate for this item. It records who issued it and every transfer —
+            it is a record kept by the seller, not an independent certification.{" "}
+            <Link href="/payments#provenance" className="underline underline-offset-4">
+              How provenance works
+            </Link>
+          </p>
+          <CertificateViewer certs={certs} />
+        </section>
+      )}
+
+      {related.length > 0 && (
+        <section aria-labelledby="related" className="mt-20 md:mt-28">
+          <h2 id="related" className="container-page mb-6 text-xl">
+            You may also like
+          </h2>
+          <ProductShelf items={related} label="You may also like" />
+        </section>
+      )}
+    </>
   );
 }

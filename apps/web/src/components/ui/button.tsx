@@ -5,22 +5,23 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[2px] text-sm font-medium tracking-[-0.005em] transition-[background-color,color,border-color,opacity] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45 [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
-        secondary: "bg-muted text-foreground hover:bg-muted/70 border border-border",
-        outline: "border border-input bg-transparent hover:bg-muted",
+        primary: "bg-primary text-primary-foreground hover:bg-primary/85",
+        secondary: "bg-muted text-foreground hover:bg-border/70",
+        outline: "border border-foreground/80 bg-transparent hover:bg-foreground hover:text-background",
         ghost: "hover:bg-muted",
         danger: "bg-danger text-white hover:bg-danger/90 dark:text-black",
-        link: "text-primary underline-offset-4 hover:underline px-0",
+        trust: "bg-trust text-white hover:bg-trust/90 dark:text-black",
+        link: "text-foreground underline underline-offset-4 decoration-1 hover:decoration-2 px-0 h-auto",
       },
       size: {
-        sm: "h-8 px-3 text-xs",
-        md: "h-10 px-4",
-        lg: "h-12 px-6 text-base",
-        icon: "size-10",
+        sm: "h-9 px-3 text-[0.8125rem]",
+        md: "h-11 px-5",
+        lg: "h-12 px-7",
+        icon: "size-11",
       },
     },
     defaultVariants: { variant: "primary", size: "md" },

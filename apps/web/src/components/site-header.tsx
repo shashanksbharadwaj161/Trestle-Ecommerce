@@ -1,219 +1,194 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import { Menu, Search, ShoppingBag, X, ShieldCheck } from "lucide-react";
-import * as DM from "@radix-ui/react-dropdown-menu";
-import { useQueryClient } from "@tanstack/react-query";
-import { LogoMark } from "./logo";
-import { ThemeToggle } from "./theme-toggle";
-import { ConnectWallet } from "./connect";
-import { Button } from "@/components/ui/button";
+import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import * as NM from "@radix-ui/react-navigation-menu";
+import { Heart, Menu, Search, ShoppingBag, User } from "lucide-react";
+import { NAV } from "@/lib/nav";
+import { cn } from "@/lib/cn";
 import { useCart } from "@/hooks/use-cart";
 import { useSession } from "@/hooks/use-session";
 import { useHydrated } from "@/hooks/use-hydrated";
-import { api } from "@/lib/api";
-import { cn } from "@/lib/cn";
-import { shortAddress } from "@/lib/format";
+import { useUi } from "@/store/ui";
+import { Wordmark } from "./logo";
+import { SearchOverlay } from "./search-overlay";
+import { BagDrawer } from "./bag-drawer";
+import { MobileMenu } from "./mobile-menu";
 
-const NAV = [
-  { href: "/products", label: "Shop" },
-  { href: "/admin/transparency", label: "Transparency" },
-  { href: "/seller/onboarding", label: "Sell" },
-];
-
-function AccountMenu() {
-  const { user } = useSession();
-  const qc = useQueryClient();
-  const hydrated = useHydrated();
-  if (!user || !hydrated) return null;
-  const items = [
-    { href: "/account", label: "Account & orders" },
-    { href: "/account/loyalty", label: "Loyalty & staking" },
-    ...(user.sellerId ? [{ href: "/seller/products", label: "Seller dashboard" }] : []),
-    ...(user.role === "ADMIN"
-      ? [
-          { href: "/admin/disputes", label: "Arbitration queue" },
-          { href: "/admin/sellers", label: "Seller verification" },
-        ]
-      : []),
-  ];
-  return (
-    <DM.Root>
-      <DM.Trigger asChild>
-        <Button variant="ghost" size="sm" className="hidden md:inline-flex">
-          {user.displayName ?? shortAddress(user.walletAddress)}
-          {user.role !== "BUYER" && (
-            <span className="rounded bg-primary-soft px-1.5 text-[10px] font-semibold uppercase text-primary">
-              {user.role}
-            </span>
-          )}
-        </Button>
-      </DM.Trigger>
-      <DM.Portal>
-        <DM.Content
-          align="end"
-          sideOffset={6}
-          className="z-50 min-w-52 rounded-lg border border-border bg-card p-1 shadow-card"
-        >
-          {items.map((i) => (
-            <DM.Item key={i.href} asChild>
-              <Link
-                href={i.href}
-                className="block rounded-md px-3 py-2 text-sm outline-none data-[highlighted]:bg-muted"
-              >
-                {i.label}
-              </Link>
-            </DM.Item>
-          ))}
-          <DM.Separator className="my-1 h-px bg-border" />
-          <DM.Item
-            className="cursor-pointer rounded-md px-3 py-2 text-sm text-danger outline-none data-[highlighted]:bg-muted"
-            onSelect={async () => {
-              await api("/api/auth/logout", { body: {} });
-              await qc.invalidateQueries();
-            }}
-          >
-            Sign out
-          </DM.Item>
-        </DM.Content>
-      </DM.Portal>
-    </DM.Root>
-  );
+export interface HeaderCollection {
+  slug: string;
+  title: string;
+  image: string | null;
 }
 
-export function SiteHeader() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { count: rawCount } = useCart();
-  const { user: rawUser } = useSession();
+const iconBtn =
+  "relative grid size-11 place-items-center text-foreground transition-opacity hover:opacity-60";
+
+export function SiteHeader({ collections }: { collections: HeaderCollection[] }) {
+  const { count } = useCart();
+  const { user } = useSession();
   const hydrated = useHydrated();
-  const count = hydrated ? rawCount : 0;
-  const user = hydrated ? rawUser : null;
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
+  const pathname = usePathname();
+  const { setBag, setSearch, setMenu } = useUi();
+
+  // close overlays on navigation
+  useEffect(() => {
+    setSearch(false);
+    setMenu(false);
+  }, [pathname, setSearch, setMenu]);
+
+  const feature = collections[0];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
-        <Link
-          href="/"
-          className="flex items-center gap-2 font-semibold tracking-tight"
-          aria-label="Trestle home"
-        >
-          <LogoMark />
-          <span className="text-lg">Trestle</span>
-        </Link>
-        <nav aria-label="Main" className="ml-4 hidden items-center gap-1 md:flex">
-          {NAV.map((n) => (
-            <Link
-              key={n.href}
-              href={n.href}
-              className={cn(
-                "rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground",
-                pathname.startsWith(n.href) && "text-foreground font-medium",
-              )}
-              aria-current={pathname.startsWith(n.href) ? "page" : undefined}
+    <>
+      <div className="bg-foreground text-background">
+        <p className="container-page py-2 text-center text-[0.75rem] tracking-[0.02em]">
+          Free standard delivery on orders over $150 ·{" "}
+          <Link href="/returns" className="underline underline-offset-2">
+            30-day returns
+          </Link>
+        </p>
+      </div>
+      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+        <div className="container-page grid h-14 grid-cols-[1fr_auto_1fr] items-center md:h-16">
+          <div className="flex items-center">
+            <button
+              type="button"
+              className={cn(iconBtn, "-ml-3 lg:hidden")}
+              aria-label="Open menu"
+              onClick={() => setMenu(true)}
             >
-              {n.label}
-            </Link>
-          ))}
-        </nav>
-        <form
-          role="search"
-          className="ml-auto hidden max-w-xs flex-1 lg:block"
-          onSubmit={(e) => {
-            e.preventDefault();
-            router.push(`/products${q ? `?q=${encodeURIComponent(q)}` : ""}`);
-          }}
-        >
-          <label htmlFor="site-search" className="sr-only">
-            Search products
-          </label>
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <input
-              id="site-search"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search watches, sneakers…"
-              className="h-9 w-full rounded-lg border border-input bg-card pl-9 pr-3 text-sm placeholder:text-muted-foreground"
-            />
+              <Menu className="size-5" strokeWidth={1.5} />
+            </button>
+            <NM.Root className="hidden lg:block" aria-label="Main">
+              <NM.List className="flex items-center gap-7">
+                {NAV.map((g) => (
+                  <NM.Item key={g.label}>
+                    <NM.Trigger
+                      className={cn(
+                        "eyebrow flex h-16 items-center border-b border-transparent transition-colors data-[state=open]:border-foreground",
+                        pathname.startsWith(g.href) && "border-foreground",
+                      )}
+                      onPointerMove={(e) => e.preventDefault()}
+                      onPointerLeave={(e) => e.preventDefault()}
+                    >
+                      {g.label}
+                    </NM.Trigger>
+                    <NM.Content className="container-page grid grid-cols-[1fr_1fr_1.2fr] gap-10 py-10 animate-slide-down">
+                      <div>
+                        <p className="eyebrow mb-4 text-muted-foreground">Shop {g.label.toLowerCase()}</p>
+                        <ul className="space-y-2.5">
+                          {g.links.map((l) => (
+                            <li key={l.href}>
+                              <NM.Link asChild>
+                                <Link href={l.href} className="text-[0.9375rem] hover:underline hover:underline-offset-4">
+                                  {l.label}
+                                </Link>
+                              </NM.Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <p className="eyebrow mb-4 text-muted-foreground">Collections</p>
+                        <ul className="space-y-2.5">
+                          {collections.map((c) => (
+                            <li key={c.slug}>
+                              <NM.Link asChild>
+                                <Link href={`/collections/${c.slug}`} className="text-[0.9375rem] hover:underline hover:underline-offset-4">
+                                  {c.title}
+                                </Link>
+                              </NM.Link>
+                            </li>
+                          ))}
+                          <li>
+                            <NM.Link asChild>
+                              <Link href="/collections" className="text-[0.9375rem] text-muted-foreground hover:text-foreground">
+                                All collections
+                              </Link>
+                            </NM.Link>
+                          </li>
+                        </ul>
+                      </div>
+                      {feature?.image && (
+                        <NM.Link asChild>
+                          <Link href={`/collections/${feature.slug}`} className="group relative block aspect-[4/3] overflow-hidden bg-muted">
+                            <Image
+                              src={feature.image}
+                              alt=""
+                              fill
+                              sizes="400px"
+                              className="object-cover object-[50%_30%] transition-transform duration-700 group-hover:scale-[1.03]"
+                            />
+                            <span className="absolute bottom-3 left-3 bg-background px-3 py-1.5 text-[0.8125rem]">
+                              {feature.title}
+                            </span>
+                          </Link>
+                        </NM.Link>
+                      )}
+                    </NM.Content>
+                  </NM.Item>
+                ))}
+                <NM.Item>
+                  <NM.Link asChild active={pathname === "/new"}>
+                    <Link href="/new" className="eyebrow flex h-16 items-center border-b border-transparent data-[active]:border-foreground">
+                      New in
+                    </Link>
+                  </NM.Link>
+                </NM.Item>
+                <NM.Item>
+                  <NM.Link asChild active={pathname.startsWith("/collections")}>
+                    <Link href="/collections" className="eyebrow flex h-16 items-center border-b border-transparent data-[active]:border-foreground">
+                      Collections
+                    </Link>
+                  </NM.Link>
+                </NM.Item>
+              </NM.List>
+              {/* anchored to the sticky <header> (a positioned ancestor), so it follows the header when scrolled */}
+              <div className="absolute inset-x-0 top-full z-40">
+                <NM.Viewport className="w-full border-b border-border bg-background shadow-card" />
+              </div>
+            </NM.Root>
           </div>
-        </form>
-        <div className="ml-auto flex items-center gap-1 lg:ml-2">
-          <ThemeToggle />
-          <Button variant="ghost" size="icon" asChild>
+
+          <Link href="/" aria-label="Trestle — home" className="justify-self-center">
+            <Wordmark />
+          </Link>
+
+          <div className="-mr-3 flex items-center justify-end">
+            <button type="button" className={iconBtn} aria-label="Search" onClick={() => setSearch(true)}>
+              <Search className="size-5" strokeWidth={1.5} />
+            </button>
+            <Link href="/wishlist" className={cn(iconBtn, "hidden sm:grid")} aria-label="Wishlist">
+              <Heart className="size-5" strokeWidth={1.5} />
+            </Link>
             <Link
-              href="/cart"
-              aria-label={`Cart, ${count} item${count === 1 ? "" : "s"}`}
-              className="relative"
+              href={user ? "/account" : "/sign-in"}
+              className={cn(iconBtn, "hidden sm:grid")}
+              aria-label={user ? "Your account" : "Sign in"}
             >
-              <ShoppingBag />
-              {count > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 grid min-w-5 place-items-center rounded-full bg-accent px-1 text-[10px] font-bold text-white dark:text-black">
+              <User className="size-5" strokeWidth={1.5} />
+            </Link>
+            <button
+              type="button"
+              className={iconBtn}
+              aria-label={`Bag, ${hydrated ? count : 0} item${count === 1 ? "" : "s"}`}
+              onClick={() => setBag(true)}
+            >
+              <ShoppingBag className="size-5" strokeWidth={1.5} />
+              {hydrated && count > 0 && (
+                <span className="tabular absolute right-1.5 top-1.5 grid min-w-4 place-items-center rounded-full bg-foreground px-1 text-[10px] font-medium leading-4 text-background">
                   {count}
                 </span>
               )}
-            </Link>
-          </Button>
-          <AccountMenu />
-          <div className="hidden sm:block">
-            <ConnectWallet size="sm" />
+            </button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            aria-label={open ? "Close menu" : "Open menu"}
-            aria-expanded={open}
-            onClick={() => setOpen(!open)}
-          >
-            {open ? <X /> : <Menu />}
-          </Button>
         </div>
-      </div>
-      {open && (
-        <div className="border-t border-border bg-background md:hidden">
-          <nav aria-label="Mobile" className="mx-auto flex max-w-7xl flex-col px-4 py-3">
-            {[
-              ...NAV,
-              ...(user
-                ? [
-                    { href: "/account", label: "Account" },
-                    { href: "/account/loyalty", label: "Loyalty" },
-                  ]
-                : []),
-              ...(user?.sellerId ? [{ href: "/seller/products", label: "Seller dashboard" }] : []),
-              ...(user?.role === "ADMIN"
-                ? [{ href: "/admin/disputes", label: "Arbitration" }]
-                : []),
-            ].map((n) => (
-              <Link
-                key={n.href}
-                href={n.href}
-                onClick={() => setOpen(false)}
-                className="rounded-md px-2 py-2.5 text-sm hover:bg-muted"
-              >
-                {n.label}
-              </Link>
-            ))}
-            <div className="pt-2 sm:hidden">
-              <ConnectWallet size="md" />
-            </div>
-          </nav>
-        </div>
-      )}
-      {user?.role === "ADMIN" && pathname.startsWith("/admin") && (
-        <div className="border-t border-border bg-primary-soft text-primary">
-          <p className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-1.5 text-xs sm:px-6">
-            <ShieldCheck className="size-3.5" aria-hidden /> Signed in as platform arbiter
-          </p>
-        </div>
-      )}
-    </header>
+      </header>
+      <SearchOverlay />
+      <BagDrawer />
+      <MobileMenu collections={collections} signedIn={!!user} />
+    </>
   );
 }

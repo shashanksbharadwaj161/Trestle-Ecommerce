@@ -1,25 +1,28 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter-tight/index.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Trestle design tokens. Neutral "paper & ink" base with a deep teal trust accent.
- * All foreground/background pairs meet WCAG AA (≥ 4.5:1) in both themes.
+ * Trestle design tokens (see DESIGN.md). Warm neutral "bone & ink" base; colour lives in the photography.
+ * Foreground/background pairs are checked to WCAG AA (≥ 4.5:1) by scripts/check-contrast.mjs.
  */
 :root {
-  --background: #fbfaf7;
-  --foreground: #14171c;
+  --background: #f7f6f2;
+  --foreground: #171614;
   --card: #ffffff;
-  --card-foreground: #14171c;
-  --muted: #f1efe9;
-  --muted-foreground: #565c66;
-  --border: #e3e0d8;
-  --input: #d9d5cc;
-  --primary: #0f5e57;
-  --primary-foreground: #ffffff;
-  --primary-soft: #e3f1ef;
-  --accent: #b4540d;
-  --accent-soft: #fbeee2;
+  --card-foreground: #171614;
+  --muted: #eceae4;
+  --muted-foreground: #5c5952;
+  --border: #dcd9d1;
+  --input: #c9c5bb;
+  --primary: #171614;
+  --primary-foreground: #f7f6f2;
+  --primary-soft: #eceae4;
+  --accent: #8a3b1e;
+  --accent-soft: #f4e6df;
+  --trust: #0f5e57;
+  --trust-soft: #e3f1ef;
   --success: #166534;
   --success-soft: #e5f4ea;
   --warning: #8a4b00;
@@ -28,26 +31,28 @@
   --danger-soft: #fdeceb;
   --info: #1d4ed8;
   --info-soft: #e8efff;
-  --ring: #0f5e57;
-  /* chart marks: validated (dataviz validator) against the light card surface */
+  --ring: #171614;
+  --overlay: rgb(23 22 20 / 0.4);
   --chart-1: #12917f;
-  --shadow: 0 1px 2px rgb(20 23 28 / 0.06), 0 8px 24px -12px rgb(20 23 28 / 0.18);
+  --shadow: 0 1px 2px rgb(23 22 20 / 0.05), 0 16px 40px -20px rgb(23 22 20 / 0.25);
 }
 
 .dark {
-  --background: #0c0f13;
-  --foreground: #eceae4;
-  --card: #13171d;
-  --card-foreground: #eceae4;
-  --muted: #1b2027;
-  --muted-foreground: #a3a9b3;
-  --border: #272d36;
-  --input: #333a45;
-  --primary: #4fc3b4;
-  --primary-foreground: #06201d;
-  --primary-soft: #12302d;
-  --accent: #f0a15b;
-  --accent-soft: #33220f;
+  --background: #0f0f0e;
+  --foreground: #eeece6;
+  --card: #171715;
+  --card-foreground: #eeece6;
+  --muted: #21201d;
+  --muted-foreground: #a8a59d;
+  --border: #2e2d29;
+  --input: #45433d;
+  --primary: #eeece6;
+  --primary-foreground: #0f0f0e;
+  --primary-soft: #21201d;
+  --accent: #e39a74;
+  --accent-soft: #33200f;
+  --trust: #4fc3b4;
+  --trust-soft: #12302d;
   --success: #6ad08b;
   --success-soft: #11291a;
   --warning: #f3c46b;
@@ -56,10 +61,10 @@
   --danger-soft: #34120f;
   --info: #93b4ff;
   --info-soft: #141f3a;
-  --ring: #4fc3b4;
-  /* chart marks: validated against the dark card surface */
+  --ring: #eeece6;
+  --overlay: rgb(0 0 0 / 0.6);
   --chart-1: #2fa596;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -16px rgb(0 0 0 / 0.7);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 40px -20px rgb(0 0 0 / 0.8);
 }
 
 @theme inline {
@@ -76,6 +81,8 @@
   --color-primary-soft: var(--primary-soft);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-trust: var(--trust);
+  --color-trust-soft: var(--trust-soft);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);
@@ -85,17 +92,52 @@
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
   --color-ring: var(--ring);
+  --color-overlay: var(--overlay);
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-display:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    "Inter Tight Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-sans);
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   --shadow-card: var(--shadow);
-  --radius-xl: 0.9rem;
+  --radius-xl: 0.5rem;
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --animate-fade-in: fade-in 220ms var(--ease-out-quart);
+  --animate-sheet-right: sheet-right 280ms var(--ease-out-quart);
+  --animate-sheet-left: sheet-left 280ms var(--ease-out-quart);
+  --animate-sheet-bottom: sheet-bottom 280ms var(--ease-out-quart);
+  --animate-slide-down: slide-down 220ms var(--ease-out-quart);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sheet-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes sheet-left {
+  from {
+    transform: translateX(-100%);
+  }
+}
+@keyframes sheet-bottom {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
 }
 
 html {
   color-scheme: light;
+  -webkit-text-size-adjust: 100%;
 }
 html.dark {
   color-scheme: dark;
@@ -105,8 +147,11 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "cv11";
 }
 
 h1,
@@ -114,21 +159,59 @@ h2,
 h3,
 h4 {
   font-family: var(--font-display);
+  font-weight: 500;
   letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 :focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
-  border-radius: 6px;
 }
 
 ::selection {
-  background: var(--primary-soft);
+  background: var(--foreground);
+  color: var(--background);
 }
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+.eyebrow {
+  font-size: 0.6875rem;
+  line-height: 1.2;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.container-page {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding-inline: 16px;
+}
+@media (min-width: 768px) {
+  .container-page {
+    padding-inline: 24px;
+  }
+}
+@media (min-width: 1280px) {
+  .container-page {
+    padding-inline: 40px;
+  }
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 .skip-link {
@@ -141,11 +224,45 @@ h4 {
   left: 0.5rem;
 }
 
+/* long-form content pages */
+.prose-trestle h2 {
+  font-size: 1.25rem;
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+.prose-trestle h3 {
+  font-size: 1rem;
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+.prose-trestle p,
+.prose-trestle li {
+  color: var(--muted-foreground);
+  max-width: 68ch;
+}
+.prose-trestle p + p {
+  margin-top: 0.75rem;
+}
+.prose-trestle ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin-top: 0.5rem;
+}
+.prose-trestle li + li {
+  margin-top: 0.35rem;
+}
+.prose-trestle a {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }

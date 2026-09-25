@@ -1,24 +1,35 @@
 "use client";
-import { LockKeyhole } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { LockKeyhole, Wallet } from "lucide-react";
 import { useSession, type SessionUser } from "@/hooks/use-session";
 import { useHydrated } from "@/hooks/use-hydrated";
-import { ConnectWallet } from "./connect";
 import { Container, EmptyState } from "./states";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
+/**
+ * Gate for signed-in pages. `wallet` pages additionally need a verified wallet on the account; they must be
+ * rendered inside <CryptoProviders> and pass the connect button as `walletAction`.
+ */
 export function RequireAuth({
   children,
   role,
+  wallet,
+  walletAction,
   title = "Sign in to continue",
-  description = "Connect your wallet and sign a message (no gas, no transaction) to access this page.",
+  description = "Sign in or create an account to see this page.",
 }: {
   children: (user: SessionUser) => React.ReactNode;
   role?: "SELLER" | "ADMIN";
+  wallet?: boolean;
+  walletAction?: React.ReactNode;
   title?: string;
   description?: string;
 }) {
   const { user, loading } = useSession();
   const hydrated = useHydrated();
+  const path = usePathname();
   if (loading || !hydrated) {
     return (
       <Container>
@@ -31,10 +42,17 @@ export function RequireAuth({
     return (
       <Container>
         <EmptyState
-          icon={<LockKeyhole className="size-5" />}
+          icon={<LockKeyhole className="size-5" strokeWidth={1.5} />}
           title={title}
           description={description}
-          action={<ConnectWallet size="lg" />}
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button asChild>
+                <Link href={`/sign-in?next=${encodeURIComponent(path)}`}>Sign in</Link>
+              </Button>
+              {walletAction}
+            </div>
+          }
         />
       </Container>
     );
@@ -44,19 +62,31 @@ export function RequireAuth({
       <Container>
         <EmptyState
           title="Admins only"
-          description="This area is restricted to Trestle arbiters."
+          description="This area is restricted to the Trestle team."
           action={{ href: "/", label: "Back to the shop" }}
         />
       </Container>
     );
   }
-  if (role === "SELLER" && !user.sellerId) {
+  if (role === "SELLER" && !user.sellerId && user.role !== "ADMIN") {
     return (
       <Container>
         <EmptyState
           title="Set up your storefront first"
           description="Create a seller profile and choose where you want to be paid."
           action={{ href: "/seller/onboarding", label: "Start selling" }}
+        />
+      </Container>
+    );
+  }
+  if (wallet && !user.walletAddress) {
+    return (
+      <Container>
+        <EmptyState
+          icon={<Wallet className="size-5" strokeWidth={1.5} />}
+          title="Link a wallet to continue"
+          description="This page uses stablecoin escrow. Connect your wallet and sign a message (no gas, no transaction) to link it to your account."
+          action={walletAction}
         />
       </Container>
     );

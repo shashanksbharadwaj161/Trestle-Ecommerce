@@ -2,21 +2,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api, errorMessage } from "@/lib/api";
-import { useLocalCart } from "@/store/local-cart";
-import { useSession } from "./use-session";
 
 export interface HydratedLine {
   variantId: string;
   variantName: string;
+  colour: string | null;
+  size: string | null;
+  image: string | null;
   sku: string;
   stock: number;
   quantity: number;
   lineTotalUsdMicros: string;
   product: {
     id: string;
+    slug: string | null;
     title: string;
     images: string[];
     priceUsdMicros: string;
+    department: string | null;
     chainListingOptions: number[];
     seller: {
       id: string;
@@ -24,6 +27,7 @@ export interface HydratedLine {
       slug: string;
       verified: boolean;
       payoutChainId: number;
+      payoutToken: string;
     };
   };
 }
@@ -44,57 +48,33 @@ type Mutation =
   | { op: "remove"; variantId: string }
   | { op: "clear" };
 
+export const CART_KEY = ["cart"] as const;
+
+/** Server-side bag for guests (cookie) and signed-in shoppers alike. */
 export function useCart() {
-  const { user, loading } = useSession();
   const qc = useQueryClient();
-  const local = useLocalCart();
-  const authed = !!user;
-
-  const server = useQuery({
-    queryKey: ["cart", user?.id],
+  const q = useQuery({
+    queryKey: CART_KEY,
     queryFn: () => api<HydratedCart>("/api/cart"),
-    enabled: authed,
+    staleTime: 15_000,
   });
-  const preview = useQuery({
-    queryKey: ["cart-preview", local.lines],
-    queryFn: () => api<HydratedCart>("/api/cart/preview", { body: { items: local.lines } }),
-    enabled: !authed && !loading && local.lines.length > 0,
-  });
-
   const mutation = useMutation({
     mutationFn: (m: Mutation) => api<HydratedCart>("/api/cart", { body: m }),
-    onSuccess: (data) => qc.setQueryData(["cart", user?.id], data),
+    onSuccess: (data) => qc.setQueryData(CART_KEY, data),
     onError: (err) => toast.error(errorMessage(err)),
   });
-
-  const data: HydratedCart | undefined = authed
-    ? server.data
-    : local.lines.length === 0
-      ? { lines: [], groups: [], subtotalUsdMicros: "0", warnings: [] }
-      : preview.data;
-  const count = authed
-    ? (server.data?.lines ?? []).reduce((s, l) => s + l.quantity, 0)
-    : local.lines.reduce((s, l) => s + l.quantity, 0);
-
-  async function run(m: Mutation) {
-    if (authed) return mutation.mutateAsync(m);
-    if (m.op === "add") local.add(m.variantId, m.quantity);
-    else if (m.op === "set") local.set(m.variantId, m.quantity);
-    else if (m.op === "remove") local.remove(m.variantId);
-    else local.clear();
-  }
-
+  const count = (q.data?.lines ?? []).reduce((s, l) => s + l.quantity, 0);
   return {
-    data,
+    data: q.data,
     count,
-    authed,
-    isLoading: authed ? server.isLoading : preview.isLoading && local.lines.length > 0,
-    isError: authed ? server.isError : preview.isError,
+    isLoading: q.isLoading,
+    isError: q.isError,
     pending: mutation.isPending,
-    add: (variantId: string, quantity = 1) => run({ op: "add", variantId, quantity }),
-    setQty: (variantId: string, quantity: number) => run({ op: "set", variantId, quantity }),
-    remove: (variantId: string) => run({ op: "remove", variantId }),
-    clear: () => run({ op: "clear" }),
-    refetch: () => (authed ? server.refetch() : preview.refetch()),
+    add: (variantId: string, quantity = 1) => mutation.mutateAsync({ op: "add", variantId, quantity }),
+    setQty: (variantId: string, quantity: number) =>
+      mutation.mutateAsync({ op: "set", variantId, quantity }),
+    remove: (variantId: string) => mutation.mutateAsync({ op: "remove", variantId }),
+    clear: () => mutation.mutateAsync({ op: "clear" }),
+    refetch: q.refetch,
   };
 }

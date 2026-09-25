@@ -1,14 +1,19 @@
+import { cn } from "@/lib/cn";
+
+/** Typographic wordmark. */
+export function Wordmark({ className }: { className?: string }) {
+  return (
+    <span className={cn("select-none text-[1.0625rem] font-medium uppercase tracking-[0.34em]", className)}>
+      Trestle
+    </span>
+  );
+}
+
 export function LogoMark({ className = "size-7" }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" className={className} aria-hidden>
-      <rect width="32" height="32" rx="8" className="fill-primary" />
-      <path
-        d="M6 21h20M9 21V13m7 8V11m7 10v-8M6 13c3-4 17-4 20 0"
-        className="stroke-primary-foreground"
-        strokeWidth="2.2"
-        fill="none"
-        strokeLinecap="round"
-      />
+      <rect width="32" height="32" className="fill-foreground" />
+      <path d="M9 10h14M16 10v13" className="stroke-background" strokeWidth="2.4" fill="none" />
     </svg>
   );
 }

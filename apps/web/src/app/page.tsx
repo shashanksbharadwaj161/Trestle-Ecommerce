@@ -1,145 +1,249 @@
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Fingerprint, Landmark, Route, ShieldCheck, Sparkles } from "lucide-react";
-import { listProducts } from "@/server/products";
-import { trustSignals } from "@/server/stats";
-import { ProductCard, toCardData } from "@/components/product-card";
-import { Button } from "@/components/ui/button";
-import { usd } from "@/lib/format";
-import { chainProfiles } from "@/server/chain";
+import { ArrowRight, Box, CreditCard, LifeBuoy, RotateCcw } from "lucide-react";
+import { toJsonSafe } from "@trestle/db";
+import { listCollections, newArrivals, productCards } from "@/server/catalog";
+import type { CardData } from "@/components/product-card";
+import { ProductShelf } from "@/components/product-shelf";
+import { ProductCard } from "@/components/product-card";
+import { img_ as img } from "@/lib/editorial";
+
+export const dynamic = "force-dynamic";
+
+const CATEGORIES = [
+  { label: "Dresses", href: "/women?category=dresses", image: img("dresses/dress_14") },
+  { label: "T-shirts", href: "/products?category=t-shirts", image: img("t-shirts/man/t-shirt_04_2") },
+  { label: "Jeans", href: "/products?category=jeans", image: img("jeans/woman/jeans_07_1") },
+  { label: "Shorts", href: "/products?category=shorts", image: img("jeans/woman/jeans_13_2") },
+  { label: "Knit hats", href: "/accessories", image: img("caps/cap_13_2") },
+];
+
+const SERVICES = [
+  { icon: Box, title: "Free standard delivery", body: "On orders over $150. Express in 1–2 business days.", href: "/delivery" },
+  { icon: RotateCcw, title: "30-day returns", body: "Request a return from your order page.", href: "/returns" },
+  { icon: CreditCard, title: "Card or stablecoin", body: "Pay by card, or pay in stablecoins held in escrow.", href: "/payments" },
+  { icon: LifeBuoy, title: "Help & sizing", body: "Size guides with measurements, care and contact.", href: "/help" },
+];
+
+async function load() {
+  try {
+    const [arrivals, collections, denim, men] = await Promise.all([
+      newArrivals(10),
+      listCollections(),
+      productCards({ collections: { some: { collection: { slug: "denim" } } }, featured: true }, 3),
+      productCards({ department: "men" }, 4),
+    ]);
+    return {
+      ok: true as const,
+      arrivals: toJsonSafe(arrivals) as unknown as CardData[],
+      collections,
+      denim: toJsonSafe(denim) as unknown as CardData[],
+      men: toJsonSafe(men) as unknown as CardData[],
+    };
+  } catch (err) {
+    console.error("[home] catalogue unavailable", (err as Error).message);
+    return { ok: false as const };
+  }
+}
 
 export default async function Home() {
-  const [featured, signals] = await Promise.all([
-    listProducts({ sort: "featured", page: 1, pageSize: 8 }),
-    trustSignals(),
-  ]);
-  const [A, B] = chainProfiles();
-
+  const data = await load();
   return (
     <>
-      <section className="relative overflow-hidden border-b border-border">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-60 [background:radial-gradient(60%_60%_at_80%_10%,var(--primary-soft),transparent_70%),radial-gradient(40%_50%_at_10%_90%,var(--accent-soft),transparent_70%)]"
-        />
-        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 md:grid-cols-[1.2fr_1fr] md:py-24">
-          <div>
-            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-              <Sparkles className="size-3.5 text-accent" aria-hidden /> Cross-chain checkout ·
-              escrow · on-chain provenance
-            </p>
-            <h1 className="text-4xl font-semibold leading-[1.05] sm:text-6xl">
-              Buy from any chain.
-              <br />
-              <span className="text-primary">Sell without limits.</span>
-            </h1>
-            <p className="mt-5 max-w-xl text-lg text-muted-foreground">
-              Pay with what you hold on {A.shortName} or {B.shortName}. Sellers get their stablecoin
-              on the chain they chose, funds wait in escrow until you confirm delivery, and every
-              certified item carries its full ownership history on-chain.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button size="lg" asChild>
-                <Link href="/products">
-                  Start shopping <ArrowRight />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link href="/admin/transparency">See live protocol data</Link>
-              </Button>
-            </div>
-          </div>
-          <dl className="grid grid-cols-2 gap-3 self-center" aria-label="Live trust signals">
-            {[
-              {
-                k: "Live escrows",
-                v: signals.liveEscrows.toLocaleString(),
-                hint: "funded orders awaiting delivery",
-              },
-              {
-                k: "Volume settled",
-                v: usd(signals.volumeSettledUsdMicros, { cents: false }),
-                hint: "released to sellers on-chain",
-              },
-              {
-                k: "Completed orders",
-                v: signals.completedOrders.toLocaleString(),
-                hint: "with on-chain release",
-              },
-              {
-                k: "Contract events",
-                v: signals.chainEvents.toLocaleString(),
-                hint: "indexed & publicly auditable",
-              },
-            ].map((s) => (
-              <div key={s.k} className="rounded-xl border border-border bg-card p-5 shadow-card">
-                <dt className="text-xs text-muted-foreground">{s.k}</dt>
-                <dd className="tabular mt-1 text-2xl font-semibold">{s.v}</dd>
-                <dd className="mt-1 text-xs text-muted-foreground">{s.hint}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6" aria-labelledby="featured-heading">
-        <div className="mb-6 flex items-end justify-between">
-          <h2 id="featured-heading" className="text-2xl font-semibold">
-            Featured
-          </h2>
-          <Link href="/products" className="text-sm text-primary hover:underline">
-            View all products
+      {/* ---------------------------------------------------------------- campaign */}
+      <section aria-labelledby="hero-title" className="relative">
+        <div className="grid md:grid-cols-2">
+          <Link href="/women" className="group relative block aspect-[3/4] overflow-hidden bg-muted md:aspect-auto md:h-[min(88vh,1000px)]">
+            <Image
+              src={img("dresses/dress_04")}
+              alt="A woman on a beach wearing the ivory V-neck maxi dress"
+              fill
+              priority
+              sizes="(min-width: 768px) 50vw, 100vw"
+              className="object-cover object-[50%_25%]"
+            />
+          </Link>
+          <Link href="/men" className="group relative hidden overflow-hidden bg-muted md:block md:h-[min(88vh,1000px)]">
+            <Image
+              src={img("t-shirts/man/t-shirt_09_1")}
+              alt="A man on a beach wearing the white lightweight tee"
+              fill
+              priority
+              sizes="50vw"
+              className="object-cover object-[50%_25%]"
+            />
           </Link>
         </div>
-        {featured.items.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-            No products yet. Run <code className="font-mono">pnpm seed</code> or list something from
-            the seller dashboard.
-          </p>
-        ) : (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {featured.items.map((p, i) => (
-              <ProductCard key={p.id} p={toCardData(p)} priority={i < 4} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="border-y border-border bg-muted/40" aria-labelledby="how-heading">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
-          <h2 id="how-heading" className="text-2xl font-semibold">
-            How Trestle protects every order
-          </h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-4">
-            {[
-              {
-                icon: Route,
-                t: "Chain-agnostic checkout",
-                d: "Pay on your chain. A solver funds the seller's escrow from liquidity already on their chain and is repaid from your payment.",
-              },
-              {
-                icon: Landmark,
-                t: "Trustless escrow",
-                d: "Funds release on your confirmation, automatically after the delivery deadline, or by arbitration if you dispute.",
-              },
-              {
-                icon: ShieldCheck,
-                t: "Authenticity NFTs",
-                d: "Certified items carry an ERC-721 certificate with manufacturer, batch and every transfer since minting.",
-              },
-              {
-                icon: Fingerprint,
-                t: "Portable reputation",
-                d: "Soulbound, time-decayed reputation built only from completed orders and dispute outcomes.",
-              },
-            ].map(({ icon: Icon, t, d }) => (
-              <div key={t} className="rounded-xl border border-border bg-card p-5">
-                <Icon className="size-5 text-primary" aria-hidden />
-                <h3 className="mt-3 font-medium">{t}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{d}</p>
-              </div>
-            ))}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 via-black/15 to-transparent pb-8 pt-40 text-white md:pb-14">
+          <div className="container-page pointer-events-auto text-center">
+            <p className="eyebrow opacity-90">Summer 26</p>
+            <h1 id="hero-title" className="mx-auto mt-3 max-w-3xl text-[clamp(2.5rem,6vw,5rem)] font-medium leading-[0.98] tracking-[-0.035em]">
+              Made for long days by the water
+            </h1>
+            <div className="mt-7 flex flex-wrap justify-center gap-3">
+              <Link href="/women" className="inline-flex h-11 min-w-36 items-center justify-center bg-white px-6 text-sm text-black transition-opacity hover:opacity-85">
+                Shop women
+              </Link>
+              <Link href="/men" className="inline-flex h-11 min-w-36 items-center justify-center border border-white px-6 text-sm text-white transition-colors hover:bg-white hover:text-black">
+                Shop men
+              </Link>
+            </div>
           </div>
         </div>
+      </section>
+
+      {!data.ok ? (
+        <div className="container-page py-20 text-center">
+          <p className="text-lg">The catalogue is temporarily unavailable.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Please refresh in a moment.</p>
+        </div>
+      ) : (
+        <>
+          {/* ---------------------------------------------------------------- collections */}
+          {data.collections.length > 0 && (
+            <section aria-labelledby="collections-title" className="container-page mt-16 md:mt-24">
+              <div className="mb-6 flex items-end justify-between">
+                <h2 id="collections-title" className="text-xl md:text-2xl">Shop the collections</h2>
+                <Link href="/collections" className="flex items-center gap-1 text-sm underline underline-offset-4">
+                  All collections
+                </Link>
+              </div>
+              <ul className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 md:mx-0 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible md:px-0">
+                {data.collections.map((c) => (
+                  <li key={c.slug} className="w-[72vw] shrink-0 snap-start sm:w-[44vw] md:w-auto">
+                    <Link href={`/collections/${c.slug}`} className="group block">
+                      <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+                        {c.image && (
+                          <Image src={c.image} alt="" fill sizes="(min-width: 768px) 25vw, 72vw" className="object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.03]" />
+                        )}
+                      </div>
+                      <p className="mt-3 text-[0.9375rem]">{c.title}</p>
+                      <p className="text-[0.8125rem] text-muted-foreground">{c._count.products} pieces</p>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {/* ---------------------------------------------------------------- new in shelf */}
+          {data.arrivals.length > 0 && (
+            <section aria-labelledby="new-title" className="mt-20 md:mt-28">
+              <div className="container-page mb-6 flex items-end justify-between">
+                <div>
+                  <p className="eyebrow text-muted-foreground">Just landed</p>
+                  <h2 id="new-title" className="mt-2 text-xl md:text-2xl">New in</h2>
+                </div>
+                <Link href="/new" className="text-sm underline underline-offset-4">
+                  View all
+                </Link>
+              </div>
+              <ProductShelf items={data.arrivals} label="New arrivals" />
+            </section>
+          )}
+
+          {/* ---------------------------------------------------------------- editorial + shoppable denim */}
+          <section aria-labelledby="denim-title" className="container-page mt-20 grid gap-8 md:mt-28 md:grid-cols-12 md:gap-6">
+            <Link href="/collections/denim" className="group relative block aspect-[4/5] overflow-hidden bg-muted md:col-span-7 md:aspect-auto md:min-h-[720px]">
+              <Image
+                src={img("jeans/woman/jeans_03_3")}
+                alt="Washed-black wide-leg jeans, seen from behind on the beach"
+                fill
+                sizes="(min-width: 768px) 58vw, 100vw"
+                className="object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.02]"
+              />
+            </Link>
+            <div className="flex flex-col md:col-span-5 md:py-6">
+              <p className="eyebrow text-muted-foreground">The denim edit</p>
+              <h2 id="denim-title" className="mt-3 text-[1.75rem] leading-tight tracking-[-0.02em] md:text-[2.25rem]">
+                Wide, straight or cut-off — in washes from pale to black.
+              </h2>
+              <p className="mt-4 max-w-md text-sm text-muted-foreground">
+                Five-pocket cotton denim for women and men. Every pair has its rise, leg shape and inseam listed on
+                the product page.
+              </p>
+              <Link href="/collections/denim" className="mt-6 inline-flex items-center gap-2 text-sm underline underline-offset-4">
+                Shop the denim edit <ArrowRight className="size-4" />
+              </Link>
+              {data.denim.length > 0 && (
+                <ul className="mt-auto grid grid-cols-2 gap-x-[2px] gap-y-6 pt-10 sm:grid-cols-3">
+                  {data.denim.map((p) => (
+                    <li key={p.id}>
+                      <ProductCard p={p} sizes="(min-width: 768px) 14vw, 50vw" />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+
+          {/* ---------------------------------------------------------------- categories */}
+          <section aria-labelledby="cat-title" className="container-page mt-20 md:mt-28">
+            <h2 id="cat-title" className="mb-6 text-xl md:text-2xl">Shop by category</h2>
+            <ul className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
+              {CATEGORIES.map((c, i) => (
+                <li key={c.label} className={i === 0 ? "col-span-2 md:col-span-1" : undefined}>
+                  <Link href={c.href} className="group block">
+                    <div className={`relative overflow-hidden bg-muted ${i === 0 ? "aspect-[4/3] md:aspect-[3/4]" : "aspect-[3/4]"}`}>
+                      <Image src={c.image} alt="" fill sizes="(min-width: 768px) 20vw, 50vw" className="object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.03]" />
+                    </div>
+                    <p className="mt-3 flex items-center gap-1 text-[0.9375rem]">
+                      {c.label} <ArrowRight className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {/* ---------------------------------------------------------------- men */}
+          {data.men.length > 0 && (
+            <section aria-labelledby="men-title" className="mt-20 md:mt-28">
+              <div className="grid md:grid-cols-2">
+                <div className="relative aspect-[4/5] overflow-hidden bg-muted md:aspect-auto md:min-h-[640px]">
+                  <Image
+                    src={img("jeans/man/jeans_06_2")}
+                    alt="Black straight-leg jeans with a white tee"
+                    fill
+                    sizes="(min-width: 768px) 50vw, 100vw"
+                    className="object-cover object-[50%_35%]"
+                  />
+                </div>
+                <div className="flex flex-col justify-center px-4 py-10 md:px-12 lg:px-20">
+                  <p className="eyebrow text-muted-foreground">Men</p>
+                  <h2 id="men-title" className="mt-3 max-w-md text-[1.75rem] leading-tight tracking-[-0.02em] md:text-[2.25rem]">
+                    Heavyweight tees and straight-leg denim.
+                  </h2>
+                  <ul className="mt-8 grid grid-cols-2 gap-x-[2px] gap-y-6">
+                    {data.men.map((p) => (
+                      <li key={p.id}>
+                        <ProductCard p={p} sizes="(min-width: 768px) 22vw, 50vw" />
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href="/men" className="mt-8 inline-flex items-center gap-2 text-sm underline underline-offset-4">
+                    Shop all men <ArrowRight className="size-4" />
+                  </Link>
+                </div>
+              </div>
+            </section>
+          )}
+        </>
+      )}
+
+      {/* ---------------------------------------------------------------- services */}
+      <section aria-label="Shopping with Trestle" className="container-page mt-20 md:mt-28">
+        <ul className="grid gap-px overflow-hidden border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
+          {SERVICES.map((s) => (
+            <li key={s.title} className="bg-background">
+              <Link href={s.href} className="group flex h-full flex-col p-6 transition-colors hover:bg-muted/60">
+                <s.icon className="size-5" strokeWidth={1.5} aria-hidden />
+                <p className="mt-6 text-[0.9375rem]">{s.title}</p>
+                <p className="mt-1 text-[0.8125rem] text-muted-foreground">{s.body}</p>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
     </>
   );
