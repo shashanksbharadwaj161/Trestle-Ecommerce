@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api, errorMessage } from "@/lib/api";
+import { useHydrated } from "./use-hydrated";
 
 export interface HydratedLine {
   variantId: string;
@@ -63,14 +64,18 @@ export function useCart() {
     onSuccess: (data) => qc.setQueryData(CART_KEY, data),
     onError: (err) => toast.error(errorMessage(err)),
   });
-  const count = (q.data?.lines ?? []).reduce((s, l) => s + l.quantity, 0);
+  // server-equivalent (loading, empty) while hydrating — see useHydrated
+  const hydrated = useHydrated();
+  const data = hydrated ? q.data : undefined;
+  const count = (data?.lines ?? []).reduce((s, l) => s + l.quantity, 0);
   return {
-    data: q.data,
+    data,
     count,
-    isLoading: q.isLoading,
-    isError: q.isError,
+    isLoading: hydrated ? q.isLoading : true,
+    isError: hydrated && q.isError,
     pending: mutation.isPending,
-    add: (variantId: string, quantity = 1) => mutation.mutateAsync({ op: "add", variantId, quantity }),
+    add: (variantId: string, quantity = 1) =>
+      mutation.mutateAsync({ op: "add", variantId, quantity }),
     setQty: (variantId: string, quantity: number) =>
       mutation.mutateAsync({ op: "set", variantId, quantity }),
     remove: (variantId: string) => mutation.mutateAsync({ op: "remove", variantId }),

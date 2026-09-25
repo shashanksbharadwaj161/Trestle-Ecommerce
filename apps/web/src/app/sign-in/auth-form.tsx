@@ -26,7 +26,11 @@ export function AuthForm({ mode }: { mode: "sign-in" | "register" }) {
     const f = new FormData(e.currentTarget);
     const body =
       mode === "register"
-        ? { name: String(f.get("name") ?? ""), email: String(f.get("email") ?? ""), password: String(f.get("password") ?? "") }
+        ? {
+            name: String(f.get("name") ?? ""),
+            email: String(f.get("email") ?? ""),
+            password: String(f.get("password") ?? ""),
+          }
         : { email: String(f.get("email") ?? ""), password: String(f.get("password") ?? "") };
     setPending(true);
     setError(null);
@@ -34,11 +38,15 @@ export function AuthForm({ mode }: { mode: "sign-in" | "register" }) {
     try {
       await api(mode === "register" ? "/api/auth/register" : "/api/auth/login", { body });
       await qc.invalidateQueries();
+      // no router.refresh(): it can cancel the in-flight navigation, and session state is client-side
       router.push(next);
-      router.refresh();
     } catch (err) {
-      const fe = (err instanceof ApiClientError && (err.details as { fieldErrors?: Record<string, string[]> })?.fieldErrors) || null;
-      if (fe) setFieldErrors(Object.fromEntries(Object.entries(fe).map(([k, v]) => [k, v[0] ?? ""])));
+      const fe =
+        (err instanceof ApiClientError &&
+          (err.details as { fieldErrors?: Record<string, string[]> })?.fieldErrors) ||
+        null;
+      if (fe)
+        setFieldErrors(Object.fromEntries(Object.entries(fe).map(([k, v]) => [k, v[0] ?? ""])));
       else setError(errorMessage(err));
       setPending(false);
     }
@@ -53,11 +61,24 @@ export function AuthForm({ mode }: { mode: "sign-in" | "register" }) {
       )}
       {mode === "register" && (
         <Field label="Name" htmlFor="name" error={fieldErrors.name}>
-          <Input id="name" name="name" autoComplete="name" required aria-invalid={!!fieldErrors.name} />
+          <Input
+            id="name"
+            name="name"
+            autoComplete="name"
+            required
+            aria-invalid={!!fieldErrors.name}
+          />
         </Field>
       )}
       <Field label="Email" htmlFor="email" error={fieldErrors.email}>
-        <Input id="email" name="email" type="email" autoComplete="email" required aria-invalid={!!fieldErrors.email} />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+          aria-invalid={!!fieldErrors.email}
+        />
       </Field>
       <Field
         label="Password"
@@ -82,14 +103,20 @@ export function AuthForm({ mode }: { mode: "sign-in" | "register" }) {
         {mode === "register" ? (
           <>
             Already have an account?{" "}
-            <Link href={`/sign-in?next=${encodeURIComponent(next)}`} className="text-foreground underline underline-offset-4">
+            <Link
+              href={`/sign-in?next=${encodeURIComponent(next)}`}
+              className="text-foreground underline underline-offset-4"
+            >
               Sign in
             </Link>
           </>
         ) : (
           <>
             New to Trestle?{" "}
-            <Link href={`/register?next=${encodeURIComponent(next)}`} className="text-foreground underline underline-offset-4">
+            <Link
+              href={`/register?next=${encodeURIComponent(next)}`}
+              className="text-foreground underline underline-offset-4"
+            >
               Create an account
             </Link>
           </>

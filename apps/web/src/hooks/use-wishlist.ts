@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api, errorMessage } from "@/lib/api";
 import { useLocalWishlist } from "@/store/wishlist";
+import { useHydrated } from "./use-hydrated";
 import { useSession } from "./use-session";
 
 interface ServerWishlist {
@@ -28,7 +29,9 @@ export function useWishlist() {
     },
     onError: (e) => toast.error(errorMessage(e)),
   });
-  const ids = user ? (server.data?.productIds ?? []) : local.ids;
+  const hydrated = useHydrated();
+  // the guest list lives in localStorage, which the server cannot see — empty while hydrating
+  const ids = !hydrated ? [] : user ? (server.data?.productIds ?? []) : local.ids;
   return {
     ids,
     has: (id: string) => ids.includes(id),

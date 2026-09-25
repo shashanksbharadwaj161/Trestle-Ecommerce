@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { SiteHeader, type HeaderCollection } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { SegmentOutlet } from "@/components/segment-outlet";
 import { publicConfig } from "@/server/env";
 import { cardConfig } from "@/server/stripe";
 import { listCollections } from "@/server/catalog";
@@ -55,7 +56,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <div className="flex min-h-dvh flex-col">
             <SiteHeader collections={collections} />
             <main id="main" className="flex-1">
-              {children}
+              <SegmentOutlet>{children}</SegmentOutlet>
             </main>
             <SiteFooter notice={notice} />
           </div>

@@ -7,6 +7,7 @@ import { Heart, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/cn";
 import { useWishlist } from "@/hooks/use-wishlist";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useCart } from "@/hooks/use-cart";
 import { useUi } from "@/store/ui";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -55,12 +56,15 @@ export function ProductCard({
   const [quickOpen, setQuickOpen] = useState(false);
   const colour = p.colours[colourIdx] ?? p.colours[0];
   const wishlist = useWishlist();
-  const saved = wishlist.has(p.id);
-  const href = colourIdx > 0 && colour ? `${p.href}?colour=${encodeURIComponent(colour.name)}` : p.href;
+  const hydrated = useHydrated();
+  const saved = hydrated && wishlist.has(p.id);
+  const href =
+    colourIdx > 0 && colour ? `${p.href}?colour=${encodeURIComponent(colour.name)}` : p.href;
   const extra = p.colours.length - MAX_SWATCHES;
   // plain left-clicks morph the card image into the product page hero (View Transitions API)
   const open = (e: React.MouseEvent) => {
-    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+      return;
     e.preventDefault();
     navigateWithTransition(router, href, media.current);
   };
@@ -68,7 +72,12 @@ export function ProductCard({
   return (
     <article className="group/card relative flex flex-col">
       <div ref={media} className="relative aspect-[3/4] overflow-hidden bg-muted">
-        <Link href={href} onClick={open} className="absolute inset-0" aria-label={`${p.title}${colour ? `, ${colour.name}` : ""}`}>
+        <Link
+          href={href}
+          onClick={open}
+          className="absolute inset-0"
+          aria-label={`${p.title}${colour ? `, ${colour.name}` : ""}`}
+        >
           {colour?.image && (
             <Image
               src={colour.image}
@@ -114,7 +123,12 @@ export function ProductCard({
           }}
           className="absolute right-1 top-1 grid size-11 place-items-center text-foreground"
         >
-          <span className={cn("grid size-8 place-items-center rounded-full bg-background/80 backdrop-blur transition-transform active:scale-90", pop && "animate-pop")}>
+          <span
+            className={cn(
+              "grid size-8 place-items-center rounded-full bg-background/80 backdrop-blur transition-transform active:scale-90",
+              pop && "animate-pop",
+            )}
+          >
             <Heart className={cn("size-4", saved && "fill-foreground")} strokeWidth={1.5} />
           </span>
         </button>
@@ -137,9 +151,16 @@ export function ProductCard({
             {p.title}
           </Link>
         </h3>
-        <Price micros={p.priceUsdMicros} className="text-[0.8125rem] text-muted-foreground md:text-[0.875rem]" />
+        <Price
+          micros={p.priceUsdMicros}
+          className="text-[0.8125rem] text-muted-foreground md:text-[0.875rem]"
+        />
         {p.colours.length > 1 && (
-          <div className="mt-1 flex items-center gap-1" role="radiogroup" aria-label={`Colours for ${p.title}`}>
+          <div
+            className="mt-1 flex items-center gap-1"
+            role="radiogroup"
+            aria-label={`Colours for ${p.title}`}
+          >
             {p.colours.slice(0, MAX_SWATCHES).map((c, i) => (
               <button
                 key={c.name}
@@ -163,14 +184,24 @@ export function ProductCard({
               </button>
             ))}
             {extra > 0 && (
-              <Link href={p.href} className="ml-0.5 text-[0.75rem] text-muted-foreground" aria-label={`${extra} more colours`}>
+              <Link
+                href={p.href}
+                className="ml-0.5 text-[0.75rem] text-muted-foreground"
+                aria-label={`${extra} more colours`}
+              >
                 +{extra}
               </Link>
             )}
           </div>
         )}
       </div>
-      <QuickAdd p={p} colourIdx={colourIdx} setColourIdx={setColourIdx} open={quickOpen} onOpenChange={setQuickOpen} />
+      <QuickAdd
+        p={p}
+        colourIdx={colourIdx}
+        setColourIdx={setColourIdx}
+        open={quickOpen}
+        onOpenChange={setQuickOpen}
+      />
     </article>
   );
 }
@@ -207,7 +238,11 @@ function QuickAdd({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" title={`Choose a size — ${p.title}`} className="md:inset-x-auto md:left-1/2 md:max-w-md md:-translate-x-1/2">
+      <SheetContent
+        side="bottom"
+        title={`Choose a size — ${p.title}`}
+        className="md:inset-x-auto md:left-1/2 md:max-w-md md:-translate-x-1/2"
+      >
         <div className="p-5">
           {p.colours.length > 1 && (
             <div className="mb-4">
@@ -252,7 +287,8 @@ function QuickAdd({
                     onClick={() => v && add(v.variantId, s.size)}
                     className={cn(
                       "h-11 w-full border border-border text-sm transition-colors hover:border-foreground",
-                      !available && "cursor-not-allowed text-muted-foreground line-through hover:border-border",
+                      !available &&
+                        "cursor-not-allowed text-muted-foreground line-through hover:border-border",
                       adding === v?.variantId && "bg-foreground text-background",
                     )}
                   >
@@ -262,7 +298,10 @@ function QuickAdd({
               );
             })}
           </ul>
-          <Link href={p.href} className="mt-5 inline-block text-[0.8125rem] underline underline-offset-4">
+          <Link
+            href={p.href}
+            className="mt-5 inline-block text-[0.8125rem] underline underline-offset-4"
+          >
             View full details
           </Link>
         </div>

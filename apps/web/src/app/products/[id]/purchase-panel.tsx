@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Heart, Ruler } from "lucide-react";
 import { toast } from "sonner";
 import { sortSizes, type SizeChart } from "@trestle/shared";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Price } from "@/components/price";
@@ -13,6 +18,7 @@ import { SizeFinder } from "@/components/size-finder";
 import { Check } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useUi } from "@/store/ui";
 import { POLICY } from "@/lib/policy";
 import { cn } from "@/lib/cn";
@@ -34,7 +40,14 @@ export interface PdpProduct {
   archived: boolean;
   seller: { name: string; verified: boolean };
   gallery: { url: string; alt: string; colour: string | null }[];
-  variants: { id: string; colour: string; colourHex: string | null; size: string; stock: number; sku: string }[];
+  variants: {
+    id: string;
+    colour: string;
+    colourHex: string | null;
+    size: string;
+    stock: number;
+    sku: string;
+  }[];
   chart: SizeChart | null;
   certificates: number;
   rating: { avg: number; count: number };
@@ -42,7 +55,13 @@ export interface PdpProduct {
   stablecoin: boolean;
 }
 
-export function PurchasePanel({ product, initialColour }: { product: PdpProduct; initialColour?: string }) {
+export function PurchasePanel({
+  product,
+  initialColour,
+}: {
+  product: PdpProduct;
+  initialColour?: string;
+}) {
   const colours = useMemo(() => {
     const seen = new Map<string, { name: string; hex: string | null; inStock: boolean }>();
     for (const v of product.variants) {
@@ -69,7 +88,8 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
   const cart = useCart();
   const setBag = useUi((s) => s.setBag);
   const wishlist = useWishlist();
-  const saved = wishlist.has(product.id);
+  const hydrated = useHydrated();
+  const saved = hydrated && wishlist.has(product.id);
   const addRef = useRef<HTMLDivElement>(null);
   const sizesRef = useRef<HTMLFieldSetElement>(null);
   const [showSticky, setShowSticky] = useState(false);
@@ -118,7 +138,9 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
     if (!variant) {
       setSizeError(true);
       sizesRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      sizesRef.current?.querySelector<HTMLButtonElement>("button:not([disabled])")?.focus({ preventScroll: true });
+      sizesRef.current
+        ?.querySelector<HTMLButtonElement>("button:not([disabled])")
+        ?.focus({ preventScroll: true });
       return;
     }
     setAdding(true);
@@ -142,7 +164,8 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
         : !variant
           ? "Select a size"
           : "Add to bag";
-  const ctaDisabled = product.archived || colourSoldOut || (!!variant && variant.stock <= 0) || adding;
+  const ctaDisabled =
+    product.archived || colourSoldOut || (!!variant && variant.stock <= 0) || adding;
 
   return (
     <div className="mt-4 md:container-page md:mt-6 md:grid md:grid-cols-12 md:gap-10 xl:gap-16">
@@ -155,14 +178,22 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
           <div className="flex items-start justify-between gap-4">
             <div>
               {product.isNew && <p className="eyebrow mb-2 text-accent">New</p>}
-              <h1 className="text-[1.5rem] leading-tight tracking-[-0.02em] md:text-[1.75rem]">{product.title}</h1>
+              <h1 className="text-[1.5rem] leading-tight tracking-[-0.02em] md:text-[1.75rem]">
+                {product.title}
+              </h1>
               <Price micros={product.priceUsdMicros} className="mt-2 block text-[1.0625rem]" />
             </div>
             <button
               type="button"
               aria-pressed={saved}
               aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
-              onClick={async () => toast((await wishlist.toggle(product.id)) ? "Saved to wishlist" : "Removed from wishlist")}
+              onClick={async () =>
+                toast(
+                  (await wishlist.toggle(product.id))
+                    ? "Saved to wishlist"
+                    : "Removed from wishlist",
+                )
+              }
               className="-mr-2 grid size-11 shrink-0 place-items-center"
             >
               <Heart className={cn("size-5", saved && "fill-foreground")} strokeWidth={1.5} />
@@ -199,7 +230,10 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
                       style={{ background: c.hex ?? "var(--muted)" }}
                     >
                       {!c.inStock && (
-                        <span className="absolute left-1/2 top-1/2 h-px w-9 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-foreground/70" aria-hidden />
+                        <span
+                          className="absolute left-1/2 top-1/2 h-px w-9 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-foreground/70"
+                          aria-hidden
+                        />
                       )}
                     </span>
                   </button>
@@ -210,7 +244,11 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
 
           {/* size */}
           {!oneSize && (
-            <fieldset ref={sizesRef} className="mt-6" aria-describedby={sizeError ? "size-error" : undefined}>
+            <fieldset
+              ref={sizesRef}
+              className="mt-6"
+              aria-describedby={sizeError ? "size-error" : undefined}
+            >
               <div className="flex items-center justify-between">
                 <legend className="text-[0.8125rem]">
                   Size{size ? <span className="text-muted-foreground">: {size}</span> : null}
@@ -244,8 +282,11 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
                       }}
                       className={cn(
                         "relative h-11 border text-sm transition-colors",
-                        size === s ? "border-foreground bg-foreground text-background" : "border-border hover:border-foreground",
-                        !available && "cursor-not-allowed border-border text-muted-foreground line-through hover:border-border",
+                        size === s
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border hover:border-foreground",
+                        !available &&
+                          "cursor-not-allowed border-border text-muted-foreground line-through hover:border-border",
                       )}
                     >
                       {s}
@@ -259,13 +300,21 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
                 </p>
               )}
               {variant && variant.stock > 0 && variant.stock <= 3 && (
-                <p className="mt-2 text-[0.8125rem] text-accent">Only {variant.stock} left in this size.</p>
+                <p className="mt-2 text-[0.8125rem] text-accent">
+                  Only {variant.stock} left in this size.
+                </p>
               )}
             </fieldset>
           )}
 
           <div ref={addRef} className="mt-7 flex gap-2">
-            <Button size="lg" className="flex-1" onClick={addToBag} disabled={ctaDisabled} loading={adding}>
+            <Button
+              size="lg"
+              className="flex-1"
+              onClick={addToBag}
+              disabled={ctaDisabled}
+              loading={adding}
+            >
               {added ? (
                 <>
                   <Check className="animate-pop" /> Added to bag
@@ -279,7 +328,11 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
             Free standard delivery over {POLICY.freeDeliveryOver} · {POLICY.returnDays}-day returns
           </p>
 
-          <Accordion type="multiple" defaultValue={["details"]} className="mt-8 border-t border-border">
+          <Accordion
+            type="multiple"
+            defaultValue={["details"]}
+            className="mt-8 border-t border-border"
+          >
             <AccordionItem value="details">
               <AccordionTrigger>Details</AccordionTrigger>
               <AccordionContent>
@@ -308,7 +361,11 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
                 <AccordionContent>
                   {product.fit && <p>{product.fit}</p>}
                   {product.chart && (
-                    <button type="button" onClick={() => setGuideOpen(true)} className="mt-3 text-foreground underline underline-offset-4">
+                    <button
+                      type="button"
+                      onClick={() => setGuideOpen(true)}
+                      className="mt-3 text-foreground underline underline-offset-4"
+                    >
                       View measurements
                     </button>
                   )}
@@ -327,7 +384,10 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
                       ))}
                     </ul>
                   )}
-                  <Link href="/care" className="mt-3 inline-block text-foreground underline underline-offset-4">
+                  <Link
+                    href="/care"
+                    className="mt-3 inline-block text-foreground underline underline-offset-4"
+                  >
                     Garment care guide
                   </Link>
                 </AccordionContent>
@@ -359,14 +419,19 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
                 </p>
                 {product.stablecoin && (
                   <p className="mt-2">
-                    Or pay with stablecoins: your payment is held in an escrow contract and released to the seller
-                    when you confirm delivery.
+                    Or pay with stablecoins: your payment is held in an escrow contract and released
+                    to the seller when you confirm delivery.
                   </p>
                 )}
                 {product.certificates > 0 && (
-                  <p className="mt-2">This item has a seller-issued on-chain provenance record (see below).</p>
+                  <p className="mt-2">
+                    This item has a seller-issued on-chain provenance record (see below).
+                  </p>
                 )}
-                <Link href="/payments" className="mt-3 inline-block text-foreground underline underline-offset-4">
+                <Link
+                  href="/payments"
+                  className="mt-3 inline-block text-foreground underline underline-offset-4"
+                >
                   How payments work
                 </Link>
               </AccordionContent>
@@ -403,7 +468,9 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
           <DialogContent title="Size guide" description={product.title} className="max-w-xl">
             <SizeFinder
               chart={product.chart}
-              available={product.variants.filter((v) => v.colour === colour && v.stock > 0).map((v) => v.size)}
+              available={product.variants
+                .filter((v) => v.colour === colour && v.stock > 0)
+                .map((v) => v.size)}
               onPick={(s) => {
                 setSize(s);
                 setSizeError(false);

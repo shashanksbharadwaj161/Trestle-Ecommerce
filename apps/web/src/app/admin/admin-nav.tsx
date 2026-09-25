@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/hooks/use-session";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/cn";
 
 const LINKS = [
@@ -17,7 +18,9 @@ const LINKS = [
 
 export function AdminNav() {
   const path = usePathname();
-  const { user } = useSession();
+  const session = useSession();
+  const hydrated = useHydrated();
+  const user = hydrated ? session.user : null;
   if (user?.role !== "ADMIN") return null;
   return (
     <div className="border-b border-border bg-muted/40">

@@ -26,9 +26,12 @@ const iconBtn =
   "relative grid size-11 place-items-center text-foreground transition-opacity hover:opacity-60";
 
 export function SiteHeader({ collections }: { collections: HeaderCollection[] }) {
-  const { count } = useCart();
-  const { user } = useSession();
+  const cart = useCart();
+  const session = useSession();
   const hydrated = useHydrated();
+  // client-only state is only reflected after hydration so server and client HTML always match
+  const count = hydrated ? cart.count : 0;
+  const user = hydrated ? session.user : null;
   const pathname = usePathname();
   const { setBag, setSearch, setMenu } = useUi();
 
@@ -91,12 +94,17 @@ export function SiteHeader({ collections }: { collections: HeaderCollection[] })
                     </NM.Trigger>
                     <NM.Content className="container-page grid grid-cols-[1fr_1fr_1.2fr] gap-10 py-10 animate-slide-down">
                       <div>
-                        <p className="eyebrow mb-4 text-muted-foreground">Shop {g.label.toLowerCase()}</p>
+                        <p className="eyebrow mb-4 text-muted-foreground">
+                          Shop {g.label.toLowerCase()}
+                        </p>
                         <ul className="space-y-2.5">
                           {g.links.map((l) => (
                             <li key={l.href}>
                               <NM.Link asChild>
-                                <Link href={l.href} className="text-[0.9375rem] hover:underline hover:underline-offset-4">
+                                <Link
+                                  href={l.href}
+                                  className="text-[0.9375rem] hover:underline hover:underline-offset-4"
+                                >
                                   {l.label}
                                 </Link>
                               </NM.Link>
@@ -110,7 +118,10 @@ export function SiteHeader({ collections }: { collections: HeaderCollection[] })
                           {collections.map((c) => (
                             <li key={c.slug}>
                               <NM.Link asChild>
-                                <Link href={`/collections/${c.slug}`} className="text-[0.9375rem] hover:underline hover:underline-offset-4">
+                                <Link
+                                  href={`/collections/${c.slug}`}
+                                  className="text-[0.9375rem] hover:underline hover:underline-offset-4"
+                                >
                                   {c.title}
                                 </Link>
                               </NM.Link>
@@ -118,7 +129,10 @@ export function SiteHeader({ collections }: { collections: HeaderCollection[] })
                           ))}
                           <li>
                             <NM.Link asChild>
-                              <Link href="/collections" className="text-[0.9375rem] text-muted-foreground hover:text-foreground">
+                              <Link
+                                href="/collections"
+                                className="text-[0.9375rem] text-muted-foreground hover:text-foreground"
+                              >
                                 All collections
                               </Link>
                             </NM.Link>
@@ -127,7 +141,10 @@ export function SiteHeader({ collections }: { collections: HeaderCollection[] })
                       </div>
                       {feature?.image && (
                         <NM.Link asChild>
-                          <Link href={`/collections/${feature.slug}`} className="group relative block aspect-[4/3] overflow-hidden bg-muted">
+                          <Link
+                            href={`/collections/${feature.slug}`}
+                            className="group relative block aspect-[4/3] overflow-hidden bg-muted"
+                          >
                             <Image
                               src={feature.image}
                               alt=""
@@ -146,14 +163,20 @@ export function SiteHeader({ collections }: { collections: HeaderCollection[] })
                 ))}
                 <NM.Item>
                   <NM.Link asChild active={pathname === "/new"}>
-                    <Link href="/new" className="eyebrow flex h-16 items-center border-b border-transparent data-[active]:border-foreground">
+                    <Link
+                      href="/new"
+                      className="eyebrow flex h-16 items-center border-b border-transparent data-[active]:border-foreground"
+                    >
                       New in
                     </Link>
                   </NM.Link>
                 </NM.Item>
                 <NM.Item>
                   <NM.Link asChild active={pathname.startsWith("/collections")}>
-                    <Link href="/collections" className="eyebrow flex h-16 items-center border-b border-transparent data-[active]:border-foreground">
+                    <Link
+                      href="/collections"
+                      className="eyebrow flex h-16 items-center border-b border-transparent data-[active]:border-foreground"
+                    >
                       Collections
                     </Link>
                   </NM.Link>
@@ -171,7 +194,13 @@ export function SiteHeader({ collections }: { collections: HeaderCollection[] })
           </Link>
 
           <div className="-mr-3 flex items-center justify-end">
-            <button type="button" className={iconBtn} aria-label="Search" aria-keyshortcuts="Meta+K Control+K /" onClick={() => setSearch(true)}>
+            <button
+              type="button"
+              className={iconBtn}
+              aria-label="Search"
+              aria-keyshortcuts="Meta+K Control+K /"
+              onClick={() => setSearch(true)}
+            >
               <Search className="size-5" strokeWidth={1.5} />
             </button>
             <Link href="/wishlist" className={cn(iconBtn, "hidden sm:grid")} aria-label="Wishlist">
@@ -187,11 +216,11 @@ export function SiteHeader({ collections }: { collections: HeaderCollection[] })
             <button
               type="button"
               className={iconBtn}
-              aria-label={`Bag, ${hydrated ? count : 0} item${count === 1 ? "" : "s"}`}
+              aria-label={`Bag, ${count} item${count === 1 ? "" : "s"}`}
               onClick={() => setBag(true)}
             >
               <ShoppingBag className="size-5" strokeWidth={1.5} />
-              {hydrated && count > 0 && (
+              {count > 0 && (
                 <span
                   key={count}
                   className="tabular absolute right-1.5 top-1.5 grid min-w-4 animate-bump place-items-center rounded-full bg-foreground px-1 text-[10px] font-medium leading-4 text-background"

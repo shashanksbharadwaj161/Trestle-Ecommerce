@@ -38,7 +38,14 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
               className="relative block aspect-[3/4] w-full bg-muted"
               aria-label={`Zoom image ${i + 1}: ${img.alt}`}
             >
-              <Image src={img.url} alt={img.alt} fill priority={i === 0} sizes="100vw" className="object-cover" />
+              <Image
+                src={img.url}
+                alt={img.alt}
+                fill
+                priority={i === 0}
+                sizes="(max-width: 767px) 100vw, 1px"
+                className="object-cover"
+              />
             </button>
           ))}
         </Carousel>
@@ -53,8 +60,14 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
               style={i === 0 ? { viewTransitionName: "product-hero" } : undefined}
               onPointerMove={(e) => {
                 const r = e.currentTarget.getBoundingClientRect();
-                e.currentTarget.style.setProperty("--zx", `${((e.clientX - r.left) / r.width) * 100}%`);
-                e.currentTarget.style.setProperty("--zy", `${((e.clientY - r.top) / r.height) * 100}%`);
+                e.currentTarget.style.setProperty(
+                  "--zx",
+                  `${((e.clientX - r.left) / r.width) * 100}%`,
+                );
+                e.currentTarget.style.setProperty(
+                  "--zy",
+                  `${((e.clientY - r.top) / r.height) * 100}%`,
+                );
               }}
               className="group relative block aspect-[3/4] w-full cursor-zoom-in overflow-hidden bg-muted"
               aria-label={`Zoom image ${i + 1}: ${img.alt}`}
@@ -137,15 +150,22 @@ function ZoomViewer({
                 aria-label={zoomed ? "Zoom out" : "Zoom in"}
                 onClick={(e) => {
                   const r = e.currentTarget.getBoundingClientRect();
-                  setOrigin(`${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`);
+                  setOrigin(
+                    `${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`,
+                  );
                   setZoomed((z) => !z);
                 }}
                 onPointerMove={(e) => {
                   if (!zoomed) return;
                   const r = e.currentTarget.getBoundingClientRect();
-                  setOrigin(`${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`);
+                  setOrigin(
+                    `${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`,
+                  );
                 }}
-                className={cn("relative block size-full", zoomed ? "cursor-zoom-out" : "cursor-zoom-in")}
+                className={cn(
+                  "relative block size-full",
+                  zoomed ? "cursor-zoom-out" : "cursor-zoom-in",
+                )}
               >
                 <Image
                   src={img.url}
@@ -171,7 +191,10 @@ function ZoomViewer({
                   }}
                   aria-label={`Show image ${i + 1}`}
                   aria-current={i === index}
-                  className={cn("relative h-16 w-12 shrink-0 overflow-hidden bg-muted ring-offset-2 ring-offset-background", i === index && "ring-1 ring-foreground")}
+                  className={cn(
+                    "relative h-16 w-12 shrink-0 overflow-hidden bg-muted ring-offset-2 ring-offset-background",
+                    i === index && "ring-1 ring-foreground",
+                  )}
                 >
                   <Image src={im.url} alt="" fill sizes="48px" className="object-cover" />
                 </button>

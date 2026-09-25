@@ -12,6 +12,7 @@
 import { chromium, type Page } from "playwright";
 import Stripe from "stripe";
 import { PrismaClient } from "@prisma/client";
+import IORedis from "ioredis";
 import { MockStripe } from "../test/mock-stripe";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
@@ -22,11 +23,33 @@ const sdk = new Stripe("sk_test_mock_0000000000000000000000000000");
 const t0 = Date.now();
 const log = (m: string) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${m}`);
 
+/**
+ * Every run registers from 127.0.0.1, so back-to-back runs hit the real register limit (5 / 10 min / IP).
+ * Clear only those counters, and only on a loopback Redis — the limiter itself is left untouched.
+ */
+async function resetLocalAuthRateLimits() {
+  const url = process.env.REDIS_URL;
+  if (!url || !/^redis:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/|$)/.test(url)) return;
+  const r = new IORedis(url, { lazyConnect: true, maxRetriesPerRequest: 1 });
+  try {
+    await r.connect();
+    for (const pattern of ["rl:register:*", "rl:login*"]) {
+      const keys = await r.keys(pattern);
+      if (keys.length) await r.del(...keys);
+    }
+  } finally {
+    r.disconnect();
+  }
+}
+
 async function deliver(event: unknown) {
   const payload = JSON.stringify(event);
   const res = await fetch(`${BASE}/api/webhooks/stripe`, {
     method: "POST",
-    headers: { "content-type": "application/json", "stripe-signature": sdk.webhooks.generateTestHeaderString({ payload, secret: WHSEC }) },
+    headers: {
+      "content-type": "application/json",
+      "stripe-signature": sdk.webhooks.generateTestHeaderString({ payload, secret: WHSEC }),
+    },
     body: payload,
   });
   const body = await res.json();
@@ -36,20 +59,32 @@ async function deliver(event: unknown) {
 
 async function mockStripeCheckout(page: Page) {
   await page.route("https://checkout.stripe.test/**", (r) =>
-    r.fulfill({ contentType: "text/html", body: "<html><body><h1>Mock Stripe Checkout (test harness)</h1></body></html>" }),
+    r.fulfill({
+      contentType: "text/html",
+      body: "<html><body><h1>Mock Stripe Checkout (test harness)</h1></body></html>",
+    }),
   );
 }
 
 async function inStockVariantSize(slug: string) {
-  const p = await prisma.product.findUniqueOrThrow({ where: { slug }, include: { variants: { orderBy: { position: "asc" } } } });
+  const p = await prisma.product.findUniqueOrThrow({
+    where: { slug },
+    include: { variants: { orderBy: { position: "asc" } } },
+  });
   const colour = p.variants.find((v) => v.stock > 0)!.colour;
   return p.variants.find((v) => v.colour === colour && v.stock > 1)!;
 }
 
 async function addToBagFromPdp(page: Page, slug: string) {
   const v = await inStockVariantSize(slug);
-  await page.goto(`${BASE}/products/${slug}?colour=${encodeURIComponent(v.colour!)}`, { waitUntil: "networkidle" });
-  if (v.size !== "One size") await page.getByRole("radio", { name: new RegExp(`^Size ${v.size}(,|$)`) }).first().click();
+  await page.goto(`${BASE}/products/${slug}?colour=${encodeURIComponent(v.colour!)}`, {
+    waitUntil: "networkidle",
+  });
+  if (v.size !== "One size")
+    await page
+      .getByRole("radio", { name: new RegExp(`^Size ${v.size}(,|$)`) })
+      .first()
+      .click();
   await page.getByRole("button", { name: "Add to bag" }).first().click();
   await page.getByRole("dialog", { name: /Bag/ }).waitFor();
   await page.keyboard.press("Escape");
@@ -63,14 +98,26 @@ async function main() {
   const guest = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await guest.newPage();
   current = page;
-  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
-  page.on("console", (m) => m.type() === "error" && !/status of 40[134]/.test(m.text()) && errors.push(m.text().slice(0, 200)));
+  page.on("pageerror", (e) =>
+    errors.push(`pageerror @ ${page.url().replace(BASE, "")}: ${e.message.slice(0, 90)}`),
+  );
+  page.on(
+    "console",
+    (m) =>
+      m.type() === "error" &&
+      !/status of 40[134]/.test(m.text()) &&
+      errors.push(m.text().slice(0, 200)),
+  );
   await mockStripeCheckout(page);
 
   // ---------------------------------------------------------------- browse, filter, sort (URL-backed)
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
   await page.keyboard.press("Tab");
-  if (!(await page.getByRole("link", { name: "Skip to content" }).evaluate((el) => el === document.activeElement)))
+  if (
+    !(await page
+      .getByRole("link", { name: "Skip to content" })
+      .evaluate((el) => el === document.activeElement))
+  )
     throw new Error("skip link is not the first focus stop");
   await page.goto(`${BASE}/women`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: /Filter & sort/ }).click();
@@ -107,19 +154,25 @@ async function main() {
   log("guest wishlist persists");
 
   // ---------------------------------------------------------------- guest card checkout (mock Stripe)
-  const stockBefore = (await prisma.productVariant.findUniqueOrThrow({ where: { id: v1.id } })).stock;
+  const stockBefore = (await prisma.productVariant.findUniqueOrThrow({ where: { id: v1.id } }))
+    .stock;
   await page.goto(`${BASE}/checkout`, { waitUntil: "networkidle" });
   await page.getByLabel("Email").fill("guest-e2e@example.test");
   await page.getByRole("button", { name: /Continue to secure payment/ }).click();
   await page.waitForURL(/checkout\.stripe\.test/);
   const pay1 = await prisma.cardPayment.findFirstOrThrow({ orderBy: { createdAt: "desc" } });
-  if ((await prisma.productVariant.findUniqueOrThrow({ where: { id: v1.id } })).stock !== stockBefore - 1)
+  if (
+    (await prisma.productVariant.findUniqueOrThrow({ where: { id: v1.id } })).stock !==
+    stockBefore - 1
+  )
     throw new Error("stock not reserved");
   // success URL before the webhook: must not show paid
   await page.goto(`${BASE}/checkout/complete?payment=${pay1.id}`, { waitUntil: "networkidle" });
   await page.getByText("Confirming your payment…").waitFor();
   const s1 = mock.pay(pay1.stripeCheckoutSessionId!);
-  const r = await deliver(mock.sessionEvent("checkout.session.completed", s1, { email: "guest-e2e@example.test" }));
+  const r = await deliver(
+    mock.sessionEvent("checkout.session.completed", s1, { email: "guest-e2e@example.test" }),
+  );
   await page.getByText("Thank you — your order is confirmed").waitFor({ timeout: 15_000 });
   await page.getByLabel("Private order link").waitFor();
   log(`guest card checkout confirmed by signed webhook (${r.outcome})`);
@@ -133,10 +186,12 @@ async function main() {
   const pay2 = await prisma.cardPayment.findFirstOrThrow({ orderBy: { createdAt: "desc" } });
   await page.goto(`${BASE}/checkout/cancelled?payment=${pay2.id}`, { waitUntil: "networkidle" });
   await page.getByText("No payment was taken. Your bag still has everything in it.").waitFor();
-  if ((await prisma.cardPayment.findUniqueOrThrow({ where: { id: pay2.id } })).status !== "EXPIRED") throw new Error("not expired");
+  if ((await prisma.cardPayment.findUniqueOrThrow({ where: { id: pay2.id } })).status !== "EXPIRED")
+    throw new Error("not expired");
   log("cancel expired the session and released stock");
 
   // ---------------------------------------------------------------- register → bag merge, account order claim
+  await resetLocalAuthRateLimits();
   await page.goto(`${BASE}/register`, { waitUntil: "networkidle" });
   const email = `e2e${Date.now()}@example.test`;
   await page.getByLabel("Name").fill("E2E Shopper");
@@ -160,7 +215,9 @@ async function main() {
   admin.on("pageerror", (e) => errors.push(`admin pageerror: ${e.message}`));
   await admin.goto(`${BASE}/sign-in?next=/admin`, { waitUntil: "networkidle" });
   await admin.getByLabel("Email").fill("admin@trestle.local");
-  await admin.getByLabel("Password").fill(process.env.SEED_DEMO_PASSWORD ?? "trestle-demo-password");
+  await admin
+    .getByLabel("Password")
+    .fill(process.env.SEED_DEMO_PASSWORD ?? "trestle-demo-password");
   await admin.getByRole("button", { name: "Sign in" }).click();
   await admin.waitForURL(/\/admin$/, { waitUntil: "commit" });
   await admin.getByText("Paid orders to ship").waitFor();
@@ -169,7 +226,10 @@ async function main() {
   await admin.getByLabel("Tracking number").fill("1Z999AA10123456784");
   await admin.getByRole("button", { name: "Mark shipped" }).click();
   await admin.getByRole("button", { name: "Mark delivered" }).click();
-  await admin.getByText(/Delivered/).first().waitFor();
+  await admin
+    .getByText(/Delivered/)
+    .first()
+    .waitFor();
   log("admin shipped and delivered the card order");
 
   await page.goto(`${BASE}/order-status/${pay1.id}`, { waitUntil: "networkidle" });
@@ -192,12 +252,17 @@ async function main() {
     refund = mock.refunds.at(-1);
   }
   if (!refund) throw new Error("no refund reached the mock");
-  log(`admin refund issued through (mock) Stripe: ${refund.amount} cents, key ${refund.idempotencyKey}`);
+  log(
+    `admin refund issued through (mock) Stripe: ${refund.amount} cents, key ${refund.idempotencyKey}`,
+  );
 
   // admin product edit is reachable with the upload control
   await admin.goto(`${BASE}/admin/products`, { waitUntil: "networkidle" });
   await admin.getByRole("link", { name: /Edit Ribbon-tie blouse/ }).click();
-  await admin.getByText(/Upload images|Image uploads are not configured/).first().waitFor();
+  await admin
+    .getByText(/Upload images|Image uploads are not configured/)
+    .first()
+    .waitFor();
   log("admin product editor + upload control render");
 
   await browser.close();
