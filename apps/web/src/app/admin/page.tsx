@@ -53,9 +53,9 @@ function Body({ o }: { o: Overview }) {
     <div className="space-y-10">
       {!o.card.enabled ? (
         <Notice tone="warning">Card payments are not configured: {o.card.reason} See docs/CONNECTION_HANDOFF.md.</Notice>
-      ) : o.card.mode !== "live" ? (
-        <Notice tone="info">Card payments are in {o.card.mode} mode — no real charges.</Notice>
-      ) : null}
+      ) : (
+        <Notice tone="info">Card payments are in Stripe {o.card.mode} mode — no real charges. Live mode is disabled in this build.</Notice>
+      )}
       <ul className="grid gap-px border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
         {tiles.map((t) => (
           <li key={t.label} className="bg-background">

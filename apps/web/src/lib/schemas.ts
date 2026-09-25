@@ -22,8 +22,8 @@ const imageUrl = z
   .trim()
   .max(500)
   .refine(
-    (u) => /^\/images\/[A-Za-z0-9/_.-]+$/.test(u) || /^https:\/\/[^\s]+$/.test(u),
-    "Use an https:// image URL or a /images/ path",
+    (u) => /^\/(images|api\/uploads)\/[A-Za-z0-9/_.-]+$/.test(u) || /^https:\/\/[^\s]+$/.test(u),
+    "Use an https:// image URL, an uploaded image or a /images/ path",
   );
 
 export const variantInput = z.object({
@@ -50,6 +50,8 @@ export const imageInput = z.object({
   credit: z.string().trim().max(120).optional().nullable(),
   license: z.string().trim().max(120).optional().nullable(),
   sourceUrl: z.string().trim().url().max(500).optional().nullable(),
+  width: z.number().int().positive().max(20_000).optional().nullable(),
+  height: z.number().int().positive().max(20_000).optional().nullable(),
 });
 
 /** Prices must be whole cents so card totals are exact. */

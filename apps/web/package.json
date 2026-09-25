@@ -15,7 +15,8 @@
     "relayer:start": "node dist/relayer.mjs",
     "e2e:local": "tsx scripts/e2e-local.ts",
     "e2e:ui": "tsx scripts/ui-e2e.ts",
-    "smoke": "tsx scripts/smoke-pages.ts"
+    "smoke": "tsx scripts/smoke-pages.ts",
+    "relayer:once": "RELAYER_ONCE=1 node dist/relayer.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter-tight": "^5.3.0",

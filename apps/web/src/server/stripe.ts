@@ -6,11 +6,18 @@ import { env } from "./env";
  * Stripe is optional: without STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET card checkout is shown as
  * "not configured" and never pretends to take payment.
  */
-export function cardConfig(): { enabled: boolean; mode: "live" | "test" | "mock" | null; reason?: string } {
+export function cardConfig(): { enabled: boolean; mode: "test" | "mock" | null; reason?: string } {
   const e = env();
   const key = e.STRIPE_SECRET_KEY ?? "";
   if (!key) return { enabled: false, mode: null, reason: "Card payments are not configured yet." };
-  if (!/^(sk|rk)_(live|test)_/.test(key))
+  if (/^(sk|rk)_live_/.test(key))
+    // This build is limited to Stripe TEST MODE: live card processing has fees and is not enabled here.
+    return {
+      enabled: false,
+      mode: null,
+      reason: "Card payments run in Stripe test mode only on this store; a live key was supplied and is refused.",
+    };
+  if (!/^(sk|rk)_test_/.test(key))
     return { enabled: false, mode: null, reason: "Card payments are misconfigured." };
   if (!e.STRIPE_WEBHOOK_SECRET)
     return {
@@ -19,7 +26,7 @@ export function cardConfig(): { enabled: boolean; mode: "live" | "test" | "mock"
       reason: "Card payments are not configured yet (missing webhook secret).",
     };
   const mock = !!mockBase();
-  return { enabled: true, mode: mock ? "mock" : key.includes("_live_") ? "live" : "test" };
+  return { enabled: true, mode: mock ? "mock" : "test" };
 }
 
 /** Local mock host for contract tests — only with a TEST key and only on loopback, so it can never touch money. */
@@ -41,6 +48,7 @@ export function stripe(): Stripe {
   const e = env();
   const key = e.STRIPE_SECRET_KEY;
   if (!key) throw new Error("Stripe is not configured");
+  if (!/^(sk|rk)_test_/.test(key)) throw new Error("Only Stripe test-mode keys are accepted by this build");
   if (client && clientKey === key) return client;
   const base = mockBase();
   client = new Stripe(key, {

@@ -115,37 +115,35 @@ describe("email accounts & identity linking", () => {
   });
 
   it("links a wallet only with both a session and a wallet signature, never onto another account", async () => {
-    // wallet A already has its own account
-    const walletA = await signIn();
-    // an email user proves a different wallet B while signed in → linked to the same account
-    const { jar } = await register();
-    const before = await call(sessionGET, req("/api/auth/session", { jar }));
-    const { signIn: _unused, ...rest } = { signIn };
-    void rest;
     const { privateKeyToAccount, generatePrivateKey } = await import("viem/accounts");
     const { createSiweMessage } = await import("viem/siwe");
     const { GET: nonceGET } = await import("@/app/api/auth/nonce/route");
     const { POST: verifyPOST } = await import("@/app/api/auth/verify/route");
-    async function prove(pk: `0x${string}`) {
+    async function prove(jar: Jar, pk: `0x${string}`) {
       const account = privateKeyToAccount(pk);
       const n = await call(nonceGET, req("/api/auth/nonce", { jar }), undefined, jar);
       const message = createSiweMessage({ address: account.address, chainId: 31338, domain: "localhost:3000", nonce: n.data.nonce, uri: ORIGIN, version: "1", issuedAt: new Date() });
       return call(verifyPOST, post("/api/auth/verify", { message, signature: await account.signMessage({ message }) }, jar), undefined, jar);
     }
-    const linked = await prove(generatePrivateKey());
+    // wallet A belongs to its own account
+    const walletA = await signIn();
+    // an email user proves a fresh wallet B while signed in → linked onto the same account
+    const { jar } = await register();
+    const before = await call(sessionGET, req("/api/auth/session", { jar }));
+    const linked = await prove(jar, generatePrivateKey());
     expect(linked.status).toBe(200);
     expect(linked.data.linked).toBe(true);
     expect(linked.data.user.id).toBe(before.data.user.id);
-
-    // an email-only user trying to claim wallet A (owned by another account) is refused
+    // another email user proving wallet A is refused — the wallet never moves between accounts
     const other = await register();
-    const jar2 = other.jar;
-    const account = privateKeyToAccount(walletA.pk ?? generatePrivateKey());
-    void account;
-    const u = await prisma.user.findUniqueOrThrow({ where: { id: walletA.user.id } });
-    expect(u.walletAddress).toBe(walletA.user.walletAddress);
-    const n = await call(nonceGET, req("/api/auth/nonce", { jar: jar2 }), undefined, jar2);
-    expect(n.status).toBe(200);
+    const stolen = await prove(other.jar, walletA.pk);
+    expect(stolen.status).toBe(409);
+    expect(stolen.data.error.code).toBe("wallet_in_use");
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: walletA.user.id } })).walletAddress).toBe(walletA.user.walletAddress);
+    // an account already linked to wallet B cannot switch to a third wallet by signing it
+    const switched = await prove(jar, generatePrivateKey());
+    expect(switched.status).toBe(409);
+    expect(switched.data.error.code).toBe("wallet_mismatch");
   });
 
   it("lets a wallet account add email sign-in, and requires the current password to change it", async () => {

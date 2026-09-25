@@ -36,7 +36,16 @@ interface EditableProduct {
   status: "DRAFT" | "ACTIVE" | "ARCHIVED";
   featured: boolean;
   chainListingOptions: number[];
-  gallery: { url: string; alt: string; colour: string | null; credit: string | null; license: string | null; sourceUrl: string | null }[];
+  gallery: {
+    url: string;
+    alt: string;
+    colour: string | null;
+    credit: string | null;
+    license: string | null;
+    sourceUrl: string | null;
+    width: number | null;
+    height: number | null;
+  }[];
   variants: { id: string; sku: string; colour: string | null; colourHex: string | null; size: string | null; stock: number }[];
   collections: { collection: { slug: string } }[];
 }
@@ -207,6 +216,8 @@ function EditorForm({
           credit: i.credit,
           license: i.license,
           sourceUrl: i.sourceUrl,
+          width: i.width,
+          height: i.height,
         })),
         variants: variants.map((v) => ({
           id: v.id,
@@ -356,14 +367,20 @@ function EditorForm({
         <ul className="space-y-3">
           {images.map((img, i) => (
             <li key={`${img.url}-${i}`} className="flex flex-wrap items-start gap-4 border border-border p-3">
-              <div className="relative aspect-[3/4] w-16 shrink-0 bg-muted">
-                {/^(https:\/\/|\/images\/)/.test(img.url) && img.url.startsWith("/") && (
-                  <Image src={img.url} alt="" fill sizes="64px" className="object-cover" />
-                )}
-                {img.url.startsWith("https://") && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={img.url} alt="" className="size-full object-cover" />
-                )}
+              <div className="w-16 shrink-0">
+                <div className="relative aspect-[3/4] w-16 bg-muted">
+                  {img.url.startsWith("/") ? (
+                    <Image src={img.url} alt="" fill sizes="64px" className="object-cover" />
+                  ) : img.url.startsWith("https://") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={img.url} alt="" className="size-full object-cover" />
+                  ) : null}
+                </div>
+                {img.width && img.height ? (
+                  <p className={cn("mt-1 text-[10px]", Math.max(img.width, img.height) < 1600 ? "text-warning" : "text-muted-foreground")}>
+                    {img.width}×{img.height}
+                  </p>
+                ) : null}
               </div>
               <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2">
                 <Input aria-label="Image URL" value={img.url} onChange={(e) => setImages(images.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))} className="h-10 text-xs sm:col-span-2" />
@@ -389,6 +406,14 @@ function EditorForm({
             </li>
           ))}
         </ul>
+        <UploadButton
+          onUploaded={(u) =>
+            setImages((prev) => [
+              ...prev,
+              { url: u.url, alt: title ? `${title}` : "Product image", colour: "", credit: null, license: null, sourceUrl: null, width: u.width, height: u.height },
+            ])
+          }
+        />
         <div className="mt-3 flex gap-2">
           <Input aria-label="New image URL" placeholder="https://… or /images/…" value={newImage} onChange={(e) => setNewImage(e.target.value)} className="h-10" />
           <Button
@@ -398,7 +423,7 @@ function EditorForm({
             className="h-10"
             onClick={() => {
               if (!newImage.trim()) return;
-              setImages([...images, { url: newImage.trim(), alt: title || "Product image", colour: "", credit: null, license: null, sourceUrl: null }]);
+              setImages([...images, { url: newImage.trim(), alt: title || "Product image", colour: "", credit: null, license: null, sourceUrl: null, width: null, height: null }]);
               setNewImage("");
             }}
           >
@@ -501,6 +526,46 @@ function EditorForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+function UploadButton({ onUploaded }: { onUploaded: (u: { url: string; width: number; height: number }) => void }) {
+  const driver = useQuery({ queryKey: ["upload-driver"], queryFn: () => api<{ driver: string | null }>("/api/uploads") });
+  const [busy, setBusy] = useState(false);
+  if (driver.isLoading) return null;
+  if (!driver.data?.driver)
+    return <p className="mt-4 text-[0.8125rem] text-muted-foreground">Image uploads are not configured on this deployment — paste image URLs below.</p>;
+  return (
+    <label className="mt-4 flex cursor-pointer items-center justify-center gap-2 border border-dashed border-input px-4 py-6 text-sm text-muted-foreground transition-colors hover:border-foreground hover:text-foreground">
+      <Plus className="size-4" />
+      {busy ? "Uploading…" : "Upload images (JPEG, PNG, WebP or AVIF · 1600–2000px long edge recommended)"}
+      <input
+        type="file"
+        multiple
+        accept="image/jpeg,image/png,image/webp,image/avif"
+        className="sr-only"
+        disabled={busy}
+        onChange={async (e) => {
+          const files = [...(e.target.files ?? [])];
+          e.target.value = "";
+          setBusy(true);
+          for (const f of files) {
+            const fd = new FormData();
+            fd.append("file", f);
+            try {
+              const res = await fetch("/api/uploads", { method: "POST", body: fd, credentials: "same-origin" });
+              const data = await res.json();
+              if (!res.ok) throw new Error(data?.error?.message ?? `Upload failed (${res.status})`);
+              onUploaded(data);
+              if (!data.recommended) toast.warning(`${f.name}: ${data.width}×${data.height}px — below the 1600px recommended for zoom`);
+            } catch (err) {
+              toast.error(`${f.name}: ${(err as Error).message}`);
+            }
+          }
+          setBusy(false);
+        }}
+      />
+    </label>
   );
 }
 

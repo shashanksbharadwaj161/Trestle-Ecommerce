@@ -12,13 +12,14 @@ export default function PaymentsPage() {
     <ContentPage title="Payment options" current="/payments" intro="Two independent ways to pay. If one is unavailable, the other still works.">
       <h2>Card</h2>
       <p>
-        Card checkout uses Stripe Checkout, a payment page hosted by Stripe. Your card number is entered there and never
+        This store runs card payments in Stripe <strong>test mode</strong> only: no real card is charged and no goods are
+        shipped. Card checkout uses Stripe Checkout, a payment page hosted by Stripe. Your card number is entered there and never
         reaches Trestle’s servers. Your order is confirmed only when Stripe notifies us that the payment succeeded.
       </p>
       <p>
         Status on this deployment:{" "}
         <strong>
-          {card.enabled ? (card.mode === "live" ? "live" : card.mode === "mock" ? "local test mock" : "Stripe test mode (no real charges)") : "not configured"}
+          {card.enabled ? (card.mode === "mock" ? "local test mock" : "Stripe test mode (no real charges)") : "not configured"}
         </strong>
         .
       </p>

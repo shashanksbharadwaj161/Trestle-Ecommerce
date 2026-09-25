@@ -18,6 +18,15 @@ const config: NextConfig = {
   transpilePackages: ["@trestle/shared", "@trestle/db"],
   serverExternalPackages: ["@prisma/client", "ioredis"],
   typedRoutes: false,
+  images: {
+    formats: ["image/avif", "image/webp"],
+    qualities: [75, 90],
+    deviceSizes: [390, 640, 768, 1080, 1280, 1600, 1920, 2400],
+    imageSizes: [48, 64, 96, 128, 256, 384],
+    minimumCacheTTL: 31_536_000,
+    // uploaded product images (Supabase Storage public bucket)
+    remotePatterns: [{ protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" }],
+  },
   eslint: { ignoreDuringBuilds: false },
   webpack: (cfg) => {
     // optional deps pulled in by wallet SDKs that are not needed in the browser bundle

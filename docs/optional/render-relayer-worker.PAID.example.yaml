@@ -1,24 +1,23 @@
-# Render Blueprint — managed Postgres + the long-running relayer worker.
-# The Next.js app itself is deployed on Vercel (see vercel.json / README → Deployment).
-# Secrets are declared with `sync: false` so Render prompts for them; nothing secret lives in this file.
-databases:
-  - name: trestle-db
-    databaseName: trestle
-    user: trestle
-    plan: basic-256mb
-    postgresMajorVersion: "16"
+# ⚠️  PAID — NOT USED BY THE DEFAULT (FREE) DEPLOYMENT. Kept only as a reference.
+#
+# Render "Background Worker" services have no free plan, so an always-on relayer costs money. The project owner
+# has asked for a fully free deployment, so this file is deliberately NOT named render.yaml (Render would pick a
+# root render.yaml up as a Blueprint). Do not apply it unless the owner explicitly chooses to pay for a worker.
+# It no longer creates a Render database: Postgres is the existing Supabase project (DATABASE_URL is external).
+# Render's free *web service* tier sleeps when idle, so it is NOT a substitute for this worker.
+#
+# Free alternative: run `pnpm --filter @trestle/web relayer:once` on demand (see docs/DEPLOYMENT.md).
 
 services:
   - type: worker
     name: trestle-relayer
     runtime: node
-    plan: starter
+    plan: starter # paid
     rootDir: .
     buildCommand: >-
       (corepack enable || npm install -g pnpm@10.33.0) &&
       pnpm install --frozen-lockfile &&
       pnpm --filter @trestle/db generate &&
-      pnpm --filter @trestle/db migrate:deploy &&
       pnpm --filter @trestle/web relayer:build
     startCommand: pnpm --filter @trestle/web relayer:start
     envVars:
@@ -26,10 +25,9 @@ services:
         value: "22"
       - key: NETWORK_MODE
         value: testnet
+      # Supabase transaction pooler URL (external; never create a Render database)
       - key: DATABASE_URL
-        fromDatabase:
-          name: trestle-db
-          property: connectionString
+        sync: false
       - key: SEPOLIA_RPC_URL
         sync: false
       - key: BASE_SEPOLIA_RPC_URL

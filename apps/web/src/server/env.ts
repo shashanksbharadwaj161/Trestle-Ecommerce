@@ -51,6 +51,11 @@ const schema = z.object({
   /** bearer secret for /api/cron/* (Vercel Cron sends it as Authorization: Bearer) */
   CRON_SECRET: z.string().optional(),
   SUPPORT_EMAIL: z.string().email().optional(),
+  // ---- product image uploads (Supabase Storage free tier). Service-role key is server-only.
+  SUPABASE_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  SUPABASE_STORAGE_BUCKET: z.string().default("product-images"),
+  STORAGE_DRIVER: z.enum(["supabase", "local"]).optional(),
   WALLETCONNECT_PROJECT_ID: z.string().optional(),
 });
 

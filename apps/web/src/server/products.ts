@@ -84,6 +84,8 @@ async function syncChildren(tx: Prisma.TransactionClient, productId: string, inp
       credit: img.credit ?? null,
       license: img.license ?? null,
       sourceUrl: img.sourceUrl ?? null,
+      width: img.width ?? null,
+      height: img.height ?? null,
       position,
     })),
   });

@@ -104,7 +104,7 @@ export async function signIn(pk = generatePrivateKey(), opts: { chainId?: number
     jar,
   );
   if (v.status !== 200) throw new Error(`sign-in failed: ${JSON.stringify(v.data)}`);
-  return { jar, account, user: v.data.user as { id: string; walletAddress: string; role: string } };
+  return { jar, pk, account, user: v.data.user as { id: string; walletAddress: string; role: string } };
 }
 
 export async function resetDb() {

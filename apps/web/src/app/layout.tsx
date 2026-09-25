@@ -41,12 +41,9 @@ async function headerCollections(): Promise<HeaderCollection[]> {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const config = publicConfig();
   const card = cardConfig();
-  const notice =
-    card.mode === "live"
-      ? null
-      : card.enabled
-        ? "Demo store: card payments run in Stripe test mode — no real charges, no goods shipped."
-        : "Demo store: card payments are not configured yet, so orders cannot be paid by card.";
+  const notice = card.enabled
+    ? "Demo store: card payments run in Stripe test mode — no real charges are made and nothing ships."
+    : "Demo store: card payments are not configured yet, so orders cannot be paid by card.";
   const collections = await headerCollections();
   return (
     <html lang="en" suppressHydrationWarning>

@@ -17,7 +17,7 @@ import { api, errorMessage } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
 interface Options {
-  card: { enabled: boolean; mode: "live" | "test" | "mock" | null; reason: string | null };
+  card: { enabled: boolean; mode: "test" | "mock" | null; reason: string | null };
   crypto: { enabled: boolean; chains: number[]; reason: string | null };
   shippingMethods: { id: "standard" | "express"; label: string; detail: string; cents: number; freeOverCents: number | null }[];
 }
@@ -234,7 +234,7 @@ export function CheckoutView() {
                 }
               />
             </div>
-            {opts?.card.enabled && opts.card.mode !== "live" && method === "card" && (
+            {opts?.card.enabled && method === "card" && (
               <Notice tone="warning" className="mt-4">
                 {opts.card.mode === "mock"
                   ? "Payments are routed to a local mock of Stripe for automated tests. Nothing is charged."

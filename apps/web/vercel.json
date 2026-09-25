@@ -3,10 +3,10 @@
   "framework": "nextjs",
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm build",
-  "regions": ["iad1"],
   "functions": {
     "src/app/api/**/*.ts": {
       "maxDuration": 60
     }
-  }
+  },
+  "crons": [{ "path": "/api/cron/card-reservations", "schedule": "17 4 * * *" }]
 }

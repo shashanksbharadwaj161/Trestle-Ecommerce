@@ -59,6 +59,14 @@ async function main() {
     })),
     pollMs: cfg.pollMs,
   });
+  // RELAYER_ONCE=1: run a single tick and exit (manual / on-demand relaying without an always-on worker)
+  if (process.env.RELAYER_ONCE === "1") {
+    await tick();
+    await releaseLease(prisma, cfg.holderId).catch(() => undefined);
+    await prisma.$disconnect();
+    log.info("relayer single tick finished");
+    return;
+  }
   while (!stopping) {
     const started = Date.now();
     try {
