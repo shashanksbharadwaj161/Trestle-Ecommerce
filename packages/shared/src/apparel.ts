@@ -7,6 +7,7 @@ export type Department = (typeof DEPARTMENTS)[number];
 
 export const CATEGORY_LABEL: Record<Category, string> = {
   dresses: "Dresses",
+  shirts: "Shirts & blouses",
   "t-shirts": "T-shirts",
   jeans: "Jeans",
   shorts: "Shorts",

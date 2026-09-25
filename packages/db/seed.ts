@@ -42,10 +42,9 @@ import { applyChainEvents, fetchTrestleEvents } from "./src/sync";
 import {
   COLLECTIONS,
   COLOURS,
-  IMAGE_SOURCE,
   SELLERS,
   chartFor,
-  imageSourceUrl,
+  imageCredit,
   imageUrl,
   skuFor,
   variantsFor,
@@ -367,17 +366,20 @@ async function seedCatalog() {
             manufacturer: s.storefrontName,
             status: "ACTIVE",
             gallery: {
-              create: gallery.map((g, position) => ({
-                url: imageUrl(g.ref),
-                alt: `${p.title} in ${g.colour.toLowerCase()}`,
-                colour: g.colour,
-                position,
-                width: 960,
-                height: 1280,
-                credit: IMAGE_SOURCE.credit,
-                license: IMAGE_SOURCE.license,
-                sourceUrl: imageSourceUrl(g.ref),
-              })),
+              create: gallery.map((g, position) => {
+                const c = imageCredit(g.ref);
+                return {
+                  url: imageUrl(g.ref),
+                  alt: `${p.title} in ${g.colour.toLowerCase()}`,
+                  colour: g.colour,
+                  position,
+                  width: c.width,
+                  height: c.height,
+                  credit: c.credit,
+                  license: c.license,
+                  sourceUrl: c.sourceUrl,
+                };
+              }),
             },
           },
           include: { variants: true, gallery: true },

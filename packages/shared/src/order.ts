@@ -57,4 +57,4 @@ export const REPUTATION_EVENT_TYPES = [
 export type ReputationEventType = (typeof REPUTATION_EVENT_TYPES)[number];
 
 /** Apparel categories (slugs). Labels live in apparel.ts (CATEGORY_LABEL). */
-export const PRODUCT_CATEGORIES = ["dresses", "t-shirts", "jeans", "shorts", "knit-hats"] as const;
+export const PRODUCT_CATEGORIES = ["dresses", "shirts", "t-shirts", "jeans", "shorts", "knit-hats"] as const;

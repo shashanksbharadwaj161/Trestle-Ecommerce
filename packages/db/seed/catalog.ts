@@ -19,10 +19,33 @@ export const IMAGE_SOURCE = {
   basePath: "src/Sylius/Bundle/CoreBundle/Resources/fixtures",
 } as const;
 
-/** "dresses/dress_01" → public URL of the vendored copy */
-export const imageUrl = (ref: string) => `/images/catalog/${ref.replace(/\//g, "-")}.webp`;
+/**
+ * Image refs are either Sylius fixture refs ("dresses/dress_01") or absolute public paths of other vendored,
+ * licensed assets ("/images/fashion-free/ivory-blouse.jpg") whose provenance is in FREE_ASSETS below.
+ */
+export const imageUrl = (ref: string) => (ref.startsWith("/") ? ref : `/images/catalog/${ref.replace(/\//g, "-")}.webp`);
 export const imageSourceUrl = (ref: string) =>
-  `${IMAGE_SOURCE.repoUrl}/blob/${IMAGE_SOURCE.commit}/${IMAGE_SOURCE.basePath}/${ref}.webp`;
+  FREE_ASSETS[ref]?.sourceUrl ?? `${IMAGE_SOURCE.repoUrl}/blob/${IMAGE_SOURCE.commit}/${IMAGE_SOURCE.basePath}/${ref}.webp`;
+export const imageCredit = (ref: string) =>
+  FREE_ASSETS[ref] ?? { credit: IMAGE_SOURCE.credit, license: IMAGE_SOURCE.license, sourceUrl: imageSourceUrl(ref), width: 960, height: 1280 };
+
+/** Free licensed assets supplied in apps/web/public/images/fashion-free (see its manifest.json). */
+export const FREE_ASSETS: Record<string, { credit: string; license: string; sourceUrl: string; width: number; height: number }> = {
+  "/images/fashion-free/ivory-blouse.jpg": {
+    credit: "Unsplash photographer (see manifest)",
+    license: "Unsplash License",
+    sourceUrl: "https://unsplash.com/photos/woman-in-white-blazer-standing-Aoi25fT8tBQ",
+    width: 2400,
+    height: 2323,
+  },
+  "/images/fashion-free/evening-editorial.jpg": {
+    credit: "Unsplash photographer (see manifest)",
+    license: "Unsplash License",
+    sourceUrl: "https://unsplash.com/photos/woman-in-a-black-dress-strikes-a-pose--lLtOVvAqMg",
+    width: 2400,
+    height: 3000,
+  },
+};
 
 export const COLOURS: Record<string, string> = {
   Black: "#1c1c1c",
@@ -233,6 +256,25 @@ function dress(
 }
 
 const STUDIO: SeedProduct[] = [
+  // ------------------------------------------------------------------ women · shirts (free high-res starter asset)
+  {
+    key: "ribbon-tie-blouse",
+    title: "Ribbon-tie blouse",
+    description:
+      "An ivory long-sleeve blouse with a point collar and a slim black ribbon tied at the neck. Fluid and softly draped, cut to wear loose or tucked. Demonstration product: photographed from one angle only.",
+    price: "129.00",
+    department: "women",
+    category: "shirts",
+    subcategory: "Blouses",
+    material: "Fluid woven fabric — composition to be confirmed by the store owner",
+    fit: "Relaxed fit. True to size.",
+    care: ["Hand wash cold or dry clean", "Hang to dry", "Cool iron on the reverse"],
+    sizes: "women-alpha",
+    colours: [["Ivory", ["/images/fashion-free/ivory-blouse.jpg"]]],
+    publishedDaysAgo: 1,
+    featured: true,
+    collections: [],
+  },
   // ------------------------------------------------------------------ women · dresses
   dress(
     "ombre-slip-dress",
