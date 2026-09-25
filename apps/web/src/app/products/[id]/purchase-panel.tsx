@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Price } from "@/components/price";
 import { SizeChartTable } from "@/components/size-guide";
+import { SizeFinder } from "@/components/size-finder";
+import { Check } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
 import { useUi } from "@/store/ui";
@@ -63,6 +65,7 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
   const [sizeError, setSizeError] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(false);
   const cart = useCart();
   const setBag = useUi((s) => s.setBag);
   const wishlist = useWishlist();
@@ -122,6 +125,8 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
     try {
       await cart.add(variant.id, 1);
       toast.success(`Added to bag — ${product.title}, ${colour}${oneSize ? "" : `, size ${size}`}`);
+      setAdded(true);
+      setTimeout(() => setAdded(false), 1800);
       setBag(true);
     } finally {
       setAdding(false);
@@ -261,7 +266,13 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
 
           <div ref={addRef} className="mt-7 flex gap-2">
             <Button size="lg" className="flex-1" onClick={addToBag} disabled={ctaDisabled} loading={adding}>
-              {cta}
+              {added ? (
+                <>
+                  <Check className="animate-pop" /> Added to bag
+                </>
+              ) : (
+                cta
+              )}
             </Button>
           </div>
           <p className="mt-3 text-[0.8125rem] text-muted-foreground">
@@ -390,7 +401,18 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
       {product.chart && (
         <Dialog open={guideOpen} onOpenChange={setGuideOpen}>
           <DialogContent title="Size guide" description={product.title} className="max-w-xl">
-            <SizeChartTable chart={product.chart} highlight={size} />
+            <SizeFinder
+              chart={product.chart}
+              available={product.variants.filter((v) => v.colour === colour && v.stock > 0).map((v) => v.size)}
+              onPick={(s) => {
+                setSize(s);
+                setSizeError(false);
+                setGuideOpen(false);
+              }}
+            />
+            <div className="mt-6">
+              <SizeChartTable chart={product.chart} highlight={size} />
+            </div>
             <p className="mt-6 text-xs text-muted-foreground">
               Between sizes? {product.fit ?? "Choose the larger size for a relaxed fit."}{" "}
               <Link href="/size-guide" className="underline underline-offset-4">

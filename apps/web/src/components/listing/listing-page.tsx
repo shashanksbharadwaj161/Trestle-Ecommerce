@@ -126,11 +126,11 @@ export async function ListingPage({ preset, searchParams }: { preset: ListingPre
         <ul className="grid grid-cols-2 gap-x-[2px] gap-y-6 md:grid-cols-3 md:gap-y-8 xl:grid-cols-4" aria-label="Products">
           {cells.map((c, idx) =>
             c.kind === "p" ? (
-              <li key={c.p.id}>
+              <li key={c.p.id} className="reveal">
                 <ProductCard p={c.p} priority={c.i < 4} />
               </li>
             ) : (
-              <li key={`e-${idx}`} className="col-span-2">
+              <li key={`e-${idx}`} className="reveal reveal-image col-span-2">
                 <Link href={c.e.href} className="group relative block h-full min-h-[70vw] overflow-hidden bg-muted md:min-h-0">
                   <Image
                     src={c.e.image}

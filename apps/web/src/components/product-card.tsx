@@ -1,7 +1,8 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Heart, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/cn";
@@ -10,6 +11,7 @@ import { useCart } from "@/hooks/use-cart";
 import { useUi } from "@/store/ui";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Price } from "./price";
+import { navigateWithTransition } from "@/lib/view-transition";
 
 /** JSON form of server/catalog.ts ProductCard. */
 export interface CardData {
@@ -47,17 +49,26 @@ export function ProductCard({
   sizes?: string;
 }) {
   const [colourIdx, setColourIdx] = useState(0);
+  const router = useRouter();
+  const media = useRef<HTMLDivElement>(null);
+  const [pop, setPop] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const colour = p.colours[colourIdx] ?? p.colours[0];
   const wishlist = useWishlist();
   const saved = wishlist.has(p.id);
   const href = colourIdx > 0 && colour ? `${p.href}?colour=${encodeURIComponent(colour.name)}` : p.href;
   const extra = p.colours.length - MAX_SWATCHES;
+  // plain left-clicks morph the card image into the product page hero (View Transitions API)
+  const open = (e: React.MouseEvent) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    navigateWithTransition(router, href, media.current);
+  };
 
   return (
     <article className="group/card relative flex flex-col">
-      <div className="relative aspect-[3/4] overflow-hidden bg-muted">
-        <Link href={href} className="absolute inset-0" aria-label={`${p.title}${colour ? `, ${colour.name}` : ""}`}>
+      <div ref={media} className="relative aspect-[3/4] overflow-hidden bg-muted">
+        <Link href={href} onClick={open} className="absolute inset-0" aria-label={`${p.title}${colour ? `, ${colour.name}` : ""}`}>
           {colour?.image && (
             <Image
               src={colour.image}
@@ -66,7 +77,7 @@ export function ProductCard({
               sizes={sizes}
               priority={priority}
               className={cn(
-                "object-cover transition-opacity duration-500",
+                "object-cover transition-[opacity,transform] duration-700 ease-out group-hover/card:scale-[1.015] motion-reduce:transform-none",
                 colour.altImage && "group-hover/card:opacity-0",
               )}
             />
@@ -95,11 +106,15 @@ export function ProductCard({
           aria-label={saved ? `Remove ${p.title} from wishlist` : `Save ${p.title} to wishlist`}
           onClick={async () => {
             const added = await wishlist.toggle(p.id);
+            if (added) {
+              setPop(true);
+              setTimeout(() => setPop(false), 450);
+            }
             toast(added ? "Saved to wishlist" : "Removed from wishlist");
           }}
           className="absolute right-1 top-1 grid size-11 place-items-center text-foreground"
         >
-          <span className="grid size-8 place-items-center rounded-full bg-background/80 backdrop-blur transition-transform active:scale-90">
+          <span className={cn("grid size-8 place-items-center rounded-full bg-background/80 backdrop-blur transition-transform active:scale-90", pop && "animate-pop")}>
             <Heart className={cn("size-4", saved && "fill-foreground")} strokeWidth={1.5} />
           </span>
         </button>
@@ -118,7 +133,7 @@ export function ProductCard({
 
       <div className="flex flex-col gap-1 px-0.5 pb-2 pt-3">
         <h3 className="text-[0.8125rem] leading-snug md:text-[0.875rem]">
-          <Link href={href} className="hover:underline hover:underline-offset-4">
+          <Link href={href} onClick={open} className="hover:underline hover:underline-offset-4">
             {p.title}
           </Link>
         </h3>

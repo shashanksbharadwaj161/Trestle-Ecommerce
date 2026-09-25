@@ -38,6 +38,20 @@ export function SiteHeader({ collections }: { collections: HeaderCollection[] })
     setMenu(false);
   }, [pathname, setSearch, setMenu]);
 
+  // keyboard: ⌘K / Ctrl+K anywhere, or "/" outside form fields, opens search
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const typing = !!t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+      if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || (e.key === "/" && !typing)) {
+        e.preventDefault();
+        setSearch(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setSearch]);
+
   const feature = collections[0];
 
   return (
@@ -50,7 +64,7 @@ export function SiteHeader({ collections }: { collections: HeaderCollection[] })
           </Link>
         </p>
       </div>
-      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+      <header className="vt-header sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
         <div className="container-page grid h-14 grid-cols-[1fr_auto_1fr] items-center md:h-16">
           <div className="flex items-center">
             <button
@@ -157,7 +171,7 @@ export function SiteHeader({ collections }: { collections: HeaderCollection[] })
           </Link>
 
           <div className="-mr-3 flex items-center justify-end">
-            <button type="button" className={iconBtn} aria-label="Search" onClick={() => setSearch(true)}>
+            <button type="button" className={iconBtn} aria-label="Search" aria-keyshortcuts="Meta+K Control+K /" onClick={() => setSearch(true)}>
               <Search className="size-5" strokeWidth={1.5} />
             </button>
             <Link href="/wishlist" className={cn(iconBtn, "hidden sm:grid")} aria-label="Wishlist">
@@ -178,7 +192,10 @@ export function SiteHeader({ collections }: { collections: HeaderCollection[] })
             >
               <ShoppingBag className="size-5" strokeWidth={1.5} />
               {hydrated && count > 0 && (
-                <span className="tabular absolute right-1.5 top-1.5 grid min-w-4 place-items-center rounded-full bg-foreground px-1 text-[10px] font-medium leading-4 text-background">
+                <span
+                  key={count}
+                  className="tabular absolute right-1.5 top-1.5 grid min-w-4 animate-bump place-items-center rounded-full bg-foreground px-1 text-[10px] font-medium leading-4 text-background"
+                >
                   {count}
                 </span>
               )}

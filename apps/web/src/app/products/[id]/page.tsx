@@ -7,6 +7,7 @@ import { getProductDetail, relatedProducts } from "@/server/catalog";
 import { cardConfig } from "@/server/stripe";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { ProductShelf } from "@/components/product-shelf";
+import { RecentlyViewed } from "@/components/recently-viewed";
 import type { CardData } from "@/components/product-card";
 import { CertificateViewer, type CertView } from "./certificates";
 import { PurchasePanel, type PdpProduct } from "./purchase-panel";
@@ -175,13 +176,14 @@ export default async function ProductPage({
       )}
 
       {related.length > 0 && (
-        <section aria-labelledby="related" className="mt-20 md:mt-28">
+        <section aria-labelledby="related" className="reveal mt-20 md:mt-28">
           <h2 id="related" className="container-page mb-6 text-xl">
             You may also like
           </h2>
           <ProductShelf items={related} label="You may also like" />
         </section>
       )}
+      <RecentlyViewed track={product.id} exclude={product.id} />
     </>
   );
 }

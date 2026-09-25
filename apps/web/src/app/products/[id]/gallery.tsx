@@ -33,6 +33,8 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
               key={img.url}
               type="button"
               onClick={() => setZoomAt(i)}
+              data-vt-hero={i === 0 ? "" : undefined}
+              style={i === 0 ? { viewTransitionName: "product-hero" } : undefined}
               className="relative block aspect-[3/4] w-full bg-muted"
               aria-label={`Zoom image ${i + 1}: ${img.alt}`}
             >
@@ -47,6 +49,13 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
             <button
               type="button"
               onClick={() => setZoomAt(i)}
+              data-vt-hero={i === 0 ? "" : undefined}
+              style={i === 0 ? { viewTransitionName: "product-hero" } : undefined}
+              onPointerMove={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                e.currentTarget.style.setProperty("--zx", `${((e.clientX - r.left) / r.width) * 100}%`);
+                e.currentTarget.style.setProperty("--zy", `${((e.clientY - r.top) / r.height) * 100}%`);
+              }}
               className="group relative block aspect-[3/4] w-full cursor-zoom-in overflow-hidden bg-muted"
               aria-label={`Zoom image ${i + 1}: ${img.alt}`}
             >
@@ -56,7 +65,7 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
                 fill
                 priority={i < 2}
                 sizes={wide(images.length, i) ? "58vw" : "29vw"}
-                className="object-cover"
+                className="object-cover [transform-origin:var(--zx,50%)_var(--zy,50%)] transition-transform duration-500 ease-out motion-reduce:transition-none [@media(hover:hover)_and_(pointer:fine)]:group-hover:scale-[1.6] motion-reduce:group-hover:scale-100"
               />
               <span className="absolute bottom-3 right-3 grid size-9 place-items-center rounded-full bg-background/85 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
                 <ZoomIn className="size-4" strokeWidth={1.5} />

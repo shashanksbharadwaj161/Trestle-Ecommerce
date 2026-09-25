@@ -106,6 +106,66 @@
   --animate-sheet-left: sheet-left 280ms var(--ease-out-quart);
   --animate-sheet-bottom: sheet-bottom 280ms var(--ease-out-quart);
   --animate-slide-down: slide-down 220ms var(--ease-out-quart);
+  --animate-pop: pop 420ms var(--ease-out-quart);
+  --animate-bump: bump 360ms var(--ease-out-quart);
+}
+
+@keyframes pop {
+  40% {
+    transform: scale(1.28);
+  }
+}
+@keyframes bump {
+  30% {
+    transform: scale(1.35);
+  }
+}
+
+/* ---------------------------------------------------------------- page transitions (View Transitions API) */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 260ms;
+  animation-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+}
+::view-transition-group(product-hero) {
+  animation-duration: 480ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+::view-transition-old(product-hero),
+::view-transition-new(product-hero) {
+  height: 100%;
+  object-fit: cover;
+}
+/* the header stays put while the page underneath changes */
+.vt-header {
+  view-transition-name: site-header;
+}
+
+/* ---------------------------------------------------------------- scroll-driven reveals (progressive) */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+    .reveal-image img {
+      animation: reveal-zoom linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 45%;
+    }
+  }
+}
+@keyframes reveal-up {
+  from {
+    opacity: 0.001;
+    transform: translateY(28px);
+  }
+}
+@keyframes reveal-zoom {
+  from {
+    transform: scale(1.08);
+  }
 }
 
 @keyframes fade-in {
@@ -258,6 +318,11 @@ p {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
   *,
   *::before,
   *::after {

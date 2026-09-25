@@ -103,7 +103,7 @@ export default async function Home() {
         <>
           {/* ---------------------------------------------------------------- collections */}
           {data.collections.length > 0 && (
-            <section aria-labelledby="collections-title" className="container-page mt-16 md:mt-24">
+            <section aria-labelledby="collections-title" className="reveal container-page mt-16 md:mt-24">
               <div className="mb-6 flex items-end justify-between">
                 <h2 id="collections-title" className="text-xl md:text-2xl">Shop the collections</h2>
                 <Link href="/collections" className="flex items-center gap-1 text-sm underline underline-offset-4">
@@ -130,7 +130,7 @@ export default async function Home() {
 
           {/* ---------------------------------------------------------------- new in shelf */}
           {data.arrivals.length > 0 && (
-            <section aria-labelledby="new-title" className="mt-20 md:mt-28">
+            <section aria-labelledby="new-title" className="reveal mt-20 md:mt-28">
               <div className="container-page mb-6 flex items-end justify-between">
                 <div>
                   <p className="eyebrow text-muted-foreground">Just landed</p>
@@ -145,7 +145,7 @@ export default async function Home() {
           )}
 
           {/* ---------------------------------------------------------------- editorial + shoppable denim */}
-          <section aria-labelledby="denim-title" className="container-page mt-20 grid gap-8 md:mt-28 md:grid-cols-12 md:gap-6">
+          <section aria-labelledby="denim-title" className="reveal reveal-image container-page mt-20 grid gap-8 md:mt-28 md:grid-cols-12 md:gap-6">
             <Link href="/collections/denim" className="group relative block aspect-[4/5] overflow-hidden bg-muted md:col-span-7 md:aspect-auto md:min-h-[720px]">
               <Image
                 src={img("jeans/woman/jeans_03_3")}
@@ -180,7 +180,7 @@ export default async function Home() {
           </section>
 
           {/* ---------------------------------------------------------------- categories */}
-          <section aria-labelledby="cat-title" className="container-page mt-20 md:mt-28">
+          <section aria-labelledby="cat-title" className="reveal container-page mt-20 md:mt-28">
             <h2 id="cat-title" className="mb-6 text-xl md:text-2xl">Shop by category</h2>
             <ul className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
               {CATEGORIES.map((c, i) => (
@@ -200,7 +200,7 @@ export default async function Home() {
 
           {/* ---------------------------------------------------------------- men */}
           {data.men.length > 0 && (
-            <section aria-labelledby="men-title" className="mt-20 md:mt-28">
+            <section aria-labelledby="men-title" className="reveal reveal-image mt-20 md:mt-28">
               <div className="grid md:grid-cols-2">
                 <div className="relative aspect-[4/5] overflow-hidden bg-muted md:aspect-auto md:min-h-[640px]">
                   <Image
@@ -234,7 +234,7 @@ export default async function Home() {
       )}
 
       {/* ---------------------------------------------------------------- services */}
-      <section aria-label="Shopping with Trestle" className="container-page mt-20 md:mt-28">
+      <section aria-label="Shopping with Trestle" className="reveal container-page mt-20 md:mt-28">
         <ul className="grid gap-px overflow-hidden border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
           {SERVICES.map((s) => (
             <li key={s.title} className="bg-background">
