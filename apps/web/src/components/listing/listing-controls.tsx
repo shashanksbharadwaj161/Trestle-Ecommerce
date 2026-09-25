@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { SelectMenu } from "@/components/ui/select";
 import { cn } from "@/lib/cn";
 import { usd } from "@/lib/format";
+import { GridDensity } from "./grid-density";
+import type { Density } from "@/lib/grid-density";
 
 export interface Facets {
   categories: { value: string; count: number }[];
@@ -64,11 +66,13 @@ export function ListingControls({
   facets,
   total,
   query,
+  density,
 }: {
   basePath: string;
   facets: Facets;
   total: number;
   query: ListingQuery;
+  density: Density;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -125,6 +129,7 @@ export function ListingControls({
           {pending ? "Updating…" : `${total} product${total === 1 ? "" : "s"}`}
         </p>
         <div className="flex items-center gap-3">
+          <GridDensity initial={density} />
           <div className="hidden md:block">
             <SelectMenu
               label="Sort by"
