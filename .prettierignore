@@ -1,0 +1,11 @@
+node_modules
+.next
+dist
+out
+cache
+packages/contracts/lib
+packages/contracts/out
+packages/contracts/broadcast
+packages/db/prisma/migrations
+pnpm-lock.yaml
+packages/shared/src/abis

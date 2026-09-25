@@ -1,0 +1,22 @@
+node_modules
+.next
+out
+dist
+coverage
+*.log
+.env
+.env.local
+.env.*.local
+!.env.example
+.DS_Store
+.vercel
+.turbo
+*.tsbuildinfo
+# foundry
+packages/contracts/out
+packages/contracts/cache
+packages/contracts/broadcast/*/31337
+packages/contracts/broadcast/*/31338
+.local-chains
+playwright-report
+test-results

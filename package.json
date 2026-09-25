@@ -1,0 +1,57 @@
+{
+  "name": "trestle",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Trestle — cross-chain-native ecommerce marketplace. Buy from any chain. Sell without limits.",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @trestle/web dev",
+    "build": "pnpm --filter @trestle/shared build && pnpm --filter @trestle/db generate && pnpm --filter @trestle/web build",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm contracts:test && pnpm --filter @trestle/web test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "chains:up": "bash scripts/local-chains.sh",
+    "contracts:build": "pnpm --filter @trestle/contracts build",
+    "contracts:test": "pnpm --filter @trestle/contracts test",
+    "contracts:deploy": "pnpm --filter @trestle/contracts deploy:local",
+    "contracts:deploy:testnet": "pnpm --filter @trestle/contracts deploy:testnet",
+    "abi:export": "pnpm --filter @trestle/contracts abi:export",
+    "db:generate": "pnpm --filter @trestle/db generate",
+    "db:migrate": "pnpm --filter @trestle/db migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @trestle/db migrate:deploy",
+    "seed": "pnpm --filter @trestle/db seed",
+    "relayer": "pnpm --filter @trestle/web relayer:dev",
+    "e2e:local": "pnpm --filter @trestle/web e2e:local",
+    "prepare": "husky || true"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.6.2",
+    "prettier-plugin-solidity": "^2.1.0",
+    "typescript": "^5.9.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,json,md,css,yml,yaml}": "prettier --write",
+    "*.sol": "prettier --write"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "sharp",
+      "keccak",
+      "bufferutil",
+      "utf-8-validate",
+      "secp256k1",
+      "protobufjs"
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@trestle/contracts",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test -vv",
+    "test:gas": "forge test --gas-report",
+    "fmt": "forge fmt",
+    "lint": "forge fmt --check",
+    "deploy:local": "bash ./script/deploy-local.sh",
+    "deploy:testnet": "bash ./script/deploy-testnet.sh",
+    "abi:export": "node ./script/export-abis.mjs"
+  },
+  "dependencies": {
+    "@account-abstraction/contracts": "0.7.0",
+    "@openzeppelin/contracts": "5.1.0"
+  }
+}
