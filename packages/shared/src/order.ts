@@ -8,6 +8,7 @@ export function orderRefFor(orderId: string): Hex {
 export const ORDER_STATUSES = [
   "PENDING_PAYMENT",
   "ESCROWED",
+  "PROCESSING",
   "SHIPPED",
   "DELIVERED",
   "DISPUTED",
@@ -23,6 +24,7 @@ export type IntentStatus = (typeof INTENT_STATUSES)[number];
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   PENDING_PAYMENT: "Awaiting payment",
   ESCROWED: "Paid · in escrow",
+  PROCESSING: "Paid · preparing",
   SHIPPED: "Shipped",
   DELIVERED: "Delivered",
   DISPUTED: "Disputed",
@@ -54,12 +56,5 @@ export const REPUTATION_EVENT_TYPES = [
 ] as const;
 export type ReputationEventType = (typeof REPUTATION_EVENT_TYPES)[number];
 
-export const PRODUCT_CATEGORIES = [
-  "Watches",
-  "Sneakers",
-  "Electronics",
-  "Art & Prints",
-  "Home",
-  "Apparel",
-  "Collectibles",
-] as const;
+/** Apparel categories (slugs). Labels live in apparel.ts (CATEGORY_LABEL). */
+export const PRODUCT_CATEGORIES = ["dresses", "t-shirts", "jeans", "shorts", "knit-hats"] as const;

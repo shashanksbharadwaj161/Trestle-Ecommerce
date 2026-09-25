@@ -13,6 +13,7 @@ type Tx = Prisma.TransactionClient;
 const RANK: Record<OrderStatus, number> = {
   PENDING_PAYMENT: 0,
   ESCROWED: 1,
+  PROCESSING: 1,
   SHIPPED: 2,
   DELIVERED: 3,
   DISPUTED: 4,

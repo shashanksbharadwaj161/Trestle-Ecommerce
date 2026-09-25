@@ -17,11 +17,12 @@
     "generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
-    "migrate:reset": "prisma migrate reset --force --skip-seed",
     "seed": "tsx seed.ts",
     "studio": "prisma studio",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "seed:catalog": "tsx seed.ts --catalog",
+    "migrate:status": "prisma migrate status"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

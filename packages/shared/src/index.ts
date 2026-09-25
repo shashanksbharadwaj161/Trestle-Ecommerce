@@ -6,3 +6,4 @@ export * from "./quote";
 export * from "./order";
 export * from "./typed-data";
 export * from "./userop";
+export * from "./apparel";

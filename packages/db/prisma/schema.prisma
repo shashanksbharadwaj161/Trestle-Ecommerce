@@ -9,8 +9,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  /// runtime connection. On Supabase: the transaction pooler (port 6543) with
+  /// ?pgbouncer=true&connection_limit=1&schema=trestle — see docs/CONNECTION_HANDOFF.md
+  url       = env("DATABASE_URL")
+  /// migrations only. On Supabase: the session pooler (port 5432) or direct connection, same ?schema=trestle
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -28,6 +32,8 @@ enum ProductStatus {
 enum OrderStatus {
   PENDING_PAYMENT
   ESCROWED
+  /// card orders only: payment confirmed by a signed Stripe webhook, being prepared
+  PROCESSING
   SHIPPED
   DELIVERED
   DISPUTED
@@ -72,17 +78,56 @@ enum LoyaltyTxType {
   REDEEMED
 }
 
+enum PaymentMethod {
+  CRYPTO
+  CARD
+}
+
+/// Fiat (card) payment lifecycle, deliberately separate from on-chain escrow state.
+enum CardPaymentStatus {
+  /// Checkout Session created; buyer has not paid
+  OPEN
+  /// session completed with a delayed payment method; awaiting async result
+  PROCESSING
+  PAID
+  FAILED
+  /// session expired or was expired by us; stock released
+  EXPIRED
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+enum ReturnStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  RECEIVED
+  REFUNDED
+}
+
+enum ShipmentCarrier {
+  UPS
+  USPS
+  FEDEX
+  DHL
+  OTHER
+}
+
 model User {
-  id                   String   @id @default(cuid())
-  /// lower-cased EOA address used for SIWE
-  walletAddress        String   @unique
+  id                   String    @id @default(cuid())
+  /// lower-cased EOA address proven via SIWE; null for email-only accounts
+  walletAddress        String?   @unique
   displayName          String?
-  email                String?
-  role                 Role     @default(BUYER)
+  /// lower-cased; unique among accounts that set a password. Never used on its own to link identities.
+  email                String?   @unique
+  /// scrypt hash (see apps/web/src/server/password.ts); null for wallet-only accounts
+  passwordHash         String?
+  emailVerifiedAt      DateTime?
+  role                 Role      @default(BUYER)
   /// cached decayed on-chain reputation score (whole points) from the latest ReputationEventRecorded
-  reputationScoreCache Decimal? @db.Decimal(38, 6)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  reputationScoreCache Decimal?  @db.Decimal(38, 6)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   seller              Seller?
   smartAccounts       SmartAccount[]
@@ -93,6 +138,9 @@ model User {
   reputationEvents    ReputationEvent[]
   loyaltyTransactions LoyaltyTransaction[]
   auditLogs           AuditLog[]
+  wishlist            WishlistItem[]
+  cardPayments        CardPayment[]
+  returnRequests      ReturnRequest[]
 }
 
 /// Counterfactual ERC-4337 SimpleAccount owned by the user's EOA on a given chain.
@@ -146,6 +194,21 @@ model Product {
   status              ProductStatus @default(ACTIVE)
   featured            Boolean       @default(false)
   manufacturer        String?
+  /// URL slug; unique when set
+  slug                String?       @unique
+  /// "women" | "men" | "unisex"
+  department          String?
+  /// e.g. "Midi dresses", "Straight jeans"
+  subcategory         String?
+  /// fibre composition shown on the product page, e.g. "100% cotton"
+  material            String?
+  /// fit notes, e.g. "Relaxed fit. True to size."
+  fit                 String?
+  care                String[]      @default([])
+  /// key into the size charts in @trestle/shared (apparel.ts)
+  sizeChartKey        String?
+  /// products published after this date are listed under New arrivals
+  publishedAt         DateTime      @default(now())
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -154,10 +217,74 @@ model Product {
   certificates AuthenticityCertificate[]
   orderItems   OrderItem[]
   reviews      Review[]
+  gallery      ProductImage[]
+  collections  CollectionProduct[]
+  wishlistedBy WishlistItem[]
 
   @@index([status, featured])
   @@index([category, status])
+  @@index([department, status])
   @@index([sellerId])
+}
+
+/// Ordered product photography with per-colour association and rights metadata.
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  alt       String
+  /// colour name this image depicts (matches ProductVariant.colour); null = all colours
+  colour    String?
+  position  Int      @default(0)
+  width     Int?
+  height    Int?
+  /// e.g. "Sylius demo fixtures"
+  credit    String?
+  license   String?
+  sourceUrl String?
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, position])
+}
+
+model Collection {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String   @default("")
+  /// hero image path
+  image       String?
+  position    Int      @default(0)
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products CollectionProduct[]
+}
+
+model CollectionProduct {
+  collectionId String
+  productId    String
+  position     Int    @default(0)
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, productId])
+  @@index([productId])
+}
+
+model WishlistItem {
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([userId, productId])
 }
 
 model ProductVariant {
@@ -167,6 +294,11 @@ model ProductVariant {
   attributes Json     @default("{}")
   sku        String   @unique
   stock      Int      @default(0)
+  /// apparel option values (also mirrored in attributes)
+  size       String?
+  colour     String?
+  colourHex  String?
+  position   Int      @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -198,16 +330,20 @@ model AuthenticityCertificate {
 }
 
 model Order {
-  id                    String      @id @default(cuid())
-  buyerId               String
+  id                    String           @id @default(cuid())
+  /// null for guest card orders (access is via CardPayment.guestAccessTokenHash)
+  buyerId               String?
   sellerId              String
-  status                OrderStatus @default(PENDING_PAYMENT)
+  paymentMethod         PaymentMethod    @default(CRYPTO)
+  cardPaymentId         String?
+  status                OrderStatus      @default(PENDING_PAYMENT)
   subtotalUsdMicros     BigInt
-  payoutChainId         Int
-  payoutToken           String
-  payoutAmount          Decimal     @db.Decimal(78, 0)
-  /// keccak256("trestle:order:" + id) — links on-chain intents/escrows to this row
-  onchainRef            String      @unique
+  /// crypto orders only
+  payoutChainId         Int?
+  payoutToken           String?
+  payoutAmount          Decimal?         @db.Decimal(78, 0)
+  /// crypto orders: keccak256("trestle:order:" + id) — links on-chain intents/escrows to this row
+  onchainRef            String?          @unique
   escrowChainId         Int?
   escrowContractOrderId String?
   /// escrow buyer identity (EOA or ERC-4337 smart account) on the escrow chain
@@ -215,31 +351,37 @@ model Order {
   deliveryDeadline      DateTime?
   shippingAddress       Json?
   trackingNumber        String?
+  carrier               ShipmentCarrier?
+  trackingUrl           String?
   shippedAt             DateTime?
+  deliveredAt           DateTime?
   completedAt           DateTime?
   /// stock is held for PENDING_PAYMENT orders until this time
   reservationExpiresAt  DateTime?
-  stockReleased         Boolean     @default(false)
+  stockReleased         Boolean          @default(false)
   /// true for seeded demo rows that have no on-chain counterpart
-  isSeedDemo            Boolean     @default(false)
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  isSeedDemo            Boolean          @default(false)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 
-  buyer          User            @relation("BuyerOrders", fields: [buyerId], references: [id])
+  buyer          User?           @relation("BuyerOrders", fields: [buyerId], references: [id])
   seller         Seller          @relation(fields: [sellerId], references: [id])
+  cardPayment    CardPayment?    @relation(fields: [cardPaymentId], references: [id])
   items          OrderItem[]
   paymentIntents PaymentIntent[]
   dispute        Dispute?
   review         Review?
+  returnRequests ReturnRequest[]
 
   @@unique([escrowChainId, escrowContractOrderId])
+  @@index([cardPaymentId])
   @@index([buyerId, createdAt])
   @@index([sellerId, status])
   @@index([status, reservationExpiresAt])
 }
 
 model OrderItem {
-  id                 String @id @default(cuid())
+  id                 String  @id @default(cuid())
   orderId            String
   productId          String
   productVariantId   String
@@ -247,6 +389,7 @@ model OrderItem {
   variantSnapshot    String
   quantity           Int
   unitPriceUsdMicros BigInt
+  imageSnapshot      String?
 
   order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product        Product        @relation(fields: [productId], references: [id])
@@ -445,4 +588,106 @@ model RelayerLease {
   expiresAt DateTime
   updatedAt DateTime @updatedAt
   info      Json     @default("{}")
+}
+
+/// One hosted Stripe Checkout Session covering one or more seller orders.
+/// Signed webhooks are the only thing that moves this to PAID; success URLs never do.
+model CardPayment {
+  id                      String            @id @default(cuid())
+  userId                  String?
+  status                  CardPaymentStatus @default(OPEN)
+  currency                String            @default("usd")
+  /// exact minor units (cents)
+  subtotalCents           Int
+  discountCents           Int               @default(0)
+  shippingCents           Int
+  totalCents              Int
+  refundedCents           Int               @default(0)
+  promoCode               String?
+  shippingMethod          String
+  email                   String?
+  /// sha256 of the opaque guest access token (the token itself is never stored)
+  guestAccessTokenHash    String?           @unique
+  stripeCheckoutSessionId String?           @unique
+  stripePaymentIntentId   String?           @unique
+  stripeCouponId          String?
+  /// Stripe session expiry; stock is held until the session is confirmed expired
+  expiresAt               DateTime
+  paidAt                  DateTime?
+  stockReleased           Boolean           @default(false)
+  /// shipping address as collected by Stripe Checkout
+  shippingAddress         Json?
+  failureReason           String?
+  /// last applied Stripe event time (monotonic guard for out-of-order delivery)
+  lastEventAt             DateTime?
+  lines                   Json              @default("[]")
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+
+  user   User?   @relation(fields: [userId], references: [id])
+  orders Order[]
+
+  @@index([status, expiresAt])
+  @@index([userId, createdAt])
+}
+
+/// Idempotency ledger for Stripe webhook deliveries.
+model StripeEvent {
+  id          String    @id
+  type        String
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+  /// "applied" | "ignored:<reason>" | "error:<message>"
+  outcome     String?
+}
+
+model PromoCode {
+  id               String    @id @default(cuid())
+  /// upper-cased code
+  code             String    @unique
+  description      String    @default("")
+  percentOff       Int?
+  amountOffCents   Int?
+  minSubtotalCents Int       @default(0)
+  active           Boolean   @default(true)
+  startsAt         DateTime?
+  endsAt           DateTime?
+  maxRedemptions   Int?
+  redemptions      Int       @default(0)
+  createdAt        DateTime  @default(now())
+}
+
+model ReturnRequest {
+  id          String       @id @default(cuid())
+  orderId     String
+  userId      String?
+  status      ReturnStatus @default(REQUESTED)
+  reason      String
+  notes       String?
+  /// [{orderItemId, quantity}]
+  items       Json
+  refundCents Int?
+  adminNotes  String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  resolvedAt  DateTime?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([orderId])
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  topic     String
+  orderRef  String?
+  message   String
+  handled   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([handled, createdAt])
 }

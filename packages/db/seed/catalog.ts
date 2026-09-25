@@ -1,241 +1,1412 @@
-/** Demo catalog. Prices are exact USD strings (converted to integer micro-USD). */
-export interface SeedVariant {
-  name: string;
-  attributes: Record<string, string>;
-  stock: number;
-}
+/**
+ * Trestle demo apparel catalogue.
+ *
+ * DEMO DATA — product names, prices, compositions, stock and size charts are invented for a fictional
+ * store and must be replaced by the owner (see docs/CONNECTION_HANDOFF.md → "Owner content").
+ *
+ * Photography: Sylius demo fixture images (github.com/Sylius/Sylius, MIT licence, © Sylius Sp. z o.o.),
+ * vendored unmodified into apps/web/public/images/catalog/. The images appear to be AI-generated; no real
+ * brand's garments are depicted. Every product below was named and coloured after inspecting its images,
+ * and each image is tagged with the colour it actually shows. See docs/IMAGE_CREDITS.md.
+ */
+import type { Category, Department } from "@trestle/shared";
+
+export const IMAGE_SOURCE = {
+  credit: "Sylius demo fixtures",
+  license: "MIT (Sylius)",
+  repoUrl: "https://github.com/Sylius/Sylius",
+  commit: "93103c71e643c8bc25932905fb1387b1719dc687",
+  basePath: "src/Sylius/Bundle/CoreBundle/Resources/fixtures",
+} as const;
+
+/** "dresses/dress_01" → public URL of the vendored copy */
+export const imageUrl = (ref: string) => `/images/catalog/${ref.replace(/\//g, "-")}.webp`;
+export const imageSourceUrl = (ref: string) =>
+  `${IMAGE_SOURCE.repoUrl}/blob/${IMAGE_SOURCE.commit}/${IMAGE_SOURCE.basePath}/${ref}.webp`;
+
+export const COLOURS: Record<string, string> = {
+  Black: "#1c1c1c",
+  White: "#f5f3ee",
+  Ecru: "#ebe4d3",
+  Ivory: "#efe9dc",
+  Sky: "#a8c6df",
+  Red: "#b2322b",
+  Pink: "#eab7bd",
+  Blush: "#efc4bf",
+  "Grey marl": "#9b9b98",
+  Slate: "#4f5663",
+  Mint: "#a3d5c1",
+  Sage: "#a3a88c",
+  Teal: "#3f8883",
+  Navy: "#1f2a44",
+  Butter: "#f2de8f",
+  Lemon: "#f3eaa2",
+  Marigold: "#f1b640",
+  Tangerine: "#e8743b",
+  Coral: "#ea7a63",
+  Burgundy: "#6d1f2c",
+  Olive: "#5d6040",
+  "Light wash": "#a9c0d8",
+  "Mid wash": "#6d8db2",
+  "Dark wash": "#35455f",
+  "Washed black": "#3b3b3e",
+  "Forest green": "#2f4a36",
+  Magenta: "#8e1f5d",
+  Chocolate: "#5a3a2b",
+  Oat: "#dccfb8",
+  Stone: "#a39d92",
+  "Pink marl": "#d9a3b3",
+  "Rose stripe": "#e7a9a6",
+  "Lilac stripe": "#b7a3cf",
+  // prints / multi-colour garments: swatch shows the dominant tone
+  "Sunset ombré": "#f0a37e",
+  "Multi stripe": "#f1c27d",
+  "Peach stripe": "#f4c9a8",
+  "Cream floral": "#efdcc8",
+  "Pastel check": "#e9d3c1",
+  "Cream dot": "#efe6cf",
+  "Coral dot": "#ec8466",
+  "Black dot": "#262424",
+  "Aqua coral": "#8fcfc4",
+  "Multi floral": "#f2a28f",
+  Gerbera: "#f3b8b2",
+  "Scattered blooms": "#f3ddd0",
+  Wildflower: "#e9c7b5",
+  Poppy: "#e9a08e",
+  "Palm print": "#8fc3d4",
+  "Horizon print": "#9ec2de",
+  "Sunset print": "#f08a55",
+  "Sunset fade": "#f09a4f",
+  "Stripe fade": "#e7b4c9",
+  "Violet fade": "#6a4f9a",
+  "Harvest stripe": "#d99a45",
+};
+
+export type SizeKey = "women-alpha" | "men-alpha" | "women-denim" | "men-denim" | "one-size";
+export const SIZE_SETS: Record<SizeKey, string[]> = {
+  "women-alpha": ["XS", "S", "M", "L", "XL"],
+  "men-alpha": ["S", "M", "L", "XL", "XXL"],
+  "women-denim": ["24", "25", "26", "27", "28", "29", "30", "31", "32"],
+  "men-denim": ["28", "29", "30", "31", "32", "33", "34", "36", "38"],
+  "one-size": ["One size"],
+};
+const CHART_FOR: Record<SizeKey, string> = {
+  "women-alpha": "women-tops",
+  "men-alpha": "men-tops",
+  "women-denim": "women-denim",
+  "men-denim": "men-denim",
+  "one-size": "one-size",
+};
+export const chartFor = (k: SizeKey) => CHART_FOR[k];
+
 export interface SeedProduct {
+  /** stable slug — the idempotency key for the seed */
   key: string;
   title: string;
   description: string;
   price: string;
-  category: string;
-  manufacturer?: string;
+  department: Department;
+  category: Category;
+  subcategory: string;
+  material: string;
+  fit: string;
+  care: string[];
+  sizes: SizeKey;
+  /** colour → image refs (first image of the first colour is the product's primary image) */
+  colours: [colour: string, images: string[]][];
+  /** days before seed time that the product was published (<= 45 → "New arrivals") */
+  publishedDaysAgo: number;
   featured?: boolean;
-  variants: SeedVariant[];
+  collections: string[];
+  /** explicit stock overrides "Colour/Size" → qty (everything else gets a deterministic 2–14) */
+  stock?: Record<string, number>;
+  /** colours that are sold out in every size */
+  soldOutColours?: string[];
 }
+
 export interface SeedSeller {
   key: "chronos" | "sole" | "lumen";
   storefrontName: string;
   slug: string;
   bio: string;
   verified: boolean;
-  /** "B" = settlement chain B, "A" = chain A */
   payoutChain: "A" | "B";
   payoutSymbol: "tUSDC" | "tDAI";
   products: SeedProduct[];
 }
 
-const sizes = (stock: number[]) =>
-  ["US 8", "US 9", "US 10", "US 11"].map((s, i) => ({
-    name: s,
-    attributes: { size: s },
-    stock: stock[i] ?? 0,
-  }));
-const apparel = (stock: number[]) =>
-  ["S", "M", "L", "XL"].map((s, i) => ({ name: s, attributes: { size: s }, stock: stock[i] ?? 0 }));
+export interface SeedCollection {
+  slug: string;
+  title: string;
+  description: string;
+  image: string;
+  position: number;
+}
+
+export const COLLECTIONS: SeedCollection[] = [
+  {
+    slug: "summer-26",
+    title: "Summer 26",
+    description:
+      "Light dresses, washed denim and easy tees, made for long days by the water.",
+    image: "dresses/dress_06",
+    position: 0,
+  },
+  {
+    slug: "denim",
+    title: "The denim edit",
+    description: "Straight, wide, relaxed and cut-off. Our denim in every wash.",
+    image: "jeans/woman/jeans_03_3",
+    position: 1,
+  },
+  {
+    slug: "essential-tees",
+    title: "Essential tees",
+    description: "Plain jersey tees in considered colours, cut for layering or wearing alone.",
+    image: "t-shirts/man/t-shirt_02_1",
+    position: 2,
+  },
+  {
+    slug: "knit-hats",
+    title: "Knit hats",
+    description: "Ribbed, cabled and pompom knits for cooler evenings.",
+    image: "caps/cap_08_1",
+    position: 3,
+  },
+];
+
+const JERSEY_CARE = [
+  "Machine wash cold, 30°C, with similar colours",
+  "Do not tumble dry; dry flat",
+  "Iron on low heat, inside out",
+];
+const DRESS_CARE = [
+  "Hand wash cold or machine wash on a delicate cycle",
+  "Line dry in the shade",
+  "Cool iron on the reverse",
+];
+const DENIM_CARE = [
+  "Wash inside out at 30°C, sparingly",
+  "Line dry to keep the shape",
+  "Colour may transfer when new — wash separately",
+];
+const KNIT_CARE = [
+  "Hand wash cold with wool detergent",
+  "Reshape and dry flat",
+  "Do not tumble dry",
+];
+
+const d = (n: string) => `dresses/dress_${n}`;
+const wt = (n: string) => `t-shirts/woman/t-shirt_${n}`;
+const mt = (n: string) => `t-shirts/man/t-shirt_${n}`;
+const wj = (n: string) => `jeans/woman/jeans_${n}`;
+const mj = (n: string) => `jeans/man/jeans_${n}`;
+const c = (n: string) => `caps/cap_${n}`;
+
+function dress(
+  key: string,
+  title: string,
+  colour: string,
+  img: string,
+  price: string,
+  sub: string,
+  description: string,
+  extra: Partial<SeedProduct> = {},
+): SeedProduct {
+  return {
+    key,
+    title,
+    description,
+    price,
+    department: "women",
+    category: "dresses",
+    subcategory: sub,
+    material: "100% viscose",
+    fit: "Relaxed fit. True to size — take your usual size.",
+    care: DRESS_CARE,
+    sizes: "women-alpha",
+    colours: [[colour, [d(img)]]],
+    publishedDaysAgo: 60,
+    collections: ["summer-26"],
+    ...extra,
+  };
+}
+
+const STUDIO: SeedProduct[] = [
+  // ------------------------------------------------------------------ women · dresses
+  dress(
+    "ombre-slip-dress",
+    "Ombré slip dress",
+    "Sunset ombré",
+    "01",
+    "149.00",
+    "Slip dresses",
+    "A bias-cut slip dress dyed from sea-glass aqua through to coral. Fine adjustable straps and a straight neckline; falls to just above the knee.",
+    { featured: true, publishedDaysAgo: 12 },
+  ),
+  dress(
+    "strappy-mini-dress",
+    "Strappy mini dress",
+    "Black",
+    "02",
+    "119.00",
+    "Mini dresses",
+    "A black mini dress with thin straps, a softly gathered bodice and a skirt that moves when you walk.",
+    { publishedDaysAgo: 30 },
+  ),
+  dress(
+    "striped-strap-sundress",
+    "Striped strap sundress",
+    "Multi stripe",
+    "03",
+    "139.00",
+    "Sundresses",
+    "Vertical bands of rose, marigold and sky on a lightweight sundress with a V-neck and slim straps.",
+  ),
+  dress(
+    "v-neck-maxi-dress",
+    "V-neck maxi dress",
+    "Ivory",
+    "04",
+    "169.00",
+    "Maxi dresses",
+    "An ivory maxi with a deep V-neck, gathered empire waist and a long, full skirt.",
+    { featured: true, publishedDaysAgo: 8 },
+  ),
+  dress(
+    "pastel-stripe-dress",
+    "Pastel stripe dress",
+    "Peach stripe",
+    "05",
+    "149.00",
+    "Midi dresses",
+    "Soft peach and cream horizontal stripes on a V-neck strap dress with a fluid A-line skirt.",
+  ),
+  dress(
+    "floral-maxi-dress",
+    "Floral maxi dress",
+    "Cream floral",
+    "06",
+    "179.00",
+    "Maxi dresses",
+    "A cream strap maxi scattered with rose-pink florals, cut long and loose with a square neckline.",
+    { featured: true, publishedDaysAgo: 5 },
+  ),
+  dress(
+    "ruffle-hem-mini-dress",
+    "Ruffle-hem mini dress",
+    "Coral",
+    "07",
+    "129.00",
+    "Mini dresses",
+    "A coral mini dress with a fitted bodice, thin straps and a flounced hem.",
+  ),
+  dress(
+    "check-maxi-sundress",
+    "Check maxi sundress",
+    "Pastel check",
+    "08",
+    "169.00",
+    "Maxi dresses",
+    "A long sundress in a faded pastel check with a smocked bodice and slim straps.",
+  ),
+  dress(
+    "ruffle-neck-sundress",
+    "Ruffle-neck sundress",
+    "Blush",
+    "09",
+    "139.00",
+    "Sundresses",
+    "Blush and coral tones with a ruffled neckline, thin straps and a gathered skirt.",
+    { publishedDaysAgo: 20 },
+  ),
+  dress(
+    "puff-sleeve-dress",
+    "Off-shoulder puff-sleeve dress",
+    "Ivory",
+    "10",
+    "159.00",
+    "Midi dresses",
+    "Ivory voile with off-the-shoulder puff sleeves and a keyhole tie front.",
+    { material: "100% cotton voile" },
+  ),
+  dress(
+    "dot-sundress",
+    "Dot sundress",
+    "Cream dot",
+    "11",
+    "139.00",
+    "Sundresses",
+    "A cream sundress printed with pastel dots, with a fitted bodice and a full skirt.",
+    { material: "100% cotton" },
+  ),
+  dress(
+    "polka-dot-slip-dress",
+    "Polka-dot slip dress",
+    "Coral dot",
+    "12",
+    "149.00",
+    "Slip dresses",
+    "A coral slip dress with a white polka dot, V-neck and adjustable straps.",
+  ),
+  dress(
+    "dotted-cami-dress",
+    "Dotted cami dress",
+    "Black dot",
+    "13",
+    "139.00",
+    "Midi dresses",
+    "A black cami dress with a fine white dot and a softly gathered waist.",
+    { publishedDaysAgo: 14 },
+  ),
+  dress(
+    "bias-slip-dress",
+    "Bias-cut slip dress",
+    "Tangerine",
+    "14",
+    "149.00",
+    "Slip dresses",
+    "A clean tangerine slip dress cut on the bias for drape, with a V-neck and thin straps.",
+    { featured: true, publishedDaysAgo: 3 },
+  ),
+  dress(
+    "colour-block-dress",
+    "Colour-block V-neck dress",
+    "Aqua coral",
+    "15",
+    "159.00",
+    "Midi dresses",
+    "Aqua bodice, coral skirt: a colour-blocked strap dress with a plunging V-neck.",
+  ),
+  dress(
+    "tiered-cami-dress",
+    "Tiered cami dress",
+    "Blush",
+    "16",
+    "139.00",
+    "Sundresses",
+    "A blush cami dress with pin-tucked tiers and slim straps.",
+    { stock: { "Blush/M": 0, "Blush/L": 1 } },
+  ),
+  dress(
+    "floral-cami-dress",
+    "Floral cami dress",
+    "Multi floral",
+    "17",
+    "149.00",
+    "Sundresses",
+    "A bright floral print in coral, marigold and pink on a straight-neck cami dress.",
+  ),
+
+  // ------------------------------------------------------------------ women · t-shirts
+  {
+    key: "womens-relaxed-crew-tee",
+    title: "Relaxed crew-neck tee",
+    description:
+      "A relaxed tee in midweight cotton jersey with dropped shoulders and a slightly cropped length.",
+    price: "55.00",
+    department: "women",
+    category: "t-shirts",
+    subcategory: "Relaxed tees",
+    material: "100% cotton jersey, 200 g/m²",
+    fit: "Relaxed fit with dropped shoulders.",
+    care: JERSEY_CARE,
+    sizes: "women-alpha",
+    colours: [
+      ["Black", [wt("01_1"), wt("01_2")]],
+      ["Sky", [wt("01_3")]],
+      ["Red", [wt("01_4")]],
+    ],
+    soldOutColours: ["Red"],
+    publishedDaysAgo: 18,
+    featured: true,
+    collections: ["essential-tees"],
+  },
+  {
+    key: "womens-boxy-tee",
+    title: "Oversized boxy tee",
+    description: "A roomy, boxy tee with a wide body and short sleeves that sit past the shoulder.",
+    price: "59.00",
+    department: "women",
+    category: "t-shirts",
+    subcategory: "Oversized tees",
+    material: "100% cotton jersey, 220 g/m²",
+    fit: "Oversized. Size down for a closer fit.",
+    care: JERSEY_CARE,
+    sizes: "women-alpha",
+    colours: [["Black", [wt("02_1"), wt("02_2")]]],
+    publishedDaysAgo: 40,
+    collections: ["essential-tees"],
+  },
+  {
+    key: "womens-classic-tee",
+    title: "Classic cotton tee",
+    description: "Our everyday crew-neck in soft cotton jersey, with a straight body and short sleeves.",
+    price: "45.00",
+    department: "women",
+    category: "t-shirts",
+    subcategory: "Classic tees",
+    material: "100% cotton jersey",
+    fit: "Regular fit. True to size.",
+    care: JERSEY_CARE,
+    sizes: "women-alpha",
+    colours: [
+      ["White", [wt("03_1"), wt("03_2"), wt("03_4")]],
+      ["Pink", [wt("03_3")]],
+    ],
+    publishedDaysAgo: 90,
+    collections: ["essential-tees"],
+  },
+  {
+    key: "botanical-print-tee",
+    title: "Botanical print tee",
+    description: "A white cotton tee with a hand-drawn flower print. Choose from four prints.",
+    price: "59.00",
+    department: "women",
+    category: "t-shirts",
+    subcategory: "Graphic tees",
+    material: "100% cotton jersey",
+    fit: "Relaxed fit.",
+    care: JERSEY_CARE,
+    sizes: "women-alpha",
+    colours: [
+      ["Gerbera", [wt("04_1")]],
+      ["Scattered blooms", [wt("04_2")]],
+      ["Wildflower", [wt("04_3")]],
+      ["Poppy", [wt("04_4")]],
+    ],
+    publishedDaysAgo: 10,
+    collections: ["summer-26"],
+  },
+  {
+    key: "cropped-jersey-tee",
+    title: "Cropped jersey tee",
+    description: "A shorter tee that sits at the waist, cut from a soft slub jersey.",
+    price: "49.00",
+    department: "women",
+    category: "t-shirts",
+    subcategory: "Cropped tees",
+    material: "100% cotton slub jersey",
+    fit: "Regular fit, cropped length.",
+    care: JERSEY_CARE,
+    sizes: "women-alpha",
+    colours: [
+      ["Grey marl", [wt("05_1")]],
+      ["Mint", [wt("05_2")]],
+      ["Sage", [wt("05_3")]],
+    ],
+    publishedDaysAgo: 25,
+    collections: ["essential-tees"],
+  },
+  {
+    key: "swan-graphic-tee",
+    title: "Swan graphic tee",
+    description: "A relaxed tee with a large white swan print on the front.",
+    price: "59.00",
+    department: "women",
+    category: "t-shirts",
+    subcategory: "Graphic tees",
+    material: "100% cotton jersey",
+    fit: "Relaxed fit.",
+    care: JERSEY_CARE,
+    sizes: "women-alpha",
+    colours: [
+      ["Teal", [wt("06_1"), wt("06_3")]],
+      ["Navy", [wt("06_2"), wt("06_4")]],
+    ],
+    publishedDaysAgo: 7,
+    collections: ["summer-26"],
+  },
+  {
+    key: "slub-jersey-tee",
+    title: "Slub jersey tee",
+    description: "A lightweight tee in a textured slub jersey with a gently rounded hem.",
+    price: "49.00",
+    department: "women",
+    category: "t-shirts",
+    subcategory: "Classic tees",
+    material: "100% cotton slub jersey",
+    fit: "Regular fit.",
+    care: JERSEY_CARE,
+    sizes: "women-alpha",
+    colours: [
+      ["Grey marl", [wt("07_1"), wt("07_3")]],
+      ["Slate", [wt("07_2")]],
+    ],
+    publishedDaysAgo: 70,
+    collections: ["essential-tees"],
+  },
+  {
+    key: "fitted-crew-tee",
+    title: "Fitted crew tee",
+    description: "A closer-fitting crew-neck with a touch of stretch, in deep navy.",
+    price: "45.00",
+    department: "women",
+    category: "t-shirts",
+    subcategory: "Fitted tees",
+    material: "95% cotton, 5% elastane",
+    fit: "Slim fit. True to size.",
+    care: JERSEY_CARE,
+    sizes: "women-alpha",
+    colours: [["Navy", [wt("08_1"), wt("08_2"), wt("08_3")]]],
+    publishedDaysAgo: 80,
+    collections: ["essential-tees"],
+  },
+  {
+    key: "womens-garment-dyed-tee",
+    title: "Garment-dyed tee",
+    description: "Dyed after sewing for a soft hand and colour that settles into the seams.",
+    price: "55.00",
+    department: "women",
+    category: "t-shirts",
+    subcategory: "Relaxed tees",
+    material: "100% cotton jersey",
+    fit: "Relaxed fit.",
+    care: JERSEY_CARE,
+    sizes: "women-alpha",
+    colours: [
+      ["Butter", [wt("09_1"), wt("09_4")]],
+      ["Marigold", [wt("09_2")]],
+      ["Pink", [wt("09_3")]],
+    ],
+    publishedDaysAgo: 15,
+    collections: ["summer-26", "essential-tees"],
+  },
+  {
+    key: "photo-print-tee",
+    title: "Photo print tee",
+    description: "A relaxed cotton tee with a placed photographic print. Three prints available.",
+    price: "65.00",
+    department: "women",
+    category: "t-shirts",
+    subcategory: "Graphic tees",
+    material: "100% cotton jersey",
+    fit: "Relaxed fit.",
+    care: JERSEY_CARE,
+    sizes: "women-alpha",
+    colours: [
+      ["Palm print", [wt("10_1")]],
+      ["Horizon print", [wt("10_2")]],
+      ["Sunset print", [wt("10_3")]],
+    ],
+    publishedDaysAgo: 4,
+    collections: ["summer-26"],
+  },
+  {
+    key: "essential-white-tee",
+    title: "Essential white tee",
+    description: "The white tee: a neat crew-neck, straight body and clean finish.",
+    price: "39.00",
+    department: "women",
+    category: "t-shirts",
+    subcategory: "Classic tees",
+    material: "100% cotton jersey",
+    fit: "Regular fit. True to size.",
+    care: JERSEY_CARE,
+    sizes: "women-alpha",
+    colours: [["White", [wt("11_1"), wt("11_2")]]],
+    publishedDaysAgo: 120,
+    collections: ["essential-tees"],
+  },
+  {
+    key: "heavy-cotton-tee",
+    title: "Heavy cotton tee",
+    description: "A dense, structured jersey that holds its shape wash after wash.",
+    price: "55.00",
+    department: "women",
+    category: "t-shirts",
+    subcategory: "Relaxed tees",
+    material: "100% cotton jersey, 240 g/m²",
+    fit: "Relaxed fit.",
+    care: JERSEY_CARE,
+    sizes: "women-alpha",
+    colours: [
+      ["Tangerine", [wt("12_1")]],
+      ["White", [wt("12_2"), wt("12_3")]],
+    ],
+    publishedDaysAgo: 22,
+    collections: ["essential-tees"],
+  },
+
+  // ------------------------------------------------------------------ men · t-shirts
+  {
+    key: "mens-heavyweight-tee",
+    title: "Heavyweight tee",
+    description: "A heavyweight crew-neck with a wide rib collar and a boxy, straight body.",
+    price: "55.00",
+    department: "men",
+    category: "t-shirts",
+    subcategory: "Heavyweight tees",
+    material: "100% cotton jersey, 260 g/m²",
+    fit: "Boxy fit.",
+    care: JERSEY_CARE,
+    sizes: "men-alpha",
+    colours: [
+      ["Butter", [mt("01_1"), mt("01_3")]],
+      ["Black", [mt("01_2")]],
+    ],
+    publishedDaysAgo: 9,
+    featured: true,
+    collections: ["essential-tees", "summer-26"],
+  },
+  {
+    key: "mens-boxy-tee",
+    title: "Boxy cotton tee",
+    description: "A short, wide tee in a soft, dry-handed cotton.",
+    price: "59.00",
+    department: "men",
+    category: "t-shirts",
+    subcategory: "Oversized tees",
+    material: "100% cotton jersey, 220 g/m²",
+    fit: "Boxy fit, slightly cropped.",
+    care: JERSEY_CARE,
+    sizes: "men-alpha",
+    colours: [
+      ["Ecru", [mt("02_1"), mt("02_2")]],
+      ["Black", [mt("02_3")]],
+    ],
+    publishedDaysAgo: 28,
+    collections: ["essential-tees"],
+  },
+  {
+    key: "mens-everyday-tee",
+    title: "Everyday crew tee",
+    description: "A regular-fit tee for every day, in a smooth cotton jersey.",
+    price: "45.00",
+    department: "men",
+    category: "t-shirts",
+    subcategory: "Classic tees",
+    material: "100% cotton jersey",
+    fit: "Regular fit. True to size.",
+    care: JERSEY_CARE,
+    sizes: "men-alpha",
+    colours: [
+      ["Black", [mt("03_1"), mt("03_3")]],
+      ["Burgundy", [mt("03_2")]],
+    ],
+    publishedDaysAgo: 100,
+    collections: ["essential-tees"],
+  },
+  {
+    key: "mens-relaxed-jersey-tee",
+    title: "Relaxed jersey tee",
+    description: "Easy and slightly loose through the body, with a clean crew neckline.",
+    price: "49.00",
+    department: "men",
+    category: "t-shirts",
+    subcategory: "Relaxed tees",
+    material: "100% cotton jersey",
+    fit: "Relaxed fit.",
+    care: JERSEY_CARE,
+    sizes: "men-alpha",
+    colours: [
+      ["Lemon", [mt("04_1")]],
+      ["White", [mt("04_2")]],
+      ["Black", [mt("04_3")]],
+    ],
+    publishedDaysAgo: 50,
+    collections: ["essential-tees"],
+  },
+  {
+    key: "mens-classic-crew-tee",
+    title: "Classic crew tee",
+    description: "Our classic tee in a close, regular cut.",
+    price: "45.00",
+    department: "men",
+    category: "t-shirts",
+    subcategory: "Classic tees",
+    material: "100% cotton jersey",
+    fit: "Regular fit.",
+    care: JERSEY_CARE,
+    sizes: "men-alpha",
+    colours: [
+      ["Navy", [mt("05_1")]],
+      ["Black", [mt("05_2"), mt("05_3")]],
+    ],
+    publishedDaysAgo: 110,
+    collections: ["essential-tees"],
+    stock: { "Navy/M": 0, "Navy/L": 0 },
+  },
+  {
+    key: "mens-garment-washed-tee",
+    title: "Garment-washed tee",
+    description: "Washed after sewing for a lived-in softness from the first wear.",
+    price: "55.00",
+    department: "men",
+    category: "t-shirts",
+    subcategory: "Relaxed tees",
+    material: "100% cotton jersey",
+    fit: "Relaxed fit.",
+    care: JERSEY_CARE,
+    sizes: "men-alpha",
+    colours: [
+      ["Black", [mt("06_1"), mt("06_3")]],
+      ["Olive", [mt("06_2")]],
+    ],
+    publishedDaysAgo: 35,
+    collections: ["essential-tees"],
+  },
+  {
+    key: "mens-midweight-tee",
+    title: "Midweight tee",
+    description: "The middle ground: not too heavy, not too light. A tee for every season.",
+    price: "49.00",
+    department: "men",
+    category: "t-shirts",
+    subcategory: "Classic tees",
+    material: "100% cotton jersey, 200 g/m²",
+    fit: "Regular fit.",
+    care: JERSEY_CARE,
+    sizes: "men-alpha",
+    colours: [
+      ["Black", [mt("07_1"), mt("07_2")]],
+      ["Ecru", [mt("07_3")]],
+    ],
+    publishedDaysAgo: 65,
+    collections: ["essential-tees"],
+  },
+  {
+    key: "mens-oversized-tee",
+    title: "Oversized tee",
+    description: "Long sleeves-to-elbow, dropped shoulders and a generous body.",
+    price: "59.00",
+    department: "men",
+    category: "t-shirts",
+    subcategory: "Oversized tees",
+    material: "100% cotton jersey, 220 g/m²",
+    fit: "Oversized. Size down for a regular fit.",
+    care: JERSEY_CARE,
+    sizes: "men-alpha",
+    colours: [
+      ["Mint", [mt("08_1")]],
+      ["Black", [mt("08_2")]],
+      ["Ecru", [mt("08_3")]],
+    ],
+    publishedDaysAgo: 6,
+    collections: ["summer-26"],
+  },
+  {
+    key: "mens-lightweight-tee",
+    title: "Lightweight tee",
+    description: "A fine, airy jersey for the hottest days.",
+    price: "45.00",
+    department: "men",
+    category: "t-shirts",
+    subcategory: "Classic tees",
+    material: "100% cotton jersey, 150 g/m²",
+    fit: "Regular fit.",
+    care: JERSEY_CARE,
+    sizes: "men-alpha",
+    colours: [
+      ["White", [mt("09_1"), mt("09_3")]],
+      ["Sky", [mt("09_2")]],
+    ],
+    publishedDaysAgo: 16,
+    collections: ["summer-26", "essential-tees"],
+  },
+  {
+    key: "mens-gradient-print-tee",
+    title: "Gradient print tee",
+    description: "A relaxed tee printed with a soft colour fade. Three colourways.",
+    price: "65.00",
+    department: "men",
+    category: "t-shirts",
+    subcategory: "Graphic tees",
+    material: "100% cotton jersey",
+    fit: "Relaxed fit.",
+    care: JERSEY_CARE,
+    sizes: "men-alpha",
+    colours: [
+      ["Sunset fade", [mt("10_1")]],
+      ["Stripe fade", [mt("10_2")]],
+      ["Violet fade", [mt("10_3")]],
+    ],
+    publishedDaysAgo: 2,
+    featured: true,
+    collections: ["summer-26"],
+  },
+  {
+    key: "mens-standard-tee",
+    title: "Standard fit tee",
+    description: "A straightforward tee with a regular body, in three core colours.",
+    price: "45.00",
+    department: "men",
+    category: "t-shirts",
+    subcategory: "Classic tees",
+    material: "100% cotton jersey",
+    fit: "Regular fit. True to size.",
+    care: JERSEY_CARE,
+    sizes: "men-alpha",
+    colours: [
+      ["Black", [mt("11_1")]],
+      ["Red", [mt("11_2")]],
+      ["White", [mt("11_3")]],
+    ],
+    publishedDaysAgo: 75,
+    collections: ["essential-tees"],
+  },
+];
+
+function denim(
+  p: Omit<SeedProduct, "care" | "collections" | "fit" | "material"> & {
+    fit?: string;
+    material?: string;
+    collections?: string[];
+  },
+): SeedProduct {
+  return {
+    material: "100% cotton denim",
+    fit: "True to size.",
+    care: DENIM_CARE,
+    collections: ["denim"],
+    ...p,
+  };
+}
+
+const DENIM: SeedProduct[] = [
+  // ------------------------------------------------------------------ women · shorts
+  denim({
+    key: "high-rise-cut-offs",
+    title: "High-rise denim cut-offs",
+    description: "High-rise five-pocket shorts with a raw, frayed hem, in a sun-faded light wash.",
+    price: "85.00",
+    department: "women",
+    category: "shorts",
+    subcategory: "Denim shorts",
+    fit: "High rise. Fitted through the hip.",
+    sizes: "women-denim",
+    colours: [["Light wash", [wj("01_1"), wj("01_2"), wj("01_3")]]],
+    publishedDaysAgo: 11,
+    featured: true,
+    collections: ["denim", "summer-26"],
+  }),
+  denim({
+    key: "frayed-denim-shorts",
+    title: "Frayed denim shorts",
+    description: "Short, easy denim shorts with a frayed hem and a relaxed leg opening.",
+    price: "79.00",
+    department: "women",
+    category: "shorts",
+    subcategory: "Denim shorts",
+    sizes: "women-denim",
+    colours: [["Light wash", [wj("02_1"), wj("02_2"), wj("02_3")]]],
+    publishedDaysAgo: 45,
+  }),
+  denim({
+    key: "dark-denim-shorts",
+    title: "Dark denim shorts",
+    description: "Dark-wash shorts with light distressing at the front and a cut-off hem.",
+    price: "85.00",
+    department: "women",
+    category: "shorts",
+    subcategory: "Denim shorts",
+    sizes: "women-denim",
+    colours: [["Dark wash", [wj("04_1"), wj("04_2"), wj("04_3")]]],
+    publishedDaysAgo: 55,
+  }),
+  denim({
+    key: "mid-rise-denim-shorts",
+    title: "Mid-rise denim shorts",
+    description: "A mid-rise short with a clean-cut hem, in a bright light wash.",
+    price: "79.00",
+    department: "women",
+    category: "shorts",
+    subcategory: "Denim shorts",
+    sizes: "women-denim",
+    colours: [["Light wash", [wj("06_1"), wj("06_2"), wj("06_3")]]],
+    publishedDaysAgo: 85,
+  }),
+  denim({
+    key: "distressed-denim-shorts",
+    title: "Distressed denim shorts",
+    description: "Washed-black denim shorts with worn-through details and a raw hem.",
+    price: "85.00",
+    department: "women",
+    category: "shorts",
+    subcategory: "Denim shorts",
+    sizes: "women-denim",
+    colours: [["Washed black", [wj("08_1"), wj("08_2"), wj("08_3")]]],
+    publishedDaysAgo: 33,
+  }),
+  denim({
+    key: "cuffed-denim-shorts",
+    title: "Cuffed denim shorts",
+    description: "Light-wash shorts with a turned-up cuff and a relaxed fit through the thigh.",
+    price: "85.00",
+    department: "women",
+    category: "shorts",
+    subcategory: "Denim shorts",
+    sizes: "women-denim",
+    colours: [["Light wash", [wj("13_1"), wj("13_2"), wj("13_3")]]],
+    publishedDaysAgo: 19,
+    collections: ["denim", "summer-26"],
+  }),
+  denim({
+    key: "denim-bermuda-shorts",
+    title: "Denim bermuda shorts",
+    description: "Longer, loose shorts that finish just above the knee.",
+    price: "89.00",
+    department: "women",
+    category: "shorts",
+    subcategory: "Bermuda shorts",
+    fit: "Loose fit, knee length.",
+    sizes: "women-denim",
+    colours: [["Light wash", [wj("17_1"), wj("17_2")]]],
+    publishedDaysAgo: 1,
+    featured: true,
+    collections: ["denim", "summer-26"],
+  }),
+  // ------------------------------------------------------------------ women · jeans
+  denim({
+    key: "wide-leg-jeans",
+    title: "Wide-leg jeans",
+    description: "High-waisted jeans with a long, wide leg that skims the floor. Washed black.",
+    price: "139.00",
+    department: "women",
+    category: "jeans",
+    subcategory: "Wide-leg jeans",
+    fit: "High rise, wide leg, full length.",
+    sizes: "women-denim",
+    colours: [["Washed black", [wj("03_1"), wj("03_2"), wj("03_3")]]],
+    publishedDaysAgo: 13,
+    featured: true,
+  }),
+  denim({
+    key: "straight-cropped-jeans",
+    title: "Straight cropped jeans",
+    description: "A straight, loose leg cropped above the ankle, in a faded light wash.",
+    price: "129.00",
+    department: "women",
+    category: "jeans",
+    subcategory: "Straight jeans",
+    fit: "Mid rise, straight leg, cropped length.",
+    sizes: "women-denim",
+    colours: [["Light wash", [wj("07_1"), wj("07_2"), wj("07_3")]]],
+    publishedDaysAgo: 26,
+  }),
+  denim({
+    key: "ripped-straight-jeans",
+    title: "Ripped straight jeans",
+    description: "Straight-leg jeans in washed black with open knees and a cropped hem.",
+    price: "135.00",
+    department: "women",
+    category: "jeans",
+    subcategory: "Straight jeans",
+    sizes: "women-denim",
+    colours: [["Washed black", [wj("10_1"), wj("10_2"), wj("10_3")]]],
+    publishedDaysAgo: 48,
+  }),
+  denim({
+    key: "skinny-ripped-jeans",
+    title: "Skinny ripped jeans",
+    description: "Stretch skinny jeans in a mid wash with distressed knees.",
+    price: "125.00",
+    department: "women",
+    category: "jeans",
+    subcategory: "Skinny jeans",
+    material: "98% cotton, 2% elastane",
+    fit: "Mid rise, skinny leg.",
+    sizes: "women-denim",
+    colours: [["Mid wash", [wj("11_1"), wj("11_2"), wj("11_3")]]],
+    publishedDaysAgo: 95,
+  }),
+  denim({
+    key: "high-rise-skinny-jeans",
+    title: "High-rise skinny jeans",
+    description: "Black high-rise skinny jeans with rips at the knee and a cropped length.",
+    price: "125.00",
+    department: "women",
+    category: "jeans",
+    subcategory: "Skinny jeans",
+    material: "98% cotton, 2% elastane",
+    fit: "High rise, skinny leg.",
+    sizes: "women-denim",
+    colours: [["Washed black", [wj("12_1"), wj("12_2"), wj("12_3")]]],
+    publishedDaysAgo: 105,
+    stock: { "Washed black/26": 0, "Washed black/27": 0, "Washed black/28": 1 },
+  }),
+  denim({
+    key: "relaxed-ripped-jeans",
+    title: "Relaxed ripped jeans",
+    description: "A relaxed, slightly tapered leg in dark-wash denim with ripped knees.",
+    price: "135.00",
+    department: "women",
+    category: "jeans",
+    subcategory: "Relaxed jeans",
+    sizes: "women-denim",
+    colours: [["Dark wash", [wj("14_1"), wj("14_2"), wj("14_3")]]],
+    publishedDaysAgo: 38,
+  }),
+  denim({
+    key: "boyfriend-jeans",
+    title: "Boyfriend jeans",
+    description: "Loose boyfriend jeans with rolled cuffs and worn-in rips, in a mid wash.",
+    price: "129.00",
+    department: "women",
+    category: "jeans",
+    subcategory: "Relaxed jeans",
+    fit: "Low-slung, loose through the leg.",
+    sizes: "women-denim",
+    colours: [["Mid wash", [wj("16_1"), wj("16_2"), wj("16_3")]]],
+    publishedDaysAgo: 21,
+  }),
+  denim({
+    key: "slim-ankle-jeans",
+    title: "Slim ankle jeans",
+    description: "A high-rise slim leg that ends at the ankle, in a pale vintage wash.",
+    price: "125.00",
+    department: "women",
+    category: "jeans",
+    subcategory: "Slim jeans",
+    material: "98% cotton, 2% elastane",
+    sizes: "women-denim",
+    colours: [["Light wash", [wj("18_1"), wj("18_2"), wj("18_3")]]],
+    publishedDaysAgo: 9,
+  }),
+  // ------------------------------------------------------------------ men · shorts
+  denim({
+    key: "mens-five-pocket-shorts",
+    title: "Five-pocket denim shorts",
+    description: "Mid-wash denim shorts with a straight leg that falls just above the knee.",
+    price: "85.00",
+    department: "men",
+    category: "shorts",
+    subcategory: "Denim shorts",
+    sizes: "men-denim",
+    colours: [["Mid wash", [mj("01_1"), mj("01_2"), mj("01_3")]]],
+    publishedDaysAgo: 17,
+    featured: true,
+    collections: ["denim", "summer-26"],
+  }),
+  denim({
+    key: "mens-longline-shorts",
+    title: "Longline denim shorts",
+    description: "Longer denim shorts with a relaxed leg, in a mid wash.",
+    price: "85.00",
+    department: "men",
+    category: "shorts",
+    subcategory: "Denim shorts",
+    fit: "Relaxed fit, knee length.",
+    sizes: "men-denim",
+    colours: [["Mid wash", [mj("03_1"), mj("03_2"), mj("03_3")]]],
+    publishedDaysAgo: 60,
+  }),
+  denim({
+    key: "mens-loose-denim-shorts",
+    title: "Loose denim shorts",
+    description: "A loose, easy short in a lighter mid wash.",
+    price: "79.00",
+    department: "men",
+    category: "shorts",
+    subcategory: "Denim shorts",
+    fit: "Loose fit.",
+    sizes: "men-denim",
+    colours: [["Mid wash", [mj("08_1"), mj("08_2"), mj("08_3")]]],
+    publishedDaysAgo: 29,
+    collections: ["denim", "summer-26"],
+  }),
+  // ------------------------------------------------------------------ men · jeans
+  denim({
+    key: "mens-straight-jeans",
+    title: "Straight-leg jeans",
+    description: "Our straight-leg jean: mid rise, regular through the seat, straight from knee to hem.",
+    price: "135.00",
+    department: "men",
+    category: "jeans",
+    subcategory: "Straight jeans",
+    fit: "Mid rise, straight leg.",
+    sizes: "men-denim",
+    colours: [
+      ["Light wash", [mj("04_1"), mj("04_2"), mj("04_3")]],
+      ["Black", [mj("06_1"), mj("06_2"), mj("06_3")]],
+    ],
+    publishedDaysAgo: 24,
+    featured: true,
+  }),
+  denim({
+    key: "mens-relaxed-jeans",
+    title: "Relaxed-fit jeans",
+    description: "Roomier through the thigh with a straight leg, in black or a mid wash.",
+    price: "135.00",
+    department: "men",
+    category: "jeans",
+    subcategory: "Relaxed jeans",
+    fit: "Relaxed fit.",
+    sizes: "men-denim",
+    colours: [
+      ["Black", [mj("07_1"), mj("07_2"), mj("07_3")]],
+      ["Mid wash", [mj("11_1"), mj("11_2"), mj("11_3")]],
+    ],
+    publishedDaysAgo: 42,
+    stock: { "Black/32": 0, "Black/34": 0 },
+  }),
+  denim({
+    key: "mens-regular-jeans",
+    title: "Regular jeans",
+    description: "A classic regular-fit jean in a mid-blue wash.",
+    price: "129.00",
+    department: "men",
+    category: "jeans",
+    subcategory: "Regular jeans",
+    fit: "Regular fit.",
+    sizes: "men-denim",
+    colours: [["Mid wash", [mj("10_1"), mj("10_2"), mj("10_3")]]],
+    publishedDaysAgo: 88,
+  }),
+  denim({
+    key: "mens-slim-jeans",
+    title: "Slim jeans",
+    description: "A slim, straight-cut jean with a little stretch.",
+    price: "129.00",
+    department: "men",
+    category: "jeans",
+    subcategory: "Slim jeans",
+    material: "98% cotton, 2% elastane",
+    fit: "Slim fit.",
+    sizes: "men-denim",
+    colours: [["Mid wash", [mj("12_1"), mj("12_2"), mj("12_3")]]],
+    publishedDaysAgo: 72,
+  }),
+  denim({
+    key: "mens-vintage-straight-jeans",
+    title: "Vintage-wash straight jeans",
+    description: "A pale vintage wash on a straight, full-length leg.",
+    price: "139.00",
+    department: "men",
+    category: "jeans",
+    subcategory: "Straight jeans",
+    sizes: "men-denim",
+    colours: [["Light wash", [mj("13_1"), mj("13_2"), mj("13_3")]]],
+    publishedDaysAgo: 14,
+  }),
+  denim({
+    key: "mens-loose-jeans",
+    title: "Loose jeans",
+    description: "A generous, loose-fitting jean in a light wash.",
+    price: "139.00",
+    department: "men",
+    category: "jeans",
+    subcategory: "Relaxed jeans",
+    fit: "Loose fit.",
+    sizes: "men-denim",
+    colours: [["Light wash", [mj("14_1"), mj("14_2"), mj("14_3")]]],
+    publishedDaysAgo: 5,
+  }),
+];
+
+function knit(p: Omit<SeedProduct, "department" | "category" | "sizes" | "care" | "collections">): SeedProduct {
+  return {
+    department: "unisex",
+    category: "knit-hats",
+    sizes: "one-size",
+    care: KNIT_CARE,
+    collections: ["knit-hats"],
+    ...p,
+  };
+}
+
+const KNIT: SeedProduct[] = [
+  knit({
+    key: "chunky-pompom-beanie",
+    title: "Chunky pompom beanie",
+    description: "A chunky rib-knit beanie topped with a generous pompom.",
+    price: "49.00",
+    subcategory: "Pompom beanies",
+    material: "Wool blend",
+    fit: "One size, stretches to fit.",
+    colours: [["Burgundy", [c("01")]]],
+    publishedDaysAgo: 30,
+  }),
+  knit({
+    key: "cable-pompom-beanie",
+    title: "Cable-knit pompom beanie",
+    description: "A cable-knit beanie in ivory with a soft grey pompom.",
+    price: "55.00",
+    subcategory: "Pompom beanies",
+    material: "Wool blend",
+    fit: "One size.",
+    colours: [["Ivory", [c("03")]]],
+    publishedDaysAgo: 44,
+  }),
+  knit({
+    key: "ribbed-pompom-beanie",
+    title: "Ribbed pompom beanie",
+    description: "A deep-cuffed rib beanie with a fluffy pompom.",
+    price: "49.00",
+    subcategory: "Pompom beanies",
+    material: "Wool blend",
+    fit: "One size.",
+    colours: [["Ivory", [c("07_1"), c("07_2"), c("07_3")]]],
+    publishedDaysAgo: 12,
+    featured: true,
+  }),
+  knit({
+    key: "chunky-rib-beanie",
+    title: "Chunky rib beanie",
+    description: "A thick, textured rib beanie in forest green.",
+    price: "45.00",
+    subcategory: "Beanies",
+    material: "Wool blend",
+    fit: "One size, slouchy.",
+    colours: [["Forest green", [c("02")]]],
+    publishedDaysAgo: 66,
+  }),
+  knit({
+    key: "classic-cuffed-beanie",
+    title: "Classic cuffed beanie",
+    description: "A fine rib beanie with a turn-back cuff.",
+    price: "39.00",
+    subcategory: "Beanies",
+    material: "Wool blend",
+    fit: "One size.",
+    colours: [
+      ["Black", [c("06_1"), c("06_2"), c("06_3")]],
+      ["Magenta", [c("04")]],
+      ["Chocolate", [c("16")]],
+    ],
+    publishedDaysAgo: 54,
+    soldOutColours: ["Magenta"],
+  }),
+  knit({
+    key: "watch-cap",
+    title: "Watch cap",
+    description: "A short, close-fitting rib cap that sits above the ears.",
+    price: "39.00",
+    subcategory: "Beanies",
+    material: "Wool blend",
+    fit: "One size, shallow fit.",
+    colours: [["Black", [c("09_1"), c("09_2"), c("09_3")]]],
+    publishedDaysAgo: 8,
+  }),
+  knit({
+    key: "slouchy-rib-beanie",
+    title: "Slouchy rib beanie",
+    description: "A longer rib beanie that slouches softly at the back.",
+    price: "45.00",
+    subcategory: "Beanies",
+    material: "Wool blend",
+    fit: "One size, slouchy.",
+    colours: [
+      ["Oat", [c("05_1"), c("05_2"), c("05_3")]],
+      ["Stone", [c("13_1"), c("13_2"), c("13_3")]],
+    ],
+    publishedDaysAgo: 20,
+  }),
+  knit({
+    key: "fine-rib-beanie",
+    title: "Fine rib beanie",
+    description: "A light, fine-gauge rib beanie in ivory.",
+    price: "45.00",
+    subcategory: "Beanies",
+    material: "Wool blend",
+    fit: "One size.",
+    colours: [["Ivory", [c("08_1"), c("08_2"), c("08_3")]]],
+    publishedDaysAgo: 3,
+  }),
+  knit({
+    key: "striped-pompom-beanie",
+    title: "Striped pompom beanie",
+    description: "Stripes in soft tones, finished with a matching pompom.",
+    price: "55.00",
+    subcategory: "Pompom beanies",
+    material: "Wool blend",
+    fit: "One size.",
+    colours: [
+      ["Rose stripe", [c("10")]],
+      ["Lilac stripe", [c("14")]],
+    ],
+    publishedDaysAgo: 35,
+  }),
+  knit({
+    key: "marled-pompom-beanie",
+    title: "Marled pompom beanie",
+    description: "A marled knit in pink tones with a rose pompom.",
+    price: "49.00",
+    subcategory: "Pompom beanies",
+    material: "Wool blend",
+    fit: "One size.",
+    colours: [["Pink marl", [c("15")]]],
+    publishedDaysAgo: 58,
+  }),
+  knit({
+    key: "fair-isle-beanie",
+    title: "Fair Isle pompom beanie",
+    description: "A multicolour patterned knit with a bright pompom.",
+    price: "65.00",
+    subcategory: "Pompom beanies",
+    material: "Wool blend",
+    fit: "One size.",
+    colours: [
+      ["Marigold", [c("12")]],
+      ["Harvest stripe", [c("17")]],
+    ],
+    publishedDaysAgo: 26,
+  }),
+];
 
 export const SELLERS: SeedSeller[] = [
   {
     key: "chronos",
-    storefrontName: "Chronos & Co.",
-    slug: "chronos-and-co",
-    bio: "Independent watch and camera dealer since 2011. Every piece is inspected, serviced and shipped with an on-chain certificate of authenticity.",
+    storefrontName: "Trestle Studio",
+    slug: "trestle-studio",
+    bio: "Trestle’s ready-to-wear line: dresses and jersey for women and men.",
     verified: true,
     payoutChain: "B",
     payoutSymbol: "tUSDC",
-    products: [
-      {
-        key: "meridian-automatic",
-        title: "Meridian Automatic 39mm",
-        description:
-          "A 39mm stainless steel automatic with a 72-hour power reserve, sapphire crystal and 100m water resistance. Serviced in 2026, full box and papers.",
-        price: "1250.00",
-        category: "Watches",
-        manufacturer: "Meridian Horology",
-        featured: true,
-        variants: [
-          { name: "Steel / Black dial", attributes: { case: "Steel", dial: "Black" }, stock: 4 },
-          { name: "Steel / Blue dial", attributes: { case: "Steel", dial: "Blue" }, stock: 3 },
-        ],
-      },
-      {
-        key: "aviator-gmt",
-        title: "Aviator Chronograph GMT",
-        description:
-          "Grade 5 titanium pilot's chronograph with a true flyer GMT complication and luminous applied indices. Limited run of 250 pieces.",
-        price: "2480.00",
-        category: "Watches",
-        manufacturer: "Northwind Instruments",
-        variants: [{ name: "Titanium", attributes: { case: "Titanium" }, stock: 2 }],
-      },
-      {
-        key: "lunar-poster",
-        title: "1969 Lunar Mission Poster — Signed",
-        description:
-          "Original lithograph from the 1969 lunar mission press run, hand-signed and archivally framed. Provenance documented through three prior owners.",
-        price: "640.00",
-        category: "Art & Prints",
-        manufacturer: "Archive Editions",
-        variants: [{ name: "Framed, 1 of 1", attributes: { edition: "1/1" }, stock: 1 }],
-      },
-      {
-        key: "leica-m3",
-        title: "Vintage Rangefinder M3 (1958)",
-        description:
-          "Double-stroke 1958 rangefinder body, recently cleaned, lubricated and adjusted. Bright, contrasty viewfinder and accurate shutter speeds.",
-        price: "1890.00",
-        category: "Collectibles",
-        manufacturer: "Wetzlar Optics",
-        variants: [{ name: "Body only", attributes: { condition: "Excellent" }, stock: 1 }],
-      },
-      {
-        key: "watch-roll",
-        title: "Hand-bound Leather Watch Roll",
-        description:
-          "Vegetable-tanned leather roll that holds three watches, lined with undyed wool felt.",
-        price: "145.00",
-        category: "Home",
-        manufacturer: "Chronos Atelier",
-        variants: [
-          { name: "Tan", attributes: { color: "Tan" }, stock: 12 },
-          { name: "Black", attributes: { color: "Black" }, stock: 8 },
-        ],
-      },
-    ],
+    products: STUDIO,
   },
   {
     key: "sole",
-    storefrontName: "Sole Society",
-    slug: "sole-society",
-    bio: "Deadstock and limited sneakers, authenticated in-house. Streetwear staples cut and sewn in Portugal.",
+    storefrontName: "Trestle Denim",
+    slug: "trestle-denim",
+    bio: "Jeans and shorts in washes from pale to black.",
     verified: true,
-    payoutChain: "B",
-    payoutSymbol: "tDAI",
-    products: [
-      {
-        key: "aurora-runner",
-        title: "Aurora Runner “Glacier”",
-        description:
-          "Engineered-mesh runner with a supercritical foam midsole and reflective heel counter.",
-        price: "220.00",
-        category: "Sneakers",
-        manufacturer: "Aurora Athletics",
-        featured: true,
-        variants: sizes([3, 6, 5, 2]),
-      },
-      {
-        key: "court-classic",
-        title: "Court Classic Low “Chalk”",
-        description:
-          "Full-grain leather court shoe with a cupsole and gum outsole. An everyday classic.",
-        price: "165.00",
-        category: "Sneakers",
-        manufacturer: "Aurora Athletics",
-        variants: sizes([4, 8, 8, 3]),
-      },
-      {
-        key: "retro-high",
-        title: "Retro High OG “Ember”",
-        description:
-          "Limited retro high-top in tumbled leather. Deadstock, original box, extra laces.",
-        price: "340.00",
-        category: "Sneakers",
-        manufacturer: "Heritage Court",
-        featured: true,
-        variants: sizes([1, 2, 1, 1]),
-      },
-      {
-        key: "loopback-hoodie",
-        title: "Heavyweight Loopback Hoodie",
-        description: "480gsm loopback cotton, dropped shoulder, double-layer hood. Garment dyed.",
-        price: "120.00",
-        category: "Apparel",
-        manufacturer: "Sole Society",
-        variants: apparel([6, 10, 9, 4]),
-      },
-      {
-        key: "merino-overshirt",
-        title: "Merino Travel Overshirt",
-        description: "Temperature-regulating merino twill overshirt with hidden zip pockets.",
-        price: "185.00",
-        category: "Apparel",
-        manufacturer: "Sole Society",
-        variants: apparel([3, 5, 5, 2]),
-      },
-    ],
+    payoutChain: "A",
+    payoutSymbol: "tUSDC",
+    products: DENIM,
   },
   {
     key: "lumen",
-    storefrontName: "Lumen Labs",
-    slug: "lumen-labs",
-    bio: "Small-batch audio gear and desk tools. We get paid on Chain A — buyers on Chain B settle cross-chain automatically.",
+    storefrontName: "Trestle Knit",
+    slug: "trestle-knit",
+    bio: "Knitted hats in wool blends.",
     verified: false,
-    payoutChain: "A",
-    payoutSymbol: "tUSDC",
-    products: [
-      {
-        key: "halo-anc",
-        title: "Halo ANC Headphones",
-        description:
-          "Hybrid active noise cancelling headphones with 40mm beryllium drivers and 38h battery life.",
-        price: "349.00",
-        category: "Electronics",
-        manufacturer: "Lumen Labs",
-        featured: true,
-        variants: [
-          { name: "Graphite", attributes: { color: "Graphite" }, stock: 9 },
-          { name: "Sand", attributes: { color: "Sand" }, stock: 6 },
-        ],
-      },
-      {
-        key: "pocket-keyboard",
-        title: "Pocket Mechanical Keyboard 65%",
-        description:
-          "Gasket-mounted aluminium 65% keyboard with hot-swap sockets and tri-mode wireless.",
-        price: "189.00",
-        category: "Electronics",
-        manufacturer: "Lumen Labs",
-        variants: [
-          { name: "Linear switches", attributes: { switches: "Linear" }, stock: 10 },
-          { name: "Tactile switches", attributes: { switches: "Tactile" }, stock: 7 },
-        ],
-      },
-      {
-        key: "arc-lamp",
-        title: "Arc Desk Lamp",
-        description:
-          "Dimmable, high-CRI desk lamp with an asymmetric light guide that keeps glare off your screen.",
-        price: "129.00",
-        category: "Home",
-        manufacturer: "Lumen Labs",
-        variants: [{ name: "Matte white", attributes: { finish: "Matte white" }, stock: 15 }],
-      },
-      {
-        key: "field-recorder",
-        title: "Field Recorder Pro",
-        description: "32-bit float four-track field recorder with dual XLR inputs and timecode.",
-        price: "499.00",
-        category: "Electronics",
-        manufacturer: "Lumen Labs",
-        variants: [{ name: "Standard", attributes: {}, stock: 5 }],
-      },
-      {
-        key: "pour-over",
-        title: "Ceramic Pour-Over Set",
-        description: "Hand-thrown stoneware dripper, carafe and two cups. Dishwasher safe.",
-        price: "68.00",
-        category: "Home",
-        manufacturer: "Kiln & Co.",
-        variants: [
-          { name: "Speckled", attributes: { glaze: "Speckled" }, stock: 14 },
-          { name: "Midnight", attributes: { glaze: "Midnight" }, stock: 9 },
-        ],
-      },
-    ],
+    payoutChain: "B",
+    payoutSymbol: "tDAI",
+    products: KNIT,
   },
 ];
 
-export function artUrl(key: string, category: string, variant = 0): string {
-  return `/art/${key}?category=${encodeURIComponent(category)}&v=${variant}`;
+/** Deterministic 2–14 stock from a string so re-seeding a fresh DB gives the same catalogue. */
+export function demoStock(key: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+  return 2 + (Math.abs(h) % 13);
 }
+
+export function variantsFor(p: SeedProduct) {
+  const out: { colour: string; size: string; stock: number; position: number }[] = [];
+  let position = 0;
+  for (const [colour] of p.colours) {
+    for (const size of SIZE_SETS[p.sizes]) {
+      const k = `${colour}/${size}`;
+      const stock = p.soldOutColours?.includes(colour)
+        ? 0
+        : (p.stock?.[k] ?? demoStock(`${p.key}:${k}`));
+      out.push({ colour, size, stock, position: position++ });
+    }
+  }
+  return out;
+}
+
+export function skuFor(p: SeedProduct, colour: string, size: string) {
+  const code = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]+/g, "");
+  const initials = p.key
+    .split("-")
+    .map((w) => w[0]!.toUpperCase())
+    .join("");
+  const h = demoStock(p.key).toString(36).toUpperCase() + p.key.length.toString(36).toUpperCase();
+  return `TR-${initials}${h}-${code(colour).slice(0, 5)}-${code(size)}`;
+}
+
+export const ALL_PRODUCTS = SELLERS.flatMap((s) => s.products);

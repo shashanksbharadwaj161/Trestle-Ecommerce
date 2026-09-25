@@ -1,17 +1,21 @@
 /**
- * Trestle seed.
+ * Trestle seed — idempotent and non-destructive by default.
  *
- *   pnpm seed                       # NETWORK_MODE (default local); resets the DB in local mode
- *   pnpm --filter @trestle/db exec tsx seed.ts --network testnet --reset
+ *   pnpm seed                  # catalogue (+ local demo users/orders when the database is local)
+ *   pnpm seed -- --catalog     # catalogue only: chains, sellers, collections, products, images, variants
+ *   pnpm seed -- --demo        # also demo users/orders on a NON-local database (never do this in production)
+ *   pnpm seed -- --reset       # LOCAL DATABASES ONLY: wipe Trestle tables first (refused for any remote host)
  *
- * Local mode with both Anvil chains running and contracts deployed ("on-chain seed"):
- *   every seeded order is REAL — paid into escrow with TrestlePaymentRouter.checkoutDirect, then confirmed,
- *   disputed or resolved on-chain; certificates are minted; loyalty is staked. The resulting contract events
- *   are ingested through the same idempotent sync used by the relayer, so dashboards show real chain data.
- *   One extra order gets a real cross-chain intent on chain A that the relayer fulfils when it starts.
+ * Idempotency: every catalogue row is keyed (seller slug, product slug, variant SKU, collection slug) and
+ * only CREATED when missing — existing rows (e.g. edited in the admin) are never overwritten, stock is never
+ * reset, and nothing is deleted without --reset. Demo orders are only created when the database has no orders.
  *
- * Otherwise ("demo seed"): the same catalog/orders are written with isSeedDemo=true and NO transaction hashes.
- * The UI labels them as seeded demo records. Nothing is presented as on-chain unless it is.
+ * Local mode with both Anvil chains running and contracts deployed ("on-chain seed"): every demo order is
+ * REAL — paid into escrow on the local chains, then confirmed, disputed or resolved on-chain; the resulting
+ * events are ingested through the same idempotent sync the relayer uses. Otherwise demo orders are written
+ * with isSeedDemo=true and NO transaction hashes, and the UI labels them as seeded demo records.
+ *
+ * No reviews are seeded: product ratings only ever come from real completed orders.
  */
 import { randomBytes } from "node:crypto";
 import { zeroAddress, type Address, type Hex } from "viem";
@@ -32,8 +36,20 @@ import {
   type RouteQuote,
 } from "@trestle/shared";
 import { prisma } from "./src/client";
+import { hashPassword } from "./src/password";
 import { applyChainEvents, fetchTrestleEvents } from "./src/sync";
-import { SELLERS, artUrl, type SeedSeller } from "./seed/catalog";
+import {
+  COLLECTIONS,
+  COLOURS,
+  IMAGE_SOURCE,
+  SELLERS,
+  chartFor,
+  imageSourceUrl,
+  imageUrl,
+  skuFor,
+  variantsFor,
+  type SeedSeller,
+} from "./seed/catalog";
 import { ANVIL_KEYS, ChainActor, anvilAddress, rpcReachable, type AnvilRole } from "./seed/onchain";
 
 const argv = process.argv.slice(2);
@@ -43,9 +59,33 @@ const opt = (name: string) => {
   return i >= 0 ? argv[i + 1] : undefined;
 };
 
+/** True only for databases on this machine / the local docker network. */
+function isLocalDatabase(url = process.env.DATABASE_URL ?? ""): boolean {
+  try {
+    const host = new URL(url).hostname;
+    return ["localhost", "127.0.0.1", "::1", "[::1]", "postgres", "db"].includes(host);
+  } catch {
+    return false;
+  }
+}
+
 const mode = parseNetworkMode(opt("network") ?? process.env.NETWORK_MODE);
-const reset = flag("reset") || (mode === "local" && !flag("no-reset"));
+const localDb = isLocalDatabase();
+const reset = flag("reset");
+if (reset && !localDb) {
+  console.error(
+    "Refusing --reset: DATABASE_URL does not point at a local database. Trestle never wipes remote data.",
+  );
+  process.exit(1);
+}
+if (process.env.NODE_ENV === "production" && flag("demo")) {
+  console.error("Refusing --demo with NODE_ENV=production: demo users/orders are for local/preview only.");
+  process.exit(1);
+}
+const catalogOnly = flag("catalog");
+const withDemo = !catalogOnly && (flag("demo") || (localDb && mode === "local"));
 const profiles = getChainProfiles(mode, {
+
   chainARpcUrl: mode === "local" ? process.env.CHAIN_A_RPC_URL : process.env.SEPOLIA_RPC_URL,
   chainBRpcUrl: mode === "local" ? process.env.CHAIN_B_RPC_URL : process.env.BASE_SEPOLIA_RPC_URL,
 });
@@ -68,50 +108,41 @@ interface Scenario {
   key: string;
   buyer: BuyerKey;
   product: string;
-  variant: number;
+  /** "Colour/Size" */
+  variant: string;
   qty: number;
   target: OrderStatus;
-  review?: { rating: number; title: string; text: string };
   dispute?: { reason: string; resolveBps?: number; notes?: string };
   tracking?: string;
   crossChainPending?: boolean;
 }
 
+/** Demo crypto-escrow orders (local/preview only). No reviews are ever seeded. */
 const SCENARIOS: Scenario[] = [
   {
     key: "s1",
     buyer: "ava",
-    product: "meridian-automatic",
-    variant: 0,
+    product: "floral-maxi-dress",
+    variant: "Cream floral/S",
     qty: 1,
     target: "COMPLETED",
     tracking: "1Z999AA10123456784",
-    review: {
-      rating: 5,
-      title: "Exactly as described",
-      text: "Arrived serviced and keeping +2s/day. The certificate transferred to my wallet on delivery — love that the provenance is on-chain.",
-    },
   },
   {
     key: "s2",
     buyer: "noah",
-    product: "court-classic",
-    variant: 1,
+    product: "mens-straight-jeans",
+    variant: "Light wash/32",
     qty: 1,
     target: "COMPLETED",
     tracking: "9400111899223197428490",
-    review: {
-      rating: 4,
-      title: "Great everyday pair",
-      text: "Runs half a size large. Leather quality is excellent.",
-    },
   },
-  { key: "s3", buyer: "ava", product: "halo-anc", variant: 0, qty: 1, target: "ESCROWED" },
+  { key: "s3", buyer: "ava", product: "wide-leg-jeans", variant: "Washed black/27", qty: 1, target: "ESCROWED" },
   {
     key: "s4",
     buyer: "noah",
-    product: "lunar-poster",
-    variant: 0,
+    product: "mens-heavyweight-tee",
+    variant: "Butter/L",
     qty: 1,
     target: "SHIPPED",
     tracking: "1Z999AA10123456785",
@@ -119,21 +150,18 @@ const SCENARIOS: Scenario[] = [
   {
     key: "s5",
     buyer: "ava",
-    product: "retro-high",
-    variant: 2,
+    product: "v-neck-maxi-dress",
+    variant: "Ivory/M",
     qty: 1,
     target: "DISPUTED",
     tracking: "9400111899223197428491",
-    dispute: {
-      reason:
-        "Box arrived crushed and the left sole is separating at the toe. Photos attached in chat.",
-    },
+    dispute: { reason: "The side seam arrived split about 5 cm below the waist. Photos shared in chat." },
   },
   {
     key: "s6",
     buyer: "noah",
-    product: "pocket-keyboard",
-    variant: 0,
+    product: "watch-cap",
+    variant: "Black/One size",
     qty: 1,
     target: "REFUNDED",
     dispute: {
@@ -145,8 +173,8 @@ const SCENARIOS: Scenario[] = [
   {
     key: "s7",
     buyer: "noah",
-    product: "arc-lamp",
-    variant: 0,
+    product: "mens-oversized-tee",
+    variant: "Mint/M",
     qty: 1,
     target: "DELIVERED",
     tracking: "1Z999AA10123456786",
@@ -154,42 +182,37 @@ const SCENARIOS: Scenario[] = [
   {
     key: "s8",
     buyer: "ava",
-    product: "loopback-hoodie",
-    variant: 1,
+    product: "womens-relaxed-crew-tee",
+    variant: "Black/S",
     qty: 2,
     target: "PENDING_PAYMENT",
   },
   {
     key: "s9",
     buyer: "noah",
-    product: "aurora-runner",
-    variant: 1,
+    product: "mens-gradient-print-tee",
+    variant: "Sunset fade/L",
     qty: 1,
     target: "COMPLETED",
-    review: {
-      rating: 5,
-      title: "Lightest runner I own",
-      text: "Fast shipping, deadstock as promised.",
-    },
   },
   {
     key: "s10",
     buyer: "ava",
-    product: "pour-over",
-    variant: 0,
+    product: "botanical-print-tee",
+    variant: "Gerbera/S",
     qty: 2,
     target: "COMPLETED",
     dispute: {
-      reason: "One of the two cups arrived chipped.",
+      reason: "One of the two tees arrived with a smudged print.",
       resolveBps: 3_000,
-      notes: "Partial damage verified from photos: 30% refunded to buyer, 70% released to seller.",
+      notes: "Print defect verified from photos: 30% refunded to buyer, 70% released to seller.",
     },
   },
   {
     key: "s11",
     buyer: "noah",
-    product: "watch-roll",
-    variant: 0,
+    product: "slouchy-rib-beanie",
+    variant: "Oat/One size",
     qty: 1,
     target: "PENDING_PAYMENT",
     crossChainPending: true,
@@ -199,11 +222,18 @@ const SCENARIOS: Scenario[] = [
 async function wipe() {
   await prisma.$transaction([
     prisma.auditLog.deleteMany(),
+    prisma.returnRequest.deleteMany(),
     prisma.review.deleteMany(),
     prisma.dispute.deleteMany(),
     prisma.paymentIntent.deleteMany(),
     prisma.orderItem.deleteMany(),
     prisma.order.deleteMany(),
+    prisma.cardPayment.deleteMany(),
+    prisma.stripeEvent.deleteMany(),
+    prisma.wishlistItem.deleteMany(),
+    prisma.collectionProduct.deleteMany(),
+    prisma.collection.deleteMany(),
+    prisma.productImage.deleteMany(),
     prisma.authenticityCertificate.deleteMany(),
     prisma.productVariant.deleteMany(),
     prisma.product.deleteMany(),
@@ -212,56 +242,250 @@ async function wipe() {
     prisma.loyaltyTransaction.deleteMany(),
     prisma.smartAccount.deleteMany(),
     prisma.user.deleteMany(),
+    prisma.promoCode.deleteMany(),
+    prisma.contactMessage.deleteMany(),
     prisma.chainEvent.deleteMany(),
     prisma.relayerCheckpoint.deleteMany(),
     prisma.supportedChain.deleteMany(),
   ]);
 }
 
+type SellerRow = {
+  id: string;
+  address: Address;
+  payoutChain: ChainProfile;
+  payoutToken: Address;
+  symbol: string;
+};
+type ProductRow = {
+  id: string;
+  sellerKey: SeedSeller["key"];
+  priceMicros: bigint;
+  title: string;
+  image: string;
+  variants: { id: string; name: string; key: string }[];
+};
+
+async function upsertUserByWallet(address: string | null, data: { displayName: string; role: "ADMIN" | "BUYER" | "SELLER" }) {
+  if (!address) return prisma.user.create({ data: { ...data, walletAddress: null } });
+  return prisma.user.upsert({
+    where: { walletAddress: lc(address) },
+    create: { walletAddress: lc(address), ...data },
+    update: {},
+  });
+}
+
+/** Chains, sellers, collections, products, images and variants — created only when missing. */
+async function seedCatalog() {
+  for (const p of profiles) {
+    const data = {
+      name: p.label,
+      rpcUrl: p.rpcUrl,
+      nativeToken: p.chain.nativeCurrency.symbol,
+      isTestnetDemo: p.isTestnetDemo,
+      networkMode: mode,
+      role: p.role,
+      explorerUrl: p.explorerUrl ?? null,
+    };
+    await prisma.supportedChain.upsert({
+      where: { chainId: p.chain.id },
+      create: { chainId: p.chain.id, ...data },
+      update: {},
+    });
+  }
+
+  const sellerAddress = (key: SeedSeller["key"], idx: number): Address | null => {
+    if (mode === "local") return anvilAddress(key);
+    const list =
+      process.env.SEED_SELLER_ADDRESSES?.split(",")
+        .map((x) => x.trim())
+        .filter(Boolean) ?? [];
+    return (list[idx] as Address | undefined) ?? null;
+  };
+
+  const sellerRows = {} as Record<SeedSeller["key"], SellerRow>;
+  const productRows = new Map<string, ProductRow>();
+  let createdProducts = 0;
+  const now = Date.now();
+
+  for (const [i, s] of SELLERS.entries()) {
+    const payoutProfile = s.payoutChain === "A" ? A : B;
+    const token = findTokenBySymbol(mode, payoutProfile.chain.id, s.payoutSymbol);
+    const payoutToken = (token?.address ?? zeroAddress) as Address;
+    let seller = await prisma.seller.findUnique({ where: { slug: s.slug } });
+    const address = sellerAddress(s.key, i);
+    if (!seller) {
+      const user = await upsertUserByWallet(address, { displayName: s.storefrontName, role: "SELLER" });
+      seller = await prisma.seller.create({
+        data: {
+          userId: user.id,
+          storefrontName: s.storefrontName,
+          slug: s.slug,
+          bio: s.bio,
+          payoutChainId: payoutProfile.chain.id,
+          payoutToken: lc(payoutToken),
+          payoutAddress: lc(address ?? zeroAddress),
+          verified: s.verified,
+          verifiedAt: s.verified ? new Date() : null,
+        },
+      });
+    }
+    sellerRows[s.key] = {
+      id: seller.id,
+      address: (seller.payoutAddress as Address) ?? zeroAddress,
+      payoutChain: profiles.find((x) => x.chain.id === seller!.payoutChainId) ?? payoutProfile,
+      payoutToken: seller.payoutToken as Address,
+      symbol: s.payoutSymbol,
+    };
+
+    for (const p of s.products) {
+      let product = await prisma.product.findUnique({
+        where: { slug: p.key },
+        include: { variants: true, gallery: true },
+      });
+      if (!product) {
+        const gallery = p.colours.flatMap(([colour, refs]) => refs.map((ref) => ({ colour, ref })));
+        product = await prisma.product.create({
+          data: {
+            sellerId: seller.id,
+            slug: p.key,
+            title: p.title,
+            description: p.description,
+            images: gallery.map((g) => imageUrl(g.ref)),
+            priceUsdMicros: parseUsdToMicros(p.price),
+            category: p.category,
+            department: p.department,
+            subcategory: p.subcategory,
+            material: p.material,
+            fit: p.fit,
+            care: p.care,
+            sizeChartKey: chartFor(p.sizes),
+            publishedAt: new Date(now - p.publishedDaysAgo * 86_400_000),
+            chainListingOptions: profiles.map((x) => x.chain.id),
+            featured: p.featured ?? false,
+            manufacturer: s.storefrontName,
+            status: "ACTIVE",
+            gallery: {
+              create: gallery.map((g, position) => ({
+                url: imageUrl(g.ref),
+                alt: `${p.title} in ${g.colour.toLowerCase()}`,
+                colour: g.colour,
+                position,
+                width: 960,
+                height: 1280,
+                credit: IMAGE_SOURCE.credit,
+                license: IMAGE_SOURCE.license,
+                sourceUrl: imageSourceUrl(g.ref),
+              })),
+            },
+          },
+          include: { variants: true, gallery: true },
+        });
+        createdProducts++;
+      }
+      // variants: create any SKU that is missing; never touch stock of existing SKUs
+      const existing = new Set(product.variants.map((v) => v.sku));
+      const missing = variantsFor(p).filter((v) => !existing.has(skuFor(p, v.colour, v.size)));
+      if (missing.length) {
+        await prisma.productVariant.createMany({
+          data: missing.map((v) => ({
+            productId: product!.id,
+            name: `${v.colour} / ${v.size}`,
+            attributes: { colour: v.colour, size: v.size },
+            colour: v.colour,
+            colourHex: COLOURS[v.colour] ?? null,
+            size: v.size,
+            position: v.position,
+            stock: v.stock,
+            sku: skuFor(p, v.colour, v.size),
+          })),
+          skipDuplicates: true,
+        });
+      }
+      const variants = await prisma.productVariant.findMany({ where: { productId: product.id } });
+      productRows.set(p.key, {
+        id: product.id,
+        sellerKey: s.key,
+        priceMicros: product.priceUsdMicros,
+        title: product.title,
+        image: product.images[0] ?? "",
+        variants: variants.map((v) => ({ id: v.id, name: v.name, key: `${v.colour}/${v.size}` })),
+      });
+    }
+  }
+
+  for (const col of COLLECTIONS) {
+    const row = await prisma.collection.upsert({
+      where: { slug: col.slug },
+      create: {
+        slug: col.slug,
+        title: col.title,
+        description: col.description,
+        image: imageUrl(col.image),
+        position: col.position,
+      },
+      update: {},
+    });
+    const members = SELLERS.flatMap((s) => s.products)
+      .filter((p) => p.collections.includes(col.slug))
+      .map((p, position) => ({ collectionId: row.id, productId: productRows.get(p.key)!.id, position }));
+    await prisma.collectionProduct.createMany({ data: members, skipDuplicates: true });
+  }
+
+  if (process.env.SEED_PROMO_WELCOME === "1" || (localDb && mode === "local")) {
+    // demo promo code for local testing of the discount path (documented as demo in the handoff)
+    await prisma.promoCode.upsert({
+      where: { code: "WELCOME10" },
+      create: {
+        code: "WELCOME10",
+        description: "Demo: 10% off orders over $100 (local/preview only)",
+        percentOff: 10,
+        minSubtotalCents: 10_000,
+      },
+      update: {},
+    });
+  }
+
+  console.log(
+    `Catalogue: ${SELLERS.length} sellers, ${productRows.size} products (${createdProducts} newly created), ${COLLECTIONS.length} collections`,
+  );
+  return { sellerRows, productRows };
+}
+
 async function main() {
-  const existing = await prisma.order.count();
-  if (existing > 0 && !reset) {
-    console.log(`Database already has ${existing} orders. Re-run with --reset to wipe and reseed.`);
+  if (reset) {
+    console.log("--reset on a local database: wiping Trestle tables");
+    await wipe();
+  }
+  console.log(
+    `Seeding Trestle (${mode}; ${localDb ? "local" : "remote"} database; demo data ${withDemo ? "ON" : "OFF"})`,
+  );
+  const { sellerRows, productRows } = await seedCatalog();
+  if (!withDemo) {
+    console.log("Skipping demo users and orders (catalogue-only seed).");
     return;
   }
-  if (reset) await wipe();
+  const existingOrders = await prisma.order.count();
+  if (existingOrders > 0) {
+    console.log(`Database already has ${existingOrders} orders — leaving demo orders untouched.`);
+    return;
+  }
 
   const deployed = isDeployed(mode);
   const onchainRequested = !flag("no-onchain") && mode === "local";
   const onchain =
     onchainRequested && deployed && (await rpcReachable(A)) && (await rpcReachable(B));
   console.log(
-    `Seeding Trestle (${mode}) — ${onchain ? "ON-CHAIN (real transactions on local Anvil chains)" : "demo records only (no chain writes)"}`,
+    `Demo orders: ${onchain ? "ON-CHAIN (real transactions on local Anvil chains)" : "demo records only (no chain writes)"}`,
   );
 
-  // ---------------------------------------------------------------- chains
-  for (const p of profiles) {
-    await prisma.supportedChain.create({
-      data: {
-        chainId: p.chain.id,
-        name: p.label,
-        rpcUrl: p.rpcUrl,
-        nativeToken: p.chain.nativeCurrency.symbol,
-        isTestnetDemo: p.isTestnetDemo,
-        networkMode: mode,
-        role: p.role,
-        explorerUrl: p.explorerUrl ?? null,
-      },
-    });
-  }
-
-  // ---------------------------------------------------------------- users
-  const addr = (
-    role: AnvilRole,
-    envList: string | undefined,
-    idx: number,
-    label: string,
-  ): Address => {
+  // ---------------------------------------------------------------- demo users
+  const addr = (role: AnvilRole, envList: string | undefined, idx: number, label: string): Address => {
     if (mode === "local") return anvilAddress(role);
     const list =
       envList
         ?.split(",")
-        .map((s) => s.trim())
+        .map((x) => x.trim())
         .filter(Boolean) ?? [];
     return (list[idx] as Address | undefined) ?? placeholderAddress(label);
   };
@@ -271,9 +495,11 @@ async function main() {
       : ((process.env.SEED_ADMIN_ADDRESS as Address | undefined) ??
         getDeployment(mode, B.chain.id)?.arbiter ??
         placeholderAddress("admin"));
-
-  const admin = await prisma.user.create({
-    data: { walletAddress: lc(adminAddress), displayName: "Trestle Arbitration", role: "ADMIN" },
+  const admin = await upsertUserByWallet(adminAddress, { displayName: "Trestle Admin", role: "ADMIN" });
+  const demoPassword = process.env.SEED_DEMO_PASSWORD ?? "trestle-demo-password";
+  await prisma.user.update({
+    where: { id: admin.id },
+    data: { role: "ADMIN", email: "admin@trestle.local", passwordHash: await hashPassword(demoPassword) },
   });
   const buyers: Record<BuyerKey, { id: string; address: Address }> = {} as never;
   for (const [i, [key, name]] of (
@@ -283,101 +509,12 @@ async function main() {
     ] as const
   ).entries()) {
     const address = addr(key, process.env.SEED_BUYER_ADDRESSES, i, `buyer-${key}`);
-    const u = await prisma.user.create({
-      data: { walletAddress: lc(address), displayName: name, role: "BUYER" },
+    const u = await upsertUserByWallet(address, { displayName: name, role: "BUYER" });
+    await prisma.user.update({
+      where: { id: u.id },
+      data: { email: `${key}@trestle.local`, passwordHash: await hashPassword(demoPassword) },
     });
     buyers[key] = { id: u.id, address };
-  }
-
-  // ---------------------------------------------------------------- sellers & catalog
-  const sellerRows: Record<
-    SeedSeller["key"],
-    {
-      id: string;
-      address: Address;
-      payoutChain: ChainProfile;
-      payoutToken: Address;
-      symbol: string;
-    }
-  > = {} as never;
-  const productRows = new Map<
-    string,
-    {
-      id: string;
-      sellerKey: SeedSeller["key"];
-      priceMicros: bigint;
-      title: string;
-      variants: { id: string; name: string }[];
-    }
-  >();
-
-  for (const [i, s] of SELLERS.entries()) {
-    const address = addr(s.key, process.env.SEED_SELLER_ADDRESSES, i, `seller-${s.key}`);
-    const payoutProfile = s.payoutChain === "A" ? A : B;
-    const token = findTokenBySymbol(mode, payoutProfile.chain.id, s.payoutSymbol);
-    const payoutToken = (token?.address ?? zeroAddress) as Address;
-    const user = await prisma.user.create({
-      data: { walletAddress: lc(address), displayName: s.storefrontName, role: "SELLER" },
-    });
-    const seller = await prisma.seller.create({
-      data: {
-        userId: user.id,
-        storefrontName: s.storefrontName,
-        slug: s.slug,
-        bio: s.bio,
-        payoutChainId: payoutProfile.chain.id,
-        payoutToken: lc(payoutToken),
-        payoutAddress: lc(address),
-        verified: s.verified,
-        verifiedAt: s.verified ? new Date() : null,
-        avatarUrl: artUrl(`seller-${s.key}`, "seller"),
-        bannerUrl: artUrl(`banner-${s.key}`, "banner"),
-      },
-    });
-    sellerRows[s.key] = {
-      id: seller.id,
-      address,
-      payoutChain: payoutProfile,
-      payoutToken,
-      symbol: s.payoutSymbol,
-    };
-
-    for (const p of s.products) {
-      const product = await prisma.product.create({
-        data: {
-          sellerId: seller.id,
-          title: p.title,
-          description: p.description,
-          images: [
-            artUrl(p.key, p.category, 0),
-            artUrl(p.key, p.category, 1),
-            artUrl(p.key, p.category, 2),
-          ],
-          priceUsdMicros: parseUsdToMicros(p.price),
-          category: p.category,
-          chainListingOptions: profiles.map((x) => x.chain.id),
-          featured: p.featured ?? false,
-          manufacturer: p.manufacturer ?? null,
-          status: "ACTIVE",
-          variants: {
-            create: p.variants.map((v, vi) => ({
-              name: v.name,
-              attributes: v.attributes,
-              stock: v.stock,
-              sku: `${s.key.toUpperCase()}-${p.key.toUpperCase()}-${vi + 1}`,
-            })),
-          },
-        },
-        include: { variants: { orderBy: { sku: "asc" } } },
-      });
-      productRows.set(p.key, {
-        id: product.id,
-        sellerKey: s.key,
-        priceMicros: product.priceUsdMicros,
-        title: product.title,
-        variants: product.variants.map((v) => ({ id: v.id, name: v.name })),
-      });
-    }
   }
 
   // ---------------------------------------------------------------- orders
@@ -403,7 +540,8 @@ async function main() {
   for (const sc of SCENARIOS) {
     const prod = productRows.get(sc.product)!;
     const seller = sellerRows[prod.sellerKey];
-    const variant = prod.variants[sc.variant]!;
+    const variant = prod.variants.find((v) => v.key === sc.variant);
+    if (!variant) throw new Error(`scenario ${sc.key}: no variant ${sc.variant} on ${sc.product}`);
     const subtotal = prod.priceMicros * BigInt(sc.qty);
     const payoutToken = getTokens(mode, seller.payoutChain.chain.id).find(
       (t) => t.address.toLowerCase() === seller.payoutToken.toLowerCase(),
@@ -465,6 +603,7 @@ async function main() {
               productVariantId: variant.id,
               titleSnapshot: prod.title,
               variantSnapshot: variant.name,
+              imageSnapshot: prod.image,
               quantity: sc.qty,
               unitPriceUsdMicros: prod.priceMicros,
             },
@@ -566,24 +705,23 @@ async function main() {
   if (actors) {
     const chronos = sellerRows.chronos;
     const chain = actors[chronos.payoutChain.chain.id]!;
+    // provenance records minted by the seller on the LOCAL chain; batch labels are clearly demo values
     for (const [key, batch] of [
-      ["meridian-automatic", "MH-2026-B7/SN-004417"],
-      ["meridian-automatic", "MH-2026-B7/SN-004418"],
-      ["aviator-gmt", "NWI-LTD-250/SN-0113"],
-      ["lunar-poster", "AE-1969-LITHO-01"],
-      ["leica-m3", "WO-M3-1958/SN-0871223"],
+      ["floral-maxi-dress", "LOCAL-DEMO-0001"],
+      ["floral-maxi-dress", "LOCAL-DEMO-0002"],
+      ["v-neck-maxi-dress", "LOCAL-DEMO-0003"],
+      ["ombre-slip-dress", "LOCAL-DEMO-0004"],
     ] as const) {
       const p = productRows.get(key)!;
-      const man = SELLERS[0]!.products.find((x) => x.key === key)!.manufacturer ?? "";
       await chain.authenticityCall("chronos", "mintCertificateWithDetails", [
         chronos.address,
         p.id,
-        man,
+        "Trestle Studio",
         batch,
         `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/certificates/metadata/${p.id}`,
       ]);
     }
-    // the sold Meridian's certificate moves to its buyer → on-chain provenance
+    // the sold dress's certificate moves to its buyer → on-chain provenance
     await chain.authenticityCall("chronos", "transferFrom", [
       chronos.address,
       buyers.ava.address,
@@ -620,9 +758,7 @@ async function main() {
     // certificate metadata that events don't carry
     for (const c of await prisma.authenticityCertificate.findMany()) {
       const p = [...productRows.values()].find((x) => x.id === c.productId);
-      const man = SELLERS.flatMap((s) => s.products).find(
-        (x) => productRows.get(x.key)?.id === c.productId,
-      )?.manufacturer;
+      const man = p ? "Trestle Studio" : undefined;
       await prisma.authenticityCertificate.update({
         where: { id: c.id },
         data: {
@@ -633,13 +769,14 @@ async function main() {
     }
   }
 
-  // ---------------------------------------------------------------- off-chain lifecycle (shipping) + reviews
+  // ---------------------------------------------------------------- off-chain lifecycle (shipping)
   for (const c of created) {
     const sc = c.scenario;
     const order = await prisma.order.findUniqueOrThrow({ where: { id: c.orderId } });
     const data: Prisma.OrderUpdateInput = {};
     if (sc.tracking) {
       data.trackingNumber = sc.tracking;
+      data.carrier = sc.tracking.startsWith("1Z") ? "UPS" : "USPS";
       data.shippedAt = new Date(Date.now() - 3 * 24 * 3600_000);
     }
     if (
@@ -673,21 +810,6 @@ async function main() {
       });
     }
 
-    if (sc.review) {
-      const fresh = await prisma.order.findUniqueOrThrow({ where: { id: c.orderId } });
-      if (fresh.status === "COMPLETED") {
-        await prisma.review.create({
-          data: {
-            orderId: c.orderId,
-            productId: c.productId,
-            authorId: buyers[sc.buyer].id,
-            rating: sc.review.rating,
-            title: sc.review.title,
-            text: sc.review.text,
-          },
-        });
-      }
-    }
   }
 
   // ---------------------------------------------------------------- demo reputation/loyalty history (no chain)
