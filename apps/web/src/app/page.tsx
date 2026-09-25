@@ -53,7 +53,7 @@ export default async function Home() {
       {/* ---------------------------------------------------------------- campaign */}
       <section aria-labelledby="hero-title" className="relative">
         <div className="grid md:grid-cols-2">
-          <Link href="/new" className="group relative block aspect-[4/5] overflow-hidden bg-[#d9d9d7] md:aspect-auto md:h-[min(90vh,1040px)]">
+          <Link href="/new" className="group relative block aspect-[4/5] overflow-hidden bg-[#d9d9d7] md:aspect-auto md:h-[min(80vh,940px)]">
             <Image
               src="/images/fashion-free/evening-editorial.jpg"
               alt="Editorial studio photograph: a model in a long black gown, backlit against a pale grey wall"
@@ -64,7 +64,7 @@ export default async function Home() {
             />
             <span className="absolute right-3 top-3 text-[0.6875rem] text-foreground/60">Editorial · not a product</span>
           </Link>
-          <Link href="/products/ribbon-tie-blouse" className="group relative hidden overflow-hidden bg-[#f1f0ee] md:block md:h-[min(90vh,1040px)]">
+          <Link href="/products/ribbon-tie-blouse" className="group relative hidden overflow-hidden bg-[#f1f0ee] md:block md:h-[min(80vh,940px)]">
             <Image
               src="/images/fashion-free/ivory-blouse.jpg"
               alt="The ivory ribbon-tie blouse, worn with the ribbon tied at the collar"
@@ -76,20 +76,20 @@ export default async function Home() {
             <span className="absolute bottom-6 right-6 bg-background/90 px-3 py-2 text-[0.8125rem]">Ribbon-tie blouse — $129</span>
           </Link>
         </div>
-        <div className="container-page py-10 md:pointer-events-none md:absolute md:inset-x-0 md:bottom-0 md:py-14">
-          <div className="md:pointer-events-auto md:max-w-[44%]">
-            <p className="eyebrow text-muted-foreground md:text-foreground/70">The new season</p>
-            <h1 id="hero-title" className="mt-3 text-[clamp(2.25rem,4.6vw,4.25rem)] font-medium leading-[0.98] tracking-[-0.035em] text-foreground md:text-[#171614]">
+        <div className="container-page flex flex-col gap-7 py-10 md:flex-row md:items-end md:justify-between md:py-14">
+          <div>
+            <p className="eyebrow text-muted-foreground">The new season</p>
+            <h1 id="hero-title" className="mt-3 max-w-3xl text-[clamp(2.25rem,4.6vw,4.25rem)] font-medium leading-[0.98] tracking-[-0.035em]">
               Considered pieces, made to be worn often
             </h1>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/women" className="inline-flex h-11 min-w-36 items-center justify-center bg-[#171614] px-6 text-sm text-[#f7f6f2] transition-opacity hover:opacity-85">
-                Shop women
-              </Link>
-              <Link href="/men" className="inline-flex h-11 min-w-36 items-center justify-center border border-[#171614] px-6 text-sm text-[#171614] transition-colors hover:bg-[#171614] hover:text-[#f7f6f2] max-md:border-foreground max-md:text-foreground">
-                Shop men
-              </Link>
-            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-3">
+            <Link href="/women" className="inline-flex h-11 min-w-36 items-center justify-center bg-foreground px-6 text-sm text-background transition-opacity hover:opacity-85">
+              Shop women
+            </Link>
+            <Link href="/men" className="inline-flex h-11 min-w-36 items-center justify-center border border-foreground px-6 text-sm transition-colors hover:bg-foreground hover:text-background">
+              Shop men
+            </Link>
           </div>
         </div>
       </section>

@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
 import { CATEGORY_LABEL, type Category } from "@trestle/shared";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -72,10 +72,20 @@ export function ListingControls({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(query);
-  const [pending, start] = useTransition();
-  useEffect(() => setDraft(query), [query]);
+  const [pending, setPending] = useState(false);
+  const key = JSON.stringify(query);
+  useEffect(() => {
+    setDraft(JSON.parse(key) as ListingQuery);
+    setPending(false);
+    setOpen(false); // close the sheet once the new results have arrived
+  }, [key]);
 
-  const go = (q: ListingQuery) => start(() => router.push(toUrl(basePath, q), { scroll: false }));
+  const go = (q: ListingQuery) => {
+    const url = toUrl(basePath, q);
+    if (url === toUrl(basePath, query)) return;
+    setPending(true);
+    router.push(url, { scroll: false });
+  };
   const activeCount =
     query.category.length + query.colour.length + query.size.length + (query.minPrice || query.maxPrice ? 1 : 0) + (query.inStock ? 1 : 0);
 
@@ -155,9 +165,10 @@ export function ListingControls({
               <Button
                 className="flex-1"
                 onClick={() => {
-                  setOpen(false);
-                  go(draft);
+                  if (toUrl(basePath, draft) === toUrl(basePath, query)) setOpen(false);
+                  else go(draft);
                 }}
+                loading={pending}
               >
                 Show results
               </Button>
