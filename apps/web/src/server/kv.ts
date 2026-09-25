@@ -1,6 +1,7 @@
 import "server-only";
 import { Redis as Upstash } from "@upstash/redis";
 import IORedis from "ioredis";
+import { PostgresKV } from "./postgres-kv";
 import { env } from "./env";
 
 /**
@@ -9,7 +10,7 @@ import { env } from "./env";
  * (REDIS_URL — docker compose), or an in-process map when neither is configured (dev/test only).
  */
 export interface KV {
-  readonly kind: "upstash" | "redis" | "memory";
+  readonly kind: "upstash" | "redis" | "memory" | "postgres";
   get(key: string): Promise<string | null>;
   set(key: string, value: string, opts?: { ex?: number; nx?: boolean }): Promise<boolean>;
   getdel(key: string): Promise<string | null>;
@@ -145,6 +146,8 @@ export function kv(): KV {
     );
   } else if (e.REDIS_URL) {
     store = new RedisKV(new IORedis(e.REDIS_URL, { maxRetriesPerRequest: 2, lazyConnect: false }));
+  } else if (e.NODE_ENV === "production" && process.env.DATABASE_URL) {
+    store = new PostgresKV();
   } else {
     if (e.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build") {
       throw new Error(

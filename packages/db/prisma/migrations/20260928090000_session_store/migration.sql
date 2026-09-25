@@ -1,0 +1,7 @@
+CREATE TABLE "AppKV" (
+  "key" TEXT PRIMARY KEY,
+  "value" TEXT NOT NULL,
+  "expiresAt" TIMESTAMPTZ
+);
+CREATE INDEX "AppKV_expiresAt_idx" ON "AppKV" ("expiresAt");
+ALTER TABLE "AppKV" ENABLE ROW LEVEL SECURITY;

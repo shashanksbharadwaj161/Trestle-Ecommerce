@@ -708,3 +708,11 @@ model PasswordResetToken {
 
   @@index([userId, createdAt])
 }
+
+// Server-only persistent key/value storage, including expiring sessions and nonces.
+model AppKV {
+  key String @id
+  value String
+  expiresAt DateTime? @db.Timestamptz(6)
+  @@index([expiresAt])
+}

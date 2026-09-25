@@ -2,11 +2,16 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm build",
+  "buildCommand": "pnpm exec tsx scripts/vercel-build.ts",
   "functions": {
     "src/app/api/**/*.ts": {
       "maxDuration": 60
     }
   },
-  "crons": [{ "path": "/api/cron/card-reservations", "schedule": "17 4 * * *" }]
+  "crons": [
+    {
+      "path": "/api/cron/card-reservations",
+      "schedule": "17 4 * * *"
+    }
+  ]
 }

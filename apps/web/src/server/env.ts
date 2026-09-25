@@ -1,4 +1,5 @@
 import "server-only";
+import { createHmac } from "node:crypto";
 import { z } from "zod";
 import { parseNetworkMode } from "@trestle/shared";
 
@@ -52,7 +53,11 @@ const schema = z.object({
   CRON_SECRET: z.string().optional(),
   SUPPORT_EMAIL: z.string().email().optional(),
   // ---- product image uploads (Supabase Storage free tier). Service-role key is server-only.
-  SUPABASE_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+  SUPABASE_URL: z
+    .string()
+    .url()
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   SUPABASE_STORAGE_BUCKET: z.string().default("product-images"),
   STORAGE_DRIVER: z.enum(["supabase", "local"]).optional(),
@@ -73,9 +78,24 @@ let cached: ServerEnv | undefined;
 
 export function env(): ServerEnv {
   if (cached) return cached;
-  const parsed = schema.parse(process.env);
+  const parsed = schema.parse({
+    ...process.env,
+    APP_URL:
+      process.env.APP_URL ||
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : undefined),
+  });
   const isProd = parsed.NODE_ENV === "production";
   let siweSecret = parsed.SIWE_SECRET ?? "";
+  // Domain-separated signing key from an existing server-only integration secret.
+  // Explicit SIWE_SECRET still takes priority; rotating the source invalidates sessions.
+  const integrationSecret = process.env.SUPABASE_JWT_SECRET || parsed.SUPABASE_SERVICE_ROLE_KEY;
+  if (!siweSecret && integrationSecret && integrationSecret.length >= 32) {
+    siweSecret = createHmac("sha256", integrationSecret)
+      .update("trestle/session-signing/v1")
+      .digest("hex");
+  }
   if (siweSecret.length < 32) {
     if (isProd && process.env.NEXT_PHASE !== "phase-production-build") {
       throw new Error("SIWE_SECRET must be set to at least 32 characters in production");

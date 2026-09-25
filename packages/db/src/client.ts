@@ -1,3 +1,4 @@
+import "./connection";
 import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as { __trestlePrisma?: PrismaClient };
