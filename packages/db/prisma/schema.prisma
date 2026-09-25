@@ -1,0 +1,439 @@
+// Trestle data model. Money is never stored as floats:
+//  * fiat prices are integer micro-USD (BigInt, 1e-6 USD)
+//  * on-chain token amounts are exact uint256 values (Decimal(78,0))
+
+generator client {
+  provider      = "prisma-client-js"
+  // native (local), Vercel (Amazon Linux 2023) and Render (Debian) runtimes
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  ESCROWED
+  SHIPPED
+  DELIVERED
+  DISPUTED
+  COMPLETED
+  REFUNDED
+  CANCELLED
+}
+
+enum IntentStatus {
+  CREATED
+  ROUTING
+  FULFILLED
+  FAILED
+}
+
+enum RouteKind {
+  DIRECT
+  CROSS_CHAIN
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+  WITHDRAWN
+}
+
+enum ReputationEventType {
+  PURCHASE_COMPLETED
+  SALE_COMPLETED
+  AUTO_RELEASED
+  DISPUTE_WON
+  DISPUTE_LOST
+  DISPUTE_SPLIT
+  SELLER_REFUNDED
+}
+
+enum LoyaltyTxType {
+  EARNED
+  STAKED
+  UNSTAKED
+  CLAIMED
+  REDEEMED
+}
+
+model User {
+  id                   String   @id @default(cuid())
+  /// lower-cased EOA address used for SIWE
+  walletAddress        String   @unique
+  displayName          String?
+  email                String?
+  role                 Role     @default(BUYER)
+  /// cached decayed on-chain reputation score (whole points) from the latest ReputationEventRecorded
+  reputationScoreCache Decimal? @db.Decimal(38, 6)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  seller              Seller?
+  smartAccounts       SmartAccount[]
+  orders              Order[]              @relation("BuyerOrders")
+  disputesRaised      Dispute[]            @relation("DisputeRaisedBy")
+  disputesResolved    Dispute[]            @relation("DisputeResolvedBy")
+  reviews             Review[]
+  reputationEvents    ReputationEvent[]
+  loyaltyTransactions LoyaltyTransaction[]
+  auditLogs           AuditLog[]
+}
+
+/// Counterfactual ERC-4337 SimpleAccount owned by the user's EOA on a given chain.
+model SmartAccount {
+  id        String   @id @default(cuid())
+  userId    String
+  chainId   Int
+  address   String
+  factory   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chainId])
+  @@unique([chainId, address])
+}
+
+model Seller {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  storefrontName String
+  slug           String    @unique
+  bio            String    @default("")
+  avatarUrl      String?
+  bannerUrl      String?
+  payoutChainId  Int
+  /// token contract address (stablecoin) on payoutChainId
+  payoutToken    String
+  /// lower-cased address that receives escrow releases (defaults to the seller's wallet)
+  payoutAddress  String
+  verified       Boolean   @default(false)
+  verifiedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products Product[]
+  orders   Order[]
+}
+
+model Product {
+  id                  String        @id @default(cuid())
+  sellerId            String
+  title               String
+  description         String
+  images              String[]
+  priceUsdMicros      BigInt
+  currency            String        @default("USD")
+  category            String
+  /// chain ids buyers may pay from
+  chainListingOptions Int[]
+  status              ProductStatus @default(ACTIVE)
+  featured            Boolean       @default(false)
+  manufacturer        String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  seller       Seller                    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  variants     ProductVariant[]
+  certificates AuthenticityCertificate[]
+  orderItems   OrderItem[]
+  reviews      Review[]
+
+  @@index([status, featured])
+  @@index([category, status])
+  @@index([sellerId])
+}
+
+model ProductVariant {
+  id         String   @id @default(cuid())
+  productId  String
+  name       String
+  attributes Json     @default("{}")
+  sku        String   @unique
+  stock      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([productId])
+}
+
+model AuthenticityCertificate {
+  id              String   @id @default(cuid())
+  productId       String
+  tokenId         String
+  contractAddress String
+  chainId         Int
+  mintTxHash      String   @unique
+  minter          String
+  ownerAddress    String
+  manufacturer    String?
+  batch           String?
+  metadataUri     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([chainId, contractAddress, tokenId])
+  @@index([productId])
+}
+
+model Order {
+  id                    String      @id @default(cuid())
+  buyerId               String
+  sellerId              String
+  status                OrderStatus @default(PENDING_PAYMENT)
+  subtotalUsdMicros     BigInt
+  payoutChainId         Int
+  payoutToken           String
+  payoutAmount          Decimal     @db.Decimal(78, 0)
+  /// keccak256("trestle:order:" + id) — links on-chain intents/escrows to this row
+  onchainRef            String      @unique
+  escrowChainId         Int?
+  escrowContractOrderId String?
+  /// escrow buyer identity (EOA or ERC-4337 smart account) on the escrow chain
+  buyerAccount          String?
+  deliveryDeadline      DateTime?
+  shippingAddress       Json?
+  trackingNumber        String?
+  shippedAt             DateTime?
+  completedAt           DateTime?
+  /// stock is held for PENDING_PAYMENT orders until this time
+  reservationExpiresAt  DateTime?
+  stockReleased         Boolean     @default(false)
+  /// true for seeded demo rows that have no on-chain counterpart
+  isSeedDemo            Boolean     @default(false)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  buyer          User            @relation("BuyerOrders", fields: [buyerId], references: [id])
+  seller         Seller          @relation(fields: [sellerId], references: [id])
+  items          OrderItem[]
+  paymentIntents PaymentIntent[]
+  dispute        Dispute?
+  review         Review?
+
+  @@unique([escrowChainId, escrowContractOrderId])
+  @@index([buyerId, createdAt])
+  @@index([sellerId, status])
+  @@index([status, reservationExpiresAt])
+}
+
+model OrderItem {
+  id                 String @id @default(cuid())
+  orderId            String
+  productId          String
+  productVariantId   String
+  titleSnapshot      String
+  variantSnapshot    String
+  quantity           Int
+  unitPriceUsdMicros BigInt
+
+  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product        Product        @relation(fields: [productId], references: [id])
+  productVariant ProductVariant @relation(fields: [productVariantId], references: [id])
+
+  @@index([orderId])
+}
+
+model PaymentIntent {
+  id                String       @id @default(cuid())
+  orderId           String
+  routeKind         RouteKind
+  routeId           String
+  /// checkout quote this intent was created from (idempotency key for /api/checkout/initiate)
+  quoteId           String?      @unique
+  payer             String
+  sourceChainId     Int
+  sourceToken       String
+  sourceAmount      Decimal      @db.Decimal(78, 0)
+  feeAmount         Decimal      @db.Decimal(78, 0)
+  destChainId       Int
+  destToken         String
+  destAmount        Decimal      @db.Decimal(78, 0)
+  destBuyer         String
+  deliveryWindowSec Int
+  status            IntentStatus @default(CREATED)
+  /// bytes32 intent id from TrestlePaymentRouter (cross-chain) — null until IntentCreated is indexed
+  onchainIntentId   String?      @unique
+  onchainNonce      String?
+  expiresAt         DateTime
+  securityScore     Int
+  estimatedSeconds  Int
+  sourceTxHash      String?
+  fulfillTxHash     String?
+  settleTxHash      String?
+  failTxHash        String?
+  failureReason     String?
+  escrowOrderId     String?
+  /// relayer bookkeeping
+  relayAttempts     Int          @default(0)
+  nextAttemptAt     DateTime?
+  lastError         String?
+  /// ordered timeline of {status, at, txHash?, chainId?, note?}
+  txHashes          Json         @default("[]")
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
+  @@index([orderId])
+}
+
+model Dispute {
+  id              String        @id @default(cuid())
+  orderId         String        @unique
+  raisedById      String?
+  raisedByAddress String
+  reason          String
+  evidence        String?
+  status          DisputeStatus @default(OPEN)
+  buyerShareBps   Int?
+  resolutionNotes String?
+  resolvedById    String?
+  raiseTxHash     String?
+  resolveTxHash   String?
+  createdAt       DateTime      @default(now())
+  resolvedAt      DateTime?
+
+  order      Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  raisedBy   User? @relation("DisputeRaisedBy", fields: [raisedById], references: [id])
+  resolvedBy User? @relation("DisputeResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([status, createdAt])
+}
+
+model Review {
+  id               String   @id @default(cuid())
+  /// one review per completed order
+  orderId          String   @unique
+  productId        String
+  authorId         String
+  rating           Int
+  title            String?
+  text             String
+  verifiedPurchase Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorId], references: [id])
+
+  @@index([productId, createdAt])
+}
+
+model ReputationEvent {
+  id          String              @id @default(cuid())
+  userId      String?
+  address     String
+  chainId     Int
+  eventType   ReputationEventType
+  weight      Int
+  /// decayed score after the event, whole points (score / 1e18)
+  newScore    Decimal             @db.Decimal(38, 6)
+  /// null only for seeded demo rows (isSeedDemo) — never fabricated
+  txHash      String?
+  logIndex    Int?
+  blockNumber BigInt?
+  isSeedDemo  Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@unique([chainId, txHash, logIndex])
+  @@index([address, createdAt])
+  @@index([userId, createdAt])
+}
+
+model LoyaltyTransaction {
+  id         String        @id @default(cuid())
+  userId     String?
+  address    String
+  chainId    Int
+  type       LoyaltyTxType
+  amount     Decimal       @db.Decimal(78, 0)
+  /// null only for seeded demo rows (isSeedDemo) — never fabricated
+  txHash     String?
+  logIndex   Int?
+  isSeedDemo Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@unique([chainId, txHash, logIndex])
+  @@index([address, createdAt])
+  @@index([userId, createdAt])
+}
+
+model SupportedChain {
+  chainId       Int     @id
+  name          String
+  rpcUrl        String
+  nativeToken   String
+  isTestnetDemo Boolean @default(true)
+  networkMode   String
+  role          String
+  explorerUrl   String?
+  enabled       Boolean @default(true)
+}
+
+/// Durable, de-duplicated log of every Trestle contract event the relayer/indexer has applied.
+model ChainEvent {
+  id          String    @id @default(cuid())
+  chainId     Int
+  contract    String
+  address     String
+  eventName   String
+  txHash      String
+  logIndex    Int
+  blockNumber BigInt
+  blockTime   DateTime?
+  args        Json
+  createdAt   DateTime  @default(now())
+
+  @@unique([chainId, txHash, logIndex])
+  @@index([eventName, createdAt])
+  @@index([chainId, blockNumber])
+}
+
+/// Last fully-processed block per chain for the relayer's indexer.
+model RelayerCheckpoint {
+  id        String   @id
+  chainId   Int
+  lastBlock BigInt
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String
+  data      Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([entity, entityId])
+}
