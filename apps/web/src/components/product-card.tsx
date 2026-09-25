@@ -23,6 +23,7 @@ export interface CardData {
   subcategory: string | null;
   isNew: boolean;
   soldOut: boolean;
+  status?: string;
   colours: {
     name: string;
     hex: string | null;

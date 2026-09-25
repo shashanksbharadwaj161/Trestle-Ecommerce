@@ -21,4 +21,4 @@ export const EDITORIAL: Record<string, EditorialTile[]> = {
   ],
 };
 
-export const img_ = img;
+export const editorialImage = img;

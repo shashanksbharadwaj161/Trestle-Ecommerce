@@ -1,4 +1,5 @@
 "use client";
+import { CryptoProviders } from "@/components/crypto-providers";
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -53,7 +54,7 @@ interface D {
   };
 }
 
-export default function DisputesPage() {
+function DisputesPageInner() {
   return <RequireAuth role="ADMIN">{() => <Queue />}</RequireAuth>;
 }
 
@@ -258,5 +259,13 @@ function Case({ d }: { d: D }) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+export default function DisputesPage() {
+  return (
+    <CryptoProviders>
+      <DisputesPageInner />
+    </CryptoProviders>
   );
 }

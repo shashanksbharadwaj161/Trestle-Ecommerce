@@ -1,4 +1,5 @@
 "use client";
+import { CryptoProviders } from "@/components/crypto-providers";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -23,7 +24,7 @@ interface S {
   _count: { products: number; orders: number };
 }
 
-export default function SellersAdminPage() {
+function SellersAdminPageInner() {
   return <RequireAuth role="ADMIN">{() => <Inner />}</RequireAuth>;
 }
 
@@ -153,5 +154,13 @@ function Inner() {
         </div>
       )}
     </Container>
+  );
+}
+
+export default function SellersAdminPage() {
+  return (
+    <CryptoProviders>
+      <SellersAdminPageInner />
+    </CryptoProviders>
   );
 }

@@ -1,4 +1,5 @@
 "use client";
+import { FulfilAction } from "@/components/fulfil-action";
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -19,7 +20,8 @@ interface Orders {
     subtotalUsdMicros: string;
     isSeedDemo: boolean;
     trackingNumber: string | null;
-    buyer: { displayName: string | null; walletAddress: string };
+    buyer: { displayName: string | null; walletAddress: string | null } | null;
+    paymentMethod: "CARD" | "CRYPTO";
     items: { titleSnapshot: string; variantSnapshot: string; quantity: number }[];
     paymentIntents: { routeKind: string }[];
     dispute: { status: string } | null;
@@ -40,7 +42,7 @@ function Inner() {
     <Container>
       <PageHeader
         title="Orders"
-        description="Ship escrowed orders and track settlement. Funds release on buyer confirmation, the delivery deadline, or arbitration."
+        description="Ship paid orders and track them. Card orders are paid out by the store; stablecoin orders release from escrow on delivery confirmation, the deadline, or arbitration."
         actions={
           <label className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Status</span>
@@ -49,6 +51,7 @@ function Inner() {
               {[
                 "PENDING_PAYMENT",
                 "ESCROWED",
+                "PROCESSING",
                 "SHIPPED",
                 "DELIVERED",
                 "DISPUTED",
@@ -84,6 +87,7 @@ function Inner() {
                 <th className="p-3 font-medium">Total</th>
                 <th className="p-3 font-medium">Status</th>
                 <th className="p-3 font-medium">Placed</th>
+                <th className="p-3"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -108,18 +112,24 @@ function Inner() {
                       .join(", ")}
                   </td>
                   <td className="p-3">
-                    {o.buyer.displayName ?? shortAddress(o.buyer.walletAddress)}
+                    {o.buyer ? (o.buyer.displayName ?? shortAddress(o.buyer.walletAddress)) : "Guest"}
                   </td>
                   <td className="tabular p-3">{usd(o.subtotalUsdMicros)}</td>
                   <td className="p-3">
                     <div className="flex flex-wrap gap-1">
                       <OrderStatusBadge status={o.status} />
+                      <Badge tone="outline">{o.paymentMethod === "CARD" ? "card" : "stablecoin"}</Badge>
                       {o.paymentIntents[0]?.routeKind === "CROSS_CHAIN" && (
                         <Badge tone="info">cross-chain</Badge>
                       )}
                     </div>
                   </td>
                   <td className="p-3 text-muted-foreground">{dateTime(o.createdAt)}</td>
+                  <td className="p-3 text-right">
+                    {!o.isSeedDemo && (
+                      <FulfilAction orderId={o.id} status={o.status} paymentMethod={o.paymentMethod} invalidate={["seller-orders"]} />
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

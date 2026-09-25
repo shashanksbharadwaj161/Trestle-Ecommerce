@@ -88,15 +88,27 @@ export function PurchasePanel({ product, initialColour }: { product: PdpProduct;
     window.history.replaceState(null, "", url.toString());
   }, [colour, firstInStock]);
 
-  // mobile sticky add-to-bag when the main button scrolls out of view
+  // mobile sticky add-to-bag once the main button has scrolled above the viewport.
+  // (a scroll listener, not IntersectionObserver: a fast fling can jump from below to above the viewport
+  // without the element ever intersecting, which never fires an IO callback)
   useEffect(() => {
-    const el = addRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver(([e]) => setShowSticky(!e!.isIntersecting && e!.boundingClientRect.top < 0), {
-      threshold: 0,
-    });
-    io.observe(el);
-    return () => io.disconnect();
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const el = addRef.current;
+      if (el) setShowSticky(el.getBoundingClientRect().bottom < 0);
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 
   async function addToBag() {

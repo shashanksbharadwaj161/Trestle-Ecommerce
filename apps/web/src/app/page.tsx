@@ -6,7 +6,7 @@ import { listCollections, newArrivals, productCards } from "@/server/catalog";
 import type { CardData } from "@/components/product-card";
 import { ProductShelf } from "@/components/product-shelf";
 import { ProductCard } from "@/components/product-card";
-import { img_ as img } from "@/lib/editorial";
+import { editorialImage as img } from "@/lib/editorial";
 
 export const dynamic = "force-dynamic";
 

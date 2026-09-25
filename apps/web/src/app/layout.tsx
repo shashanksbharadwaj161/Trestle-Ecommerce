@@ -8,6 +8,7 @@ import { cardConfig } from "@/server/stripe";
 import { listCollections } from "@/server/catalog";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
   title: {
     default: "Trestle — Dresses, denim and everyday jersey",
     template: "%s · Trestle",

@@ -51,6 +51,7 @@ export interface ProductCard {
   subcategory: string | null;
   isNew: boolean;
   soldOut: boolean;
+  status: string;
   colours: CardColour[];
   sizes: { size: string; variants: { colour: string; variantId: string; stock: number }[] }[];
 }
@@ -82,6 +83,7 @@ export function toCard(p: ProductCardRow): ProductCard {
     subcategory: p.subcategory,
     isNew: p.publishedAt >= newSince(),
     soldOut: !p.variants.some((v) => v.stock > 0),
+    status: p.status,
     colours,
     sizes: sizeNames.map((size) => ({
       size,

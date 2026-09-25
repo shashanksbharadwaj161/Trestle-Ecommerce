@@ -43,7 +43,7 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
       </div>
       <ul className="hidden grid-cols-2 gap-[2px] md:grid">
         {images.map((img, i) => (
-          <li key={img.url} className={cn(images.length === 1 && "col-span-2", images.length === 3 && i === 0 && "col-span-2")}>
+          <li key={img.url} className={cn(wide(images.length, i) && "col-span-2")}>
             <button
               type="button"
               onClick={() => setZoomAt(i)}
@@ -55,7 +55,7 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
                 alt={img.alt}
                 fill
                 priority={i < 2}
-                sizes={images.length === 1 || (images.length === 3 && i === 0) ? "58vw" : "29vw"}
+                sizes={wide(images.length, i) ? "58vw" : "29vw"}
                 className="object-cover"
               />
               <span className="absolute bottom-3 right-3 grid size-9 place-items-center rounded-full bg-background/85 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
@@ -68,6 +68,11 @@ export function Gallery({ images, title }: { images: GalleryImage[]; title: stri
       <ZoomViewer images={images} index={zoomAt} onIndex={setZoomAt} title={title} />
     </>
   );
+}
+
+/** 1–2 images stack full width; odd counts lead with one wide image; the rest pair up. */
+function wide(count: number, i: number) {
+  return count <= 2 || (count % 2 === 1 && i === 0);
 }
 
 function ZoomViewer({
