@@ -41,6 +41,16 @@ const schema = z.object({
   QUOTE_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(600),
   INTENT_TTL_SECONDS: z.coerce.number().int().min(600).max(86_400).default(3600),
   NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: z.string().optional(),
+  // ---- card payments (Stripe Checkout, hosted). Card checkout is disabled until both are set.
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  /** TEST ONLY: point the SDK at a local mock (accepted only with an sk_test_ key and a loopback host) */
+  STRIPE_API_BASE: z.string().url().optional(),
+  CARD_CHECKOUT_TTL_MINUTES: z.coerce.number().int().min(30).max(1440).default(30),
+  SHIPPING_COUNTRIES: z.string().default("US,CA,GB,IE,AU,NZ,DE,FR,NL,SE,DK,NO,ES,IT"),
+  /** bearer secret for /api/cron/* (Vercel Cron sends it as Authorization: Bearer) */
+  CRON_SECRET: z.string().optional(),
+  SUPPORT_EMAIL: z.string().email().optional(),
   WALLETCONNECT_PROJECT_ID: z.string().optional(),
 });
 

@@ -4,7 +4,7 @@ import { prisma } from "@trestle/db";
 import { trestleAuthenticityAbi } from "@trestle/shared/abis";
 import { publicClient, requireDeployment } from "@/server/chain";
 import { loadOrderFor } from "@/server/orders";
-import { conflict, forbidden, parseBody, route } from "@/server/http";
+import { conflict, forbidden, parseBody, route, requireWallet } from "@/server/http";
 
 const body = z.object({ orderId: z.string().min(1).max(64) });
 
@@ -22,7 +22,7 @@ export const POST = route(
       throw conflict("Certificates are transferred once the order is completed");
     if (!order.buyerAccount) throw conflict("Unknown buyer account");
     const seller = order.seller.payoutAddress;
-    if (seller !== user!.walletAddress)
+    if (seller !== requireWallet(user!))
       throw conflict("Sign in with your payout wallet (it holds the certificates)");
     const chainId = order.seller.payoutChainId;
     const dep = requireDeployment(chainId);

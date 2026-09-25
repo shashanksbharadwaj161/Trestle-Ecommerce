@@ -17,7 +17,7 @@ export class ApiError extends Error {
   }
 }
 
-export const unauthorized = (msg = "Sign in with your wallet to continue") =>
+export const unauthorized = (msg = "Sign in to continue") =>
   new ApiError(401, "unauthorized", msg);
 export const forbidden = (msg = "You do not have access to this resource") =>
   new ApiError(403, "forbidden", msg);
@@ -26,6 +26,17 @@ export const badRequest = (msg: string, details?: unknown) =>
   new ApiError(400, "bad_request", msg, details);
 export const conflict = (msg: string, details?: unknown) =>
   new ApiError(409, "conflict", msg, details);
+
+/** Crypto routes need a proven wallet on the account (SIWE). */
+export function requireWallet(user: AuthedUser): string {
+  if (!user.walletAddress)
+    throw new ApiError(
+      403,
+      "wallet_required",
+      "Connect and verify a wallet to use stablecoin checkout. Card checkout does not need a wallet.",
+    );
+  return user.walletAddress;
+}
 
 export function json(data: unknown, init?: ResponseInit): NextResponse {
   return NextResponse.json(toJsonSafe(data), init);

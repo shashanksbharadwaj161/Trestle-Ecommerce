@@ -34,7 +34,7 @@ import {
 import type { AAAction } from "@/lib/schemas";
 import { env } from "./env";
 import { chainProfile, publicClient, requireDeployment } from "./chain";
-import { ApiError, badRequest, forbidden, notFound } from "./http";
+import { ApiError, badRequest, forbidden, notFound, requireWallet } from "./http";
 import { kv } from "./kv";
 import { smartAccountFor } from "./accounts";
 import type { AuthedUser } from "./session";
@@ -131,7 +131,7 @@ async function resolveAction(user: AuthedUser, action: AAAction): Promise<Resolv
         description: "Claim staking rewards",
       };
     case "sweep": {
-      const owner = getAddress(user.walletAddress);
+      const owner = getAddress(requireWallet(user));
       const token = getAddress(action.token);
       if (token === zeroAddress) {
         return {
@@ -201,7 +201,7 @@ export async function prepareUserOp(user: AuthedUser, action: AAAction) {
   const call = await resolveAction(user, action);
   const dep = requireDeployment(call.chainId);
   const client = publicClient(call.chainId);
-  const owner = getAddress(user.walletAddress);
+  const owner = getAddress(requireWallet(user));
   const sender = await smartAccountFor(user.id, owner, call.chainId);
 
   if (call.orderId) {
@@ -326,7 +326,7 @@ export async function submitUserOp(
     message: { raw: input.userOpHash },
     signature: input.signature,
   });
-  if (signer.toLowerCase() !== user.walletAddress)
+  if (signer.toLowerCase() !== requireWallet(user))
     throw forbidden("Signature was not produced by your wallet");
 
   const dep = requireDeployment(input.chainId);

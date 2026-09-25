@@ -4,13 +4,13 @@ import { trestleLoyaltyAbi } from "@trestle/shared/abis";
 import { chainProfiles, deployment, publicClient } from "@/server/chain";
 import { smartAccountFor } from "@/server/accounts";
 import { gaslessAvailable } from "@/server/aa";
-import { route } from "@/server/http";
+import { route, requireWallet } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
 /** TRST balances, stakes, pending rewards and fee discounts for the user's wallet and smart accounts, per chain. */
 export const GET = route({ auth: "user" }, async ({ user }) => {
-  const owner = getAddress(user!.walletAddress);
+  const owner = getAddress(requireWallet(user!));
   const chains = [];
   for (const p of chainProfiles()) {
     const dep = deployment(p.chain.id);

@@ -23,7 +23,7 @@ export async function trustSignals() {
       },
     }),
     prisma.order.findMany({
-      where: { isSeedDemo: false, status: "COMPLETED" },
+      where: { isSeedDemo: false, status: "COMPLETED", paymentMethod: "CRYPTO" },
       select: {
         payoutAmount: true,
         payoutChainId: true,
@@ -35,6 +35,7 @@ export async function trustSignals() {
   ]);
   let settled = 0n;
   for (const o of completed) {
+    if (o.payoutAmount == null || o.payoutChainId == null || !o.payoutToken) continue;
     const amount = BigInt(o.payoutAmount.toFixed());
     const sellerShare =
       o.dispute?.buyerShareBps != null

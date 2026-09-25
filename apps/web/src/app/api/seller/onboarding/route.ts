@@ -3,7 +3,7 @@ import { payoutTokens } from "@trestle/shared";
 import { onboardingInput } from "@/lib/schemas";
 import { env } from "@/server/env";
 import { chainProfiles, deployment } from "@/server/chain";
-import { badRequest, conflict, parseBody, route } from "@/server/http";
+import { badRequest, conflict, parseBody, route, requireWallet } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,7 @@ export const GET = route({ auth: "user" }, async ({ user }) => {
         decimals: t.decimals,
       })),
     }));
-  return { seller, options, wallet: user!.walletAddress };
+  return { seller, options, wallet: user!.walletAddress ?? null };
 });
 
 export const POST = route(
@@ -36,7 +36,7 @@ export const POST = route(
       throw badRequest("Payout token must be a supported stablecoin on the selected chain");
     const slugOwner = await prisma.seller.findUnique({ where: { slug: input.slug } });
     if (slugOwner && slugOwner.userId !== user!.id) throw conflict("That storefront URL is taken");
-    const payoutAddress = input.payoutAddress ?? user!.walletAddress;
+    const payoutAddress = input.payoutAddress ?? requireWallet(user!);
     const existing = await prisma.seller.findUnique({ where: { userId: user!.id } });
     const payoutChanged =
       existing &&

@@ -17,7 +17,9 @@ export const GET = route<{ address: string }>(
       include: { smartAccounts: true },
     });
     const addresses = user
-      ? [user.walletAddress, ...user.smartAccounts.map((s) => s.address)]
+      ? [user.walletAddress, ...user.smartAccounts.map((s) => s.address)].filter(
+          (a): a is string => !!a,
+        )
       : [address];
 
     const accounts = [];

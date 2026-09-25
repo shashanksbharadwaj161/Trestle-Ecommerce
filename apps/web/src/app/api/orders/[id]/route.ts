@@ -29,8 +29,11 @@ export const GET = route<{ id: string }>({ auth: "user" }, async ({ params, user
         tokens[`${chainId}:${addr.toLowerCase()}`] = { symbol: t.symbol, decimals: t.decimals };
     }
   }
-  const payout = findToken(env().mode, order.payoutChainId, order.payoutToken);
-  if (payout)
+  const payout =
+    order.payoutChainId != null && order.payoutToken
+      ? findToken(env().mode, order.payoutChainId, order.payoutToken)
+      : undefined;
+  if (payout && order.payoutToken)
     tokens[`${order.payoutChainId}:${order.payoutToken.toLowerCase()}`] = {
       symbol: payout.symbol,
       decimals: payout.decimals,
@@ -45,7 +48,7 @@ export const GET = route<{ id: string }>({ auth: "user" }, async ({ params, user
     gasless: gaslessAvailable(),
     chains: {
       escrow: order.escrowChainId ? (chainProfile(order.escrowChainId)?.label ?? null) : null,
-      payout: chainProfile(order.payoutChainId)?.label ?? null,
+      payout: order.payoutChainId ? (chainProfile(order.payoutChainId)?.label ?? null) : null,
     },
   };
 });

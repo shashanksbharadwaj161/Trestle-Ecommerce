@@ -2,13 +2,13 @@ import { getAddress } from "viem";
 import { chainProfiles, deployment, publicClient } from "@/server/chain";
 import { smartAccountFor } from "@/server/accounts";
 import { gaslessAvailable } from "@/server/aa";
-import { route } from "@/server/http";
+import { route, requireWallet } from "@/server/http";
 import { trestlePaymasterAbi } from "@trestle/shared/abis";
 
 export const dynamic = "force-dynamic";
 
 export const GET = route({ auth: "user" }, async ({ user }) => {
-  const owner = getAddress(user!.walletAddress);
+  const owner = getAddress(requireWallet(user!));
   const accounts = [];
   for (const p of chainProfiles()) {
     const dep = deployment(p.chain.id);

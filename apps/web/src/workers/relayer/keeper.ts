@@ -56,6 +56,8 @@ export async function autoReleaseDue(
 export async function sweepExpiredReservations(prisma: PrismaClient) {
   const stale = await prisma.order.findMany({
     where: {
+      // card orders are released by the Stripe-aware sweeper (server/card-checkout.ts), never here
+      paymentMethod: "CRYPTO",
       status: "PENDING_PAYMENT",
       reservationExpiresAt: { lt: new Date() },
       paymentIntents: {

@@ -127,6 +127,7 @@ export class IntentProcessor {
     if (!order) return "unknown order";
     if (order.status === "CANCELLED") return "order was cancelled";
     const eq = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+    if (order.paymentMethod !== "CRYPTO" || !order.onchainRef) return "not a crypto order";
     if (!eq(onchain.orderRef, order.onchainRef)) return "order reference mismatch";
     if (!eq(onchain.sourceToken, intent.sourceToken)) return "source token mismatch";
     if (onchain.sourceAmount < BigInt(intent.sourceAmount.toFixed()))

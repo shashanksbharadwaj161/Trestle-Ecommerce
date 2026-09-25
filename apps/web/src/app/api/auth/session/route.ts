@@ -1,15 +1,8 @@
 import { route } from "@/server/http";
+import { publicUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
 export const GET = route({}, async ({ user }) => ({
-  user: user
-    ? {
-        id: user.id,
-        walletAddress: user.walletAddress,
-        role: user.role,
-        displayName: user.displayName,
-        sellerId: user.sellerId,
-      }
-    : null,
+  user: user ? await publicUser(user.id) : null,
 }));

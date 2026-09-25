@@ -3,7 +3,7 @@ import { prisma } from "@trestle/db";
 import { trestleEscrowAbi } from "@trestle/shared/abis";
 import { resolveInput } from "@/lib/schemas";
 import { publicClient, requireDeployment } from "@/server/chain";
-import { conflict, forbidden, notFound, parseBody, route } from "@/server/http";
+import { conflict, forbidden, notFound, parseBody, route, requireWallet } from "@/server/http";
 
 /**
  * Admin resolution. Records the arbitration notes and returns the `resolveDispute` call for the admin's
@@ -34,7 +34,7 @@ export const POST = route<{ id: string }>(
       address: dep.escrow,
       abi: trestleEscrowAbi,
       functionName: "hasRole",
-      args: [arbiterRole, getAddress(user!.walletAddress)],
+      args: [arbiterRole, getAddress(requireWallet(user!))],
     })) as boolean;
     if (!isArbiter)
       throw forbidden("Your wallet does not hold ARBITER_ROLE on the escrow contract");

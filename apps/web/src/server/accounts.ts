@@ -42,5 +42,7 @@ export async function addressesOf(userId: string): Promise<string[]> {
     include: { smartAccounts: true },
   });
   if (!user) return [];
-  return [user.walletAddress, ...user.smartAccounts.map((s) => s.address)];
+  return [user.walletAddress, ...user.smartAccounts.map((s) => s.address)].filter(
+    (a): a is string => !!a,
+  );
 }

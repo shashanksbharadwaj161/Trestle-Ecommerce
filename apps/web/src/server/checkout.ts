@@ -13,7 +13,7 @@ import {
 import { testTokenAbi, trestlePaymentRouterAbi } from "@trestle/shared/abis";
 import { env } from "./env";
 import { chainProfile, chainProfiles, deployment, publicClient, requireDeployment } from "./chain";
-import { ApiError, badRequest, conflict, forbidden, notFound } from "./http";
+import { ApiError, badRequest, conflict, forbidden, notFound, requireWallet } from "./http";
 import { kv } from "./kv";
 import { readCart, clearCartLines } from "./cart";
 import { smartAccountFor } from "./accounts";
@@ -204,7 +204,7 @@ export async function createQuote(
     );
 
   const prices = priceTable(e.PRICE_ETH_USD);
-  const payer = getAddress(user.walletAddress);
+  const payer = getAddress(requireWallet(user));
   const routes: SerializedRoute[] = [];
   const allowedChains = chainProfiles().filter(
     (p) => (chains ?? []).includes(p.chain.id) && deployment(p.chain.id),
@@ -421,8 +421,8 @@ export async function initiateCheckout(
   try {
     const destBuyer =
       input.buyerAccountMode === "smart"
-        ? await smartAccountFor(user.id, getAddress(user.walletAddress), route.destChainId)
-        : getAddress(user.walletAddress);
+        ? await smartAccountFor(user.id, getAddress(requireWallet(user)), route.destChainId)
+        : getAddress(requireWallet(user));
     const orderId = `ord_${randomBytes(10).toString("hex")}`;
     const intentExpiry = new Date(Date.now() + e.INTENT_TTL_SECONDS * 1000);
     // hold stock until the intent can no longer be fulfilled (expiry) + refund grace + margin
@@ -471,7 +471,7 @@ export async function initiateCheckout(
           quoteId: quote.id,
           routeKind: route.kind === "direct" ? "DIRECT" : "CROSS_CHAIN",
           routeId: route.routeId!,
-          payer: user.walletAddress,
+          payer: requireWallet(user),
           sourceChainId: route.sourceChainId,
           sourceToken: route.payToken.address.toLowerCase(),
           sourceAmount: route.sourceAmount!,

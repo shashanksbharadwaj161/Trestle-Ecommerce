@@ -13,6 +13,10 @@ export const orderDetailInclude = {
   paymentIntents: { orderBy: { createdAt: "asc" } },
   dispute: { include: { resolvedBy: { select: { displayName: true, walletAddress: true } } } },
   review: true,
+  cardPayment: {
+    select: { id: true, status: true, totalCents: true, refundedCents: true, shippingMethod: true },
+  },
+  returnRequests: { orderBy: { createdAt: "desc" } },
 } satisfies Prisma.OrderInclude;
 
 export type OrderDetail = Prisma.OrderGetPayload<{ include: typeof orderDetailInclude }>;
@@ -124,6 +128,14 @@ export function computeActions(
   now = Date.now(),
 ): OrderActions {
   const a: OrderActions = {};
+  if (order.paymentMethod === "CARD") {
+    // card orders: fulfilment only; payment state lives on CardPayment (webhook-driven)
+    if (viewer === "seller" || viewer === "admin") {
+      if (order.status === "PROCESSING") a.markShipped = true;
+      if (order.status === "SHIPPED") a.markDelivered = true;
+    }
+    return a;
+  }
   const escrowOpen = escrow ? escrow.status === "Created" : ACTIVE_ESCROW.includes(order.status);
   const beforeDeadline = escrow ? now / 1000 <= escrow.deliveryDeadline : true;
   const via: "smart" | "wallet" =
@@ -179,6 +191,8 @@ export async function listOrders(
 ) {
   const where: Prisma.OrderWhereInput =
     as === "buyer" ? { buyerId: user.id } : { seller: { userId: user.id } };
+  // abandoned / unpaid card checkouts are not orders from the shopper's point of view
+  where.NOT = { paymentMethod: "CARD", cardPayment: { status: { in: ["OPEN", "EXPIRED", "FAILED"] } } };
   if (opts.status) where.status = opts.status;
   const take = Math.min(opts.take ?? 20, 50);
   const rows = await prisma.order.findMany({
@@ -196,6 +210,8 @@ export async function listOrders(
         take: 1,
       },
       dispute: { select: { status: true } },
+      cardPayment: { select: { id: true, status: true, totalCents: true } },
+      returnRequests: { select: { id: true, status: true } },
     },
   });
   const hasMore = rows.length > take;

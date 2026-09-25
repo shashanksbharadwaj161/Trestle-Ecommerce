@@ -4,7 +4,7 @@ import { prisma } from "@trestle/db";
 import { trestleAuthenticityAbi } from "@trestle/shared/abis";
 import { env } from "@/server/env";
 import { publicClient, requireDeployment } from "@/server/chain";
-import { conflict, forbidden, notFound, parseBody, route } from "@/server/http";
+import { conflict, forbidden, notFound, parseBody, route, requireWallet } from "@/server/http";
 
 const body = z.object({
   productId: z.string().min(1).max(64),
@@ -25,7 +25,7 @@ export const POST = route(
     if (product.sellerId !== user!.sellerId)
       throw forbidden("You can only certify your own products");
     const seller = product.seller;
-    if (seller.payoutAddress !== user!.walletAddress) {
+    if (seller.payoutAddress !== requireWallet(user!)) {
       throw conflict("Certificates are minted by your payout wallet — sign in with it to mint");
     }
     const chainId = seller.payoutChainId;

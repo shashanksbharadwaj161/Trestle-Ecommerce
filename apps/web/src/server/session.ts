@@ -10,12 +10,15 @@ export const SESSION_COOKIE = "trestle_session";
 export interface SessionClaims {
   sid: string;
   uid: string;
+  /** wallet address proven at sign-in ("" for email sign-in) */
   addr: string;
 }
 
 export interface AuthedUser {
   id: string;
-  walletAddress: string;
+  /** null for email-only accounts; crypto routes call requireWallet() */
+  walletAddress: string | null;
+  email: string | null;
   role: Role;
   displayName: string | null;
   sellerId: string | null;
@@ -68,10 +71,13 @@ export async function userFromToken(token: string | undefined | null): Promise<A
     where: { id: claims.uid },
     include: { seller: { select: { id: true } } },
   });
-  if (!user || user.walletAddress !== claims.addr) return null;
+  if (!user) return null;
+  // a wallet session is bound to the wallet it proved; if the account's wallet changed, re-authenticate
+  if (claims.addr && user.walletAddress !== claims.addr) return null;
   return {
     id: user.id,
     walletAddress: user.walletAddress,
+    email: user.email,
     role: user.role,
     displayName: user.displayName,
     sellerId: user.seller?.id ?? null,

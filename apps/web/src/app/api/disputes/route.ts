@@ -5,7 +5,7 @@ import { trestleEscrowAbi } from "@trestle/shared/abis";
 import { disputeInput } from "@/lib/schemas";
 import { computeActions, loadOrderFor, readEscrow } from "@/server/orders";
 import { requireDeployment } from "@/server/chain";
-import { conflict, forbidden, parseBody, parseQuery, route } from "@/server/http";
+import { conflict, forbidden, parseBody, parseQuery, route, requireWallet } from "@/server/http";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +62,7 @@ export const POST = route(
     if (order.dispute?.raiseTxHash) throw conflict("A dispute is already open for this order");
 
     const raisedByAddress =
-      viewer === "buyer" ? (order.buyerAccount ?? user!.walletAddress) : order.seller.payoutAddress;
+      viewer === "buyer" ? (order.buyerAccount ?? requireWallet(user!)) : order.seller.payoutAddress;
     const dispute = await prisma.dispute.upsert({
       where: { orderId: order.id },
       create: {

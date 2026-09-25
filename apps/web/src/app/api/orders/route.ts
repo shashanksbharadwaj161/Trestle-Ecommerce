@@ -10,6 +10,7 @@ const q = z.object({
     .enum([
       "PENDING_PAYMENT",
       "ESCROWED",
+      "PROCESSING",
       "SHIPPED",
       "DELIVERED",
       "DISPUTED",
