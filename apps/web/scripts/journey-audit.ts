@@ -61,7 +61,12 @@ function instrument(page: Page, label: string) {
   page.on("response", (r) => {
     const u = new URL(r.url());
     if (u.origin !== new URL(BASE).origin) return;
-    if (r.status() >= 500) fail(`[${label}] HTTP ${r.status()} ${u.pathname}${u.search}`);
+    if (r.status() >= 500) {
+      const where = `[${label}] HTTP ${r.status()} ${u.pathname}${u.search}`;
+      r.text()
+        .then((t) => fail(`${where} ${/"ref":"([^"]+)"/.exec(t)?.[1] ?? ""}`.trim()))
+        .catch(() => fail(where));
+    }
   });
   page.on("requestfailed", (r) => {
     const u = new URL(r.url());

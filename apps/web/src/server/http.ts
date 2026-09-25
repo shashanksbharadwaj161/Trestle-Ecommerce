@@ -51,10 +51,11 @@ export function errorRef(err: unknown): string {
     meta?: { code?: unknown };
   };
   const name = typeof e.name === "string" ? e.name.replace(/[^A-Za-z]/g, "").slice(0, 40) : "Error";
-  const code = [e.code, e.errorCode, e.meta?.code].find(
-    (c) => typeof c === "string" && /^[A-Z0-9_]{1,12}$/.test(c),
-  );
-  return code ? `${name}:${code}` : name;
+  const ok = (c: unknown): c is string => typeof c === "string" && /^[A-Z0-9_]{1,12}$/.test(c);
+  const code = [e.code, e.errorCode].find(ok);
+  // the underlying Postgres SQLSTATE for raw-query failures (P2010)
+  const db = ok(e.meta?.code) ? e.meta.code : undefined;
+  return [name, code, db].filter(Boolean).join(":");
 }
 
 export function errorResponse(err: unknown): NextResponse {
