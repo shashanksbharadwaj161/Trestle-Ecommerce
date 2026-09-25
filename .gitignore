@@ -22,3 +22,4 @@ playwright-report
 test-results
 packages/db/.env
 **/.env
+apps/web/dist

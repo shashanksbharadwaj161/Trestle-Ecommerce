@@ -437,3 +437,12 @@ model AuditLog {
 
   @@index([entity, entityId])
 }
+
+/// Leader lease so that only one relayer instance processes intents at a time (also serves as a heartbeat).
+model RelayerLease {
+  id        String   @id
+  holder    String
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
+  info      Json     @default("{}")
+}
