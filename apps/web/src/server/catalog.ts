@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { prisma, type Prisma } from "@trestle/db";
 import { parseUsdToMicros, sortSizes, sizeRank } from "@trestle/shared";
 import type { ProductQuery } from "@/lib/schemas";
@@ -132,9 +133,12 @@ function filteredWhere(q: ProductQuery, opts: ListOpts): Prisma.ProductWhereInpu
   if (q.category?.length) and.push({ category: { in: q.category } });
   // colour + size must be satisfied by the SAME variant (e.g. "black in M, in stock"), not by two different ones
   if (q.colour?.length && q.size?.length)
-    and.push({ variants: { some: { colour: { in: q.colour }, size: { in: q.size }, stock: { gt: 0 } } } });
+    and.push({
+      variants: { some: { colour: { in: q.colour }, size: { in: q.size }, stock: { gt: 0 } } },
+    });
   else if (q.colour?.length) and.push({ variants: { some: { colour: { in: q.colour } } } });
-  else if (q.size?.length) and.push({ variants: { some: { size: { in: q.size }, stock: { gt: 0 } } } });
+  else if (q.size?.length)
+    and.push({ variants: { some: { size: { in: q.size }, stock: { gt: 0 } } } });
   if (q.inStock) and.push({ variants: { some: { stock: { gt: 0 } } } });
   const price: Prisma.BigIntFilter = {};
   if (q.minPrice) price.gte = parseUsdToMicros(q.minPrice);
@@ -182,7 +186,11 @@ async function facetsFor(where: Prisma.ProductWhereInput) {
       where: { product: where },
       select: { colour: true, colourHex: true, size: true, stock: true, productId: true },
     }),
-    prisma.product.aggregate({ where, _min: { priceUsdMicros: true }, _max: { priceUsdMicros: true } }),
+    prisma.product.aggregate({
+      where,
+      _min: { priceUsdMicros: true },
+      _max: { priceUsdMicros: true },
+    }),
   ]);
   const colourMap = new Map<string, { hex: string | null; products: Set<string> }>();
   const sizeSet = new Set<string>();
@@ -209,7 +217,7 @@ async function facetsFor(where: Prisma.ProductWhereInput) {
   };
 }
 
-export async function getProductDetail(slugOrId: string) {
+async function loadProductDetail(slugOrId: string) {
   const product = await prisma.product.findFirst({
     where: { OR: [{ slug: slugOrId }, { id: slugOrId }] },
     include: {
@@ -246,10 +254,17 @@ export async function getProductDetail(slugOrId: string) {
     rating: { avg: agg._avg.rating ?? 0, count: agg._count._all },
   };
 }
+
+/** Request-deduplicated: generateMetadata and the page share one query. */
+export const getProductDetail = cache(loadProductDetail);
 export type ProductDetail = NonNullable<Awaited<ReturnType<typeof getProductDetail>>>;
 
 /** "You may also like": same department + category, then same department. */
-export async function relatedProducts(p: { id: string; department: string | null; category: string }) {
+export async function relatedProducts(p: {
+  id: string;
+  department: string | null;
+  category: string;
+}) {
   const rows = await prisma.product.findMany({
     where: {
       status: "ACTIVE",
@@ -277,7 +292,11 @@ export async function getCollection(slug: string) {
   return prisma.collection.findFirst({ where: { slug, published: true } });
 }
 
-export async function productCards(where: Prisma.ProductWhereInput, take: number, orderBy?: Prisma.ProductOrderByWithRelationInput[]) {
+export async function productCards(
+  where: Prisma.ProductWhereInput,
+  take: number,
+  orderBy?: Prisma.ProductOrderByWithRelationInput[],
+) {
   const rows = await prisma.product.findMany({
     where: { status: "ACTIVE", ...where },
     orderBy: [...(orderBy ?? [{ featured: "desc" }, { publishedAt: "desc" }]), { id: "asc" }],

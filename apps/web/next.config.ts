@@ -18,6 +18,10 @@ const config: NextConfig = {
   transpilePackages: ["@trestle/shared", "@trestle/db"],
   serverExternalPackages: ["@prisma/client", "ioredis"],
   typedRoutes: false,
+  // Resolve metadata into <head> for every client instead of streaming it into <body> for non-bots. Pages
+  // here await their data before the HTML is sent anyway, so this costs nothing and keeps title/description
+  // where every crawler, link unfurler and audit tool looks.
+  htmlLimitedBots: /.*/,
   images: {
     formats: ["image/avif", "image/webp"],
     qualities: [75, 90],
@@ -25,7 +29,9 @@ const config: NextConfig = {
     imageSizes: [48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 31_536_000,
     // uploaded product images (Supabase Storage public bucket)
-    remotePatterns: [{ protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" }],
+    remotePatterns: [
+      { protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" },
+    ],
   },
   eslint: { ignoreDuringBuilds: false },
   webpack: (cfg) => {

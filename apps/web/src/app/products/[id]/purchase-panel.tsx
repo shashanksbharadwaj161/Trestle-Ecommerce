@@ -334,7 +334,7 @@ export function PurchasePanel({
             className="mt-8 border-t border-border"
           >
             <AccordionItem value="details">
-              <AccordionTrigger>Details</AccordionTrigger>
+              <AccordionTrigger level={2}>Details</AccordionTrigger>
               <AccordionContent>
                 <p>{product.description}</p>
                 <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-[0.8125rem]">
@@ -357,7 +357,7 @@ export function PurchasePanel({
             </AccordionItem>
             {(product.fit || product.chart) && (
               <AccordionItem value="fit">
-                <AccordionTrigger>Size &amp; fit</AccordionTrigger>
+                <AccordionTrigger level={2}>Size &amp; fit</AccordionTrigger>
                 <AccordionContent>
                   {product.fit && <p>{product.fit}</p>}
                   {product.chart && (
@@ -374,7 +374,7 @@ export function PurchasePanel({
             )}
             {(product.material || product.care.length > 0) && (
               <AccordionItem value="care">
-                <AccordionTrigger>Material &amp; care</AccordionTrigger>
+                <AccordionTrigger level={2}>Material &amp; care</AccordionTrigger>
                 <AccordionContent>
                   {product.material && <p>{product.material}</p>}
                   {product.care.length > 0 && (
@@ -394,7 +394,7 @@ export function PurchasePanel({
               </AccordionItem>
             )}
             <AccordionItem value="delivery">
-              <AccordionTrigger>Delivery &amp; returns</AccordionTrigger>
+              <AccordionTrigger level={2}>Delivery &amp; returns</AccordionTrigger>
               <AccordionContent>
                 <p>{POLICY.standard}</p>
                 <p className="mt-2">{POLICY.express}</p>
@@ -410,7 +410,7 @@ export function PurchasePanel({
               </AccordionContent>
             </AccordionItem>
             <AccordionItem value="payment">
-              <AccordionTrigger>Payment options</AccordionTrigger>
+              <AccordionTrigger level={2}>Payment options</AccordionTrigger>
               <AccordionContent>
                 <p>
                   {product.cardEnabled

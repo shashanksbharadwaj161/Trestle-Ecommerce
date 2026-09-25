@@ -164,42 +164,45 @@ export async function ListingPage({
           </div>
         </div>
       ) : (
-        <ul
-          data-product-grid
-          data-density={density}
-          className="product-grid grid gap-x-[2px] gap-y-6 md:gap-y-8"
-          aria-label="Products"
-        >
-          {cells.map((c, idx) =>
-            c.kind === "p" ? (
-              <li key={c.p.id} className="reveal">
-                <ProductCard p={c.p} priority={c.i < 4} sizes={cardSizes} />
-              </li>
-            ) : (
-              <li key={`e-${idx}`} className="reveal grid-wide">
-                <Link
-                  href={c.e.href}
-                  className="group relative block h-full min-h-[70vw] overflow-hidden bg-muted md:min-h-0"
-                >
-                  <Image
-                    src={c.e.image}
-                    alt=""
-                    fill
-                    sizes="(min-width: 1280px) 50vw, (min-width: 768px) 66vw, 100vw"
-                    className="object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.02]"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/45 to-transparent p-5 pt-24 text-white md:p-8">
-                    <p className="eyebrow opacity-90">{c.e.kicker}</p>
-                    <p className="mt-2 text-2xl tracking-tight md:text-3xl">{c.e.title}</p>
-                    <span className="mt-3 inline-block text-sm underline underline-offset-4">
-                      Shop now
-                    </span>
-                  </div>
-                </Link>
-              </li>
-            ),
-          )}
-        </ul>
+        <>
+          <h2 className="sr-only">Products</h2>
+          <ul
+            data-product-grid
+            data-density={density}
+            className="product-grid grid gap-x-[2px] gap-y-6 md:gap-y-8"
+            aria-label="Products"
+          >
+            {cells.map((c, idx) =>
+              c.kind === "p" ? (
+                <li key={c.p.id}>
+                  <ProductCard p={c.p} priority={c.i < 4} sizes={cardSizes} />
+                </li>
+              ) : (
+                <li key={`e-${idx}`} className="grid-wide">
+                  <Link
+                    href={c.e.href}
+                    className="group relative block h-full min-h-[70vw] overflow-hidden bg-muted md:min-h-0"
+                  >
+                    <Image
+                      src={c.e.image}
+                      alt=""
+                      fill
+                      sizes="(min-width: 1280px) 50vw, (min-width: 768px) 66vw, 100vw"
+                      className="object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.02]"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/45 to-transparent p-5 pt-24 text-white md:p-8">
+                      <p className="eyebrow opacity-90">{c.e.kicker}</p>
+                      <p className="mt-2 text-2xl tracking-tight md:text-3xl">{c.e.title}</p>
+                      <span className="mt-3 inline-block text-sm underline underline-offset-4">
+                        Shop now
+                      </span>
+                    </div>
+                  </Link>
+                </li>
+              ),
+            )}
+          </ul>
+        </>
       )}
 
       {items.length > 0 && (
