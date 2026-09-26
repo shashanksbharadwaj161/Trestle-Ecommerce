@@ -1,60 +1,73 @@
 # Trestle — session handoff
 
-Branch `claude/festive-dirac-bk0eb4` (Vercel production). Latest fixes: `cb4930f`, `a1c3769`, `4004120`, `7e27ceb` (diagnostics `c90c46f`, `127f863`) on top of
-Codex's `f750b3e` (Supabase integration mapping, private `trestle` schema, PostgreSQL KV, derived session key —
-preserved). Constraints in force: **nothing paid** (free tiers only); **card payments stay disabled** on the
-deployment by the user's choice (the code refuses live Stripe keys); crypto testnet/relayer not configured.
+Branch `claude/festive-dirac-bk0eb4` (Vercel production, https://trestle-ecommerce-web.vercel.app). Deployed and
+verified commit: `0278689` (fixes `fbe790a`, `282953f`, `4e94436`, `0278689` on top of `cc76801`; earlier speed
+fixes `cb4930f` … `7e27ceb`; Codex's `f750b3e` Supabase/PostgreSQL-KV work preserved). Constraints in force:
+**nothing paid** (free tiers only); **card payments stay disabled** by the user's choice (checkout says so; live Stripe
+keys are refused); the crypto testnet deployment/relayer is not configured on production.
 
-## Live site: speed and reliability (https://trestle-ecommerce-web.vercel.app)
+## Live verification of `0278689` (real Chromium from this sandbox)
 
-Measured from this sandbox with curl (TTFB, two consecutive requests) and a real Chromium browser
-(`apps/web/scripts/journey-audit.ts`, read-only mode — no orders, payments, sign-ups or emails on production).
+| Check                                                                                                                                                                                                                                                                                                                                                                                                                        | Result                                                                                                                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Journey audit, **mutating** (`AUDIT_MUTATE=1`): navigation, mega menu, footer, filters/sort/chips/load more/density, rapid navigation, back/forward, search overlay + results, PDP colour/size guide/zoom, add to bag, bag qty +/−/remove + reload persistence, quick add, wishlist, register → account → profile → sign out → sign in, wrong password, admin gate, mobile menu/theme at 768/390, checkout unavailable state | **78/78 passed**. Test data: guest bag emptied again; a `trestle-audit+…@example.test` account created and then **deleted via Profile → Delete account** (final check: it can no longer sign in). No orders, payments or emails. |
+| Journey audit, reduced motion (read-only)                                                                                                                                                                                                                                                                                                                                                                                    | 69/69                                                                                                                                                                                                                            |
+| Journey audit, Slow-4G (read-only)                                                                                                                                                                                                                                                                                                                                                                                           | 69/69 (slowest step 2.0 s)                                                                                                                                                                                                       |
+| Hydration stress, Slow-4G (`scripts/hydration-stress.ts`: density cookie variants, query-string listings, density toggle + reload, rapid navigation, back/forward + reload; 1440 and 390)                                                                                                                                                                                                                                    | 81 page loads, **0 hydration errors**                                                                                                                                                                                            |
+| Wallet pages `/seller/onboarding`, `/account/wallet`                                                                                                                                                                                                                                                                                                                                                                         | no HEAD probe, no console errors; Connect modal lists every configured wallet (injected, Coinbase)                                                                                                                               |
+| Patched React in the deployed client bundle                                                                                                                                                                                                                                                                                                                                                                                  | backported fix found in `/_next/static/chunks/89df2189-….js`                                                                                                                                                                     |
 
-|                                                          | Before (`f750b3e`, functions in iad1)                                    | After (`7e27ceb`, functions in icn1)                                                                                |
-| -------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| `/`, `/women`, `/men`, `/new`, `/accessories`, `/search` | 6.4–7.3 s (some 500 after ~10 s)                                         | 0.38–0.60 s                                                                                                         |
-| PDP `/products/floral-maxi-dress`                        | 5.9–6.1 s                                                                | 0.36–0.45 s                                                                                                         |
-| `/bag`, `/checkout`, `/account`, `/sign-in`              | 1.1–1.3 s                                                                | 0.37–0.45 s                                                                                                         |
-| `/api/products?pageSize=6`                               | 6.1–8.5 s                                                                | 0.42–0.66 s                                                                                                         |
-| API errors, 3 concurrent browsers × 8 pages              | 12 of 54 `/api/cart` → 500 (SQLSTATE 42P01)                              | 0 of 240 across 5 runs                                                                                              |
-| Browser audit, normal                                    | 42 checks passed; 17× HTTP 500; rapid-navigation race; slowest step 21 s | 69/70; only a wallet-SDK console error on `/seller/onboarding`; slowest step 2.2 s                                  |
-| Browser audit, Slow-4G                                   | not run                                                                  | 68/70; one transient 502 on `/transparency` (4/4 × 200 in ~0.6 s right after) and one React #418 on a `/women` load |
+Live TTFB (curl, two consecutive requests): `/women`, `/men`, `/new`, `/accessories`, `/collections`, PDP, `/bag`,
+`/checkout`, `/account`, `/sign-in`, `/search`, `/transparency`, `/seller/onboarding`: 0.33–0.65 s; `/` 1.23 s on the
+first request then 0.76 s; `/api/cart` 0.64–0.66 s; `/api/products` 0.48–0.67 s. (Before the speed work these pages
+took 6–7 s and intermittently returned 500.)
 
-Root causes found and fixed:
+## What was fixed in this round
 
-1. **Region**: functions ran in Washington (iad1) against the Seoul database — every query crossed the Pacific.
-   `apps/web/vercel.json` now pins `regions: ["icn1"]` (Hobby allows one region).
-2. **One pooled connection** (`connection_limit=1`): concurrent requests queued and failed after Prisma's 10 s pool
-   timeout (the live 500s). Integration URL now uses 5 connections, `pool_timeout`/`connect_timeout` 10 s.
-3. **Round trips**: Prisma loaded each relation separately (PDP 16 queries). `relationJoins` preview feature makes
-   each include one query.
-4. **No caching**: every page re-read the whole catalogue. Public catalogue reads now use the Next data cache (tag
-   `catalog`, 60 s, BigInt/Date-safe); writes to product/stock API paths invalidate it. Personal data (sessions,
-   bags, wishlists, orders) is never cached; stock is re-checked in the database on every bag add and checkout.
-5. **Rate limit** on the PostgreSQL KV is one atomic statement instead of two.
-6. **Intermittent `/api/cart` 500 (SQLSTATE 42P01)**: raw SQL used an unqualified `"AppKV"`; behind Supabase's
-   transaction pooler the backend `search_path` is not guaranteed to be `trestle`. All raw SQL now goes through
-   `table()` from `@trestle/db` (schema-qualified); `apps/web/test/raw-sql-schema.test.ts` guards it.
-7. **Dead-feeling clicks**: viewport prefetch fired ~20 dynamic server renders per page and caused an App Router
-   race (URL changed, old page stayed). Links default to `prefetch={false}` (`src/components/link.tsx`). Product
-   card View Transitions (froze input up to 1.2 s) and the hover size panel (intercepted Quick add clicks) were
-   removed. A top progress bar now appears on click, with "Still loading…" after 6 s. Client API calls time out
-   after 25 s with a message. Checkout says plainly that payments are switched off.
+1. **Intermittent React #418 under slow networks — root cause fixed.** Reproduced locally (6 errors in 72 Slow-4G
+   loads) with an unminified build and React's hydration cursor instrumented: when a grid `<li>`'s `ProductCard`
+   client chunk is still downloading, the RSC element is lazy, React suspends inside the host `<ul>` (or the listing
+   `<div>`) and replays it; React 19.2 (vendored by Next 15.5.26, the newest 15.5) does not rewind the hydration
+   cursor on a host replay, so the `<ul>` claims its own first `<li>`. React 19.3.0 fixed exactly this.
+   `patches/next@15.5.26.patch` (pnpm `patchedDependencies`) backports it into Next's vendored react-dom:
+   0 errors in 144 local and 81 live Slow-4G loads. `test/react-hydration-patch.test.ts` fails if an upgrade drops
+   it — remove the patch once Next ships React ≥ 19.3.
+2. **`/transparency` 502** — not reproducible (every later request 200 in ~0.6 s); no code fault found, so it is
+   recorded as an unexplained platform incident (Vercel answers 502 when a function crashes or does not respond).
+   Hardened anyway: the public aggregate is cached for 15 s (it ran 13 queries per viewer every 8 s), chain reads are
+   bounded to 5 s, the page shows "Live figures are temporarily unavailable" + Try again instead of an error page
+   (verified with the database stopped), polling is every 30 s, and database outages now answer **503 +
+   Retry-After** instead of 500 (`test/http-errors.test.ts`).
+3. **Wallet SDK console error** — wagmi's reconnect-on-mount probed every connector, so the Coinbase SDK loaded on
+   every crypto page and HEAD-requested the page for its COOP check. Now only browsers that connected a wallet
+   before auto-reconnect. Wallet support verified by the crypto browser E2E on fresh local chains (connect, SIWE,
+   cross-chain escrow, gasless completion → COMPLETED).
+4. **Self-service account deletion** (Profile → Delete account; password-confirmed; refused for accounts with
+   orders/payments/returns/reviews/disputes/seller or on-chain history) — also lets the live audit clean up.
 
-Still open on the live site:
+## Earlier rounds (still in place)
 
-- A rare React #418 hydration error: 2 in about 70 throttled (Slow-4G) live page loads of `/women`, none in 24
-  local throttled loads. React recovers by client-rendering, so the page still works; root cause not yet found.
-- The Coinbase wallet SDK (via RainbowKit) logs "Error checking Cross-Origin-Opener-Policy" on `/seller/onboarding`.
-- Mutating journeys (bag, wishlist, register/sign-in/out) were verified locally only (isolated DB); production got
-  read-only checks, per the no-real-orders constraint. Card payments remain disabled; crypto testnet is not deployed.
-- 500 responses carry `ref` (error class + Prisma/Postgres code) and `/api/health` reports `runtime` (region, pool)
-  for diagnosis without log access.
+Seoul function region, pool of 5, Prisma `relationJoins`, cached public catalogue (60 s, invalidated on writes),
+schema-qualified raw SQL (fixed intermittent `/api/cart` 500s), links without viewport prefetch (fixed a
+navigation race), no click-blocking View Transitions, navigation progress bar, 25 s client request timeout,
+diagnostic `ref` on 5xx and `runtime` on `/api/health`.
+
+## Genuine remaining blockers / not verified
+
+- **Admin and seller flows on production** need an admin/seller account; none was provided, and creating one would
+  need database access to production — only the anonymous protection was verified live. They pass locally.
+- **Card payments**: disabled by request; only the mock-Stripe path is tested locally. No real Stripe test-mode
+  transaction has been run.
+- **Password-reset email**: not exercised live (would send real email; the provider may be unconfigured — then the
+  endpoint answers 503 and the UI says so).
+- **Crypto on production**: no testnet contracts/relayer; the crypto flow is verified only on local Anvil chains.
+- **Imagery**: most products still use the low-resolution 960×1280 demo set (open requirement).
 
 Reproduce: `BASE_URL=https://trestle-ecommerce-web.vercel.app pnpm --filter @trestle/web exec tsx scripts/journey-audit.ts`
-(add `AUDIT_SLOW_NETWORK=1` / `AUDIT_REDUCED_MOTION=1`; `AUDIT_MUTATE=1` only against an isolated database).
-From this sandbox, Chromium needs the proxy CA in its NSS store (`certutil -A -d sql:$HOME/.pki/nssdb -n ccr-agent-proxy
--t "C,," -i /root/.ccr/agent-proxy-ca.crt`); TLS verification stays on.
+(`AUDIT_SLOW_NETWORK=1`, `AUDIT_REDUCED_MOTION=1`; `AUDIT_MUTATE=1` cleans up after itself) and
+`… tsx scripts/hydration-stress.ts`. From this sandbox Chromium needs the proxy CA in its NSS store
+(`certutil -A -d sql:$HOME/.pki/nssdb -n ccr-agent-proxy -t "C,," -i /root/.ccr/agent-proxy-ca.crt`); TLS verification
+stays on.
 
 ## Verified locally (production build)
 
@@ -63,13 +76,13 @@ From this sandbox, Chromium needs the proxy CA in its NSS store (`certutil -A -d
 | Types                                                                                                                                                            | `pnpm --filter @trestle/web exec tsc --noEmit`                                                        | 0 errors                                                                                                                            |
 | Lint                                                                                                                                                             | `pnpm --filter @trestle/web exec eslint src scripts`                                                  | clean                                                                                                                               |
 | Production build                                                                                                                                                 | `pnpm --filter @trestle/web build`                                                                    | passes                                                                                                                              |
-| Unit/contract tests                                                                                                                                              | `pnpm --filter @trestle/web test` · `pnpm --filter @trestle/shared test`                              | 53/53 · 16/16                                                                                                                       |
+| Unit/contract tests                                                                                                                                              | `pnpm --filter @trestle/web test` · `pnpm --filter @trestle/shared test`                              | 61/61 · 16/16                                                                                                                       |
 | Store browser E2E (card checkout, cancel, register + bag merge, wishlist, admin fulfilment, return + refund)                                                     | `pnpm --filter @trestle/web e2e:store` against `next start`                                           | passed 10/10 consecutive runs after the hydration fix, and every run since                                                          |
 | Crypto browser E2E (Add to bag → checkout → stablecoin escrow, cross-chain B→A, gasless confirm → COMPLETED)                                                     | `pnpm --filter @trestle/web e2e:ui`                                                                   | passed (local Anvil chains 31337/31338 + relayer)                                                                                   |
 | API crypto E2E (cross-chain, gasless, certificate transfer, dispute, orphan refund)                                                                              | `pnpm --filter @trestle/web e2e:local`                                                                | passed                                                                                                                              |
 | Responsive smoke + axe                                                                                                                                           | `pnpm --filter @trestle/web smoke`                                                                    | 42 routes × 390/768/1440 × light/dark; 0 serious/critical axe violations; no broken images or horizontal overflow                   |
 | Lighthouse 12 (default mobile emulation, local `next start`)                                                                                                     | `npx lighthouse@12 <url>`                                                                             | home, /women, a PDP, /bag: accessibility 100, best practices 100, SEO 100; performance 90–96 (LCP 2.5–3.2 s simulated, CLS ≤ 0.073) |
-| Journey audit (every nav item, filters/sort/load more/density, search, PDP, bag qty/remove, quick add, wishlist, register/sign-in/out, admin gate; 1440/768/390) | `AUDIT_MUTATE=1 tsx scripts/journey-audit.ts` (also `AUDIT_REDUCED_MOTION=1`, `AUDIT_SLOW_NETWORK=1`) | 76/76 in normal, reduced-motion and Slow-4G modes (local, isolated DB)                                                              |
+| Journey audit (every nav item, filters/sort/load more/density, search, PDP, bag qty/remove, quick add, wishlist, register/sign-in/out, admin gate; 1440/768/390) | `AUDIT_MUTATE=1 tsx scripts/journey-audit.ts` (also `AUDIT_REDUCED_MOTION=1`, `AUDIT_SLOW_NETWORK=1`) | 78/78 in normal, reduced-motion and Slow-4G modes (local, isolated DB)                                                              |
 | Contrast tokens                                                                                                                                                  | `node apps/web/scripts/check-contrast.mjs`                                                            | all AA                                                                                                                              |
 
 **Card payments are tested against a LOCAL MOCK of the Stripe API** (`apps/web/test/mock-stripe.ts`); webhook
