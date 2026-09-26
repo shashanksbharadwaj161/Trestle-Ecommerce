@@ -33,7 +33,8 @@ function AuthLayer({ children }: { children: React.ReactNode }) {
           createSiweMessage({
             domain: window.location.host,
             address,
-            statement: "Sign in to Trestle. This signature does not send a transaction or cost gas.",
+            statement:
+              "Sign in to Trestle. This signature does not send a transaction or cost gas.",
             uri: window.location.origin,
             version: "1",
             chainId,
@@ -43,9 +44,13 @@ function AuthLayer({ children }: { children: React.ReactNode }) {
           }),
         verify: async ({ message, signature }) => {
           try {
-            const r = await api<{ linked: boolean }>("/api/auth/verify", { body: { message, signature } });
+            const r = await api<{ linked: boolean }>("/api/auth/verify", {
+              body: { message, signature },
+            });
             await qc.invalidateQueries();
-            toast.success(r.linked ? "Wallet linked to your account" : "Signed in with your wallet");
+            toast.success(
+              r.linked ? "Wallet linked to your account" : "Signed in with your wallet",
+            );
             return true;
           } catch (err) {
             toast.error((err as Error).message);
@@ -76,7 +81,11 @@ function AuthLayer({ children }: { children: React.ReactNode }) {
   const status = loading ? "loading" : user?.walletAddress ? "authenticated" : "unauthenticated";
   const rkTheme =
     resolvedTheme === "dark"
-      ? darkTheme({ accentColor: "#eeece6", accentColorForeground: "#0f0f0e", borderRadius: "small" })
+      ? darkTheme({
+          accentColor: "#eeece6",
+          accentColorForeground: "#0f0f0e",
+          borderRadius: "small",
+        })
       : lightTheme({ accentColor: "#171614", borderRadius: "small" });
 
   return (
@@ -91,8 +100,17 @@ function AuthLayer({ children }: { children: React.ReactNode }) {
 export function CryptoProviders({ children }: { children: React.ReactNode }) {
   const config = usePublicConfig();
   const [wagmiConfig] = useState(() => buildWagmiConfig(config));
+  // Auto-reconnect only when this browser has connected a wallet before. Reconnecting probes every connector,
+  // and the Coinbase connector then loads its SDK, which immediately HEAD-requests the current page to check
+  // the Cross-Origin-Opener-Policy (an extra server render per page, and a console error when the request is
+  // cut off by navigating away). Visitors who never connected load no wallet SDK until they pick one.
+  const [reconnectOnMount] = useState(
+    () =>
+      typeof document !== "undefined" &&
+      /(?:^|;\s*)wagmi\.recentConnectorId=/.test(document.cookie),
+  );
   return (
-    <WagmiProvider config={wagmiConfig}>
+    <WagmiProvider config={wagmiConfig} reconnectOnMount={reconnectOnMount}>
       <AuthLayer>{children}</AuthLayer>
     </WagmiProvider>
   );
