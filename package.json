@@ -2,7 +2,7 @@
   "name": "trestle",
   "private": true,
   "version": "0.1.0",
-  "description": "Trestle \u2014 cross-chain-native ecommerce marketplace. Buy from any chain. Sell without limits.",
+  "description": "Trestle — cross-chain-native ecommerce marketplace. Buy from any chain. Sell without limits.",
   "packageManager": "pnpm@10.33.0",
   "engines": {
     "node": ">=20.11"
@@ -53,6 +53,9 @@
       "utf-8-validate",
       "secp256k1",
       "protobufjs"
-    ]
+    ],
+    "patchedDependencies": {
+      "next@15.5.26": "patches/next@15.5.26.patch"
+    }
   }
 }
