@@ -74,6 +74,8 @@ async function shot(page: Page, name: string) {
   await page.screenshot({ path: `${OUT}/ui-e2e-${name}.png`, fullPage: false });
 }
 
+let failurePage: import("playwright").Page | null = null;
+
 async function main() {
   const prisma = new PrismaClient();
   // a Trestle Denim product (seller paid on Local A) so paying from Local B is cross-chain
@@ -93,12 +95,23 @@ async function main() {
   const page = await ctx.newPage();
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
+  page.on(
+    "console",
+    (m) => m.type() === "error" && errors.push(`console: ${m.text().slice(0, 300)}`),
+  );
+  failurePage = page;
   const t0 = Date.now();
   const mark = (s: string) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${s}`);
 
-  await page.goto(`${BASE}/products/${product.slug}?colour=${encodeURIComponent(variant.colour!)}`, { waitUntil: "networkidle" });
+  await page.goto(
+    `${BASE}/products/${product.slug}?colour=${encodeURIComponent(variant.colour!)}`,
+    { waitUntil: "networkidle" },
+  );
   mark(`product page: ${product.title} (${variant.colour} / ${variant.size})`);
-  await page.getByRole("radio", { name: new RegExp(`^Size ${variant.size}(,|$)`) }).first().click();
+  await page
+    .getByRole("radio", { name: new RegExp(`^Size ${variant.size}(,|$)`) })
+    .first()
+    .click();
   await page.getByRole("button", { name: "Add to bag" }).first().click();
   await page.getByRole("dialog", { name: /Bag/ }).waitFor();
   await page.goto(`${BASE}/checkout`, { waitUntil: "networkidle" });
@@ -107,7 +120,10 @@ async function main() {
   await page.waitForURL(/\/checkout\/crypto\?seller=/, { waitUntil: "commit" });
   mark("stablecoin checkout (signed out)");
 
-  await page.getByRole("button", { name: /Connect wallet/i }).first().click();
+  await page
+    .getByRole("button", { name: /Connect wallet/i })
+    .first()
+    .click();
   // RainbowKit either lists wallets or (single injected provider) goes straight to the SIWE step
   const signBtn = page.getByRole("button", { name: /Sign message/i });
   const walletBtn = page
@@ -186,7 +202,16 @@ async function main() {
   console.log("UI E2E PASSED");
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
   console.error("UI E2E FAILED:", e.message);
+  if (failurePage) {
+    await failurePage.screenshot({ path: `${OUT}/ui-e2e-failure.png` }).catch(() => undefined);
+    const alerts = await failurePage
+      .getByRole("alert")
+      .allInnerTexts()
+      .catch(() => []);
+    if (alerts.length) console.error("alerts on page:", alerts);
+    console.error("at", failurePage.url());
+  }
   process.exit(1);
 });

@@ -157,6 +157,71 @@ function Profile({ user }: { user: SessionUser }) {
           {user.walletAddress ? "Wallet & escrow" : "Link a wallet"}
         </Link>
       </section>
+
+      <DeleteAccount hasPassword={user.hasPassword} />
     </Container>
+  );
+}
+
+function DeleteAccount({ hasPassword }: { hasPassword: boolean }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [pw, setPw] = useState("");
+  const del = useMutation({
+    mutationFn: () =>
+      api("/api/account", { method: "DELETE", body: { password: hasPassword ? pw : undefined } }),
+    onSuccess: async () => {
+      await qc.invalidateQueries();
+      toast.success("Your account has been deleted");
+      window.location.assign("/");
+    },
+  });
+  return (
+    <section className="border-t border-border py-8">
+      <h2 className="text-[0.9375rem] font-medium">Delete account</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Removes your account, saved wishlist and bag. Accounts with orders or other records we must
+        keep can’t be deleted here — contact us instead.
+      </p>
+      {!open ? (
+        <Button type="button" variant="outline" className="mt-4" onClick={() => setOpen(true)}>
+          Delete my account…
+        </Button>
+      ) : (
+        <form
+          className="mt-4 space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            del.mutate();
+          }}
+        >
+          {del.isError && (
+            <p role="alert" className="bg-danger-soft px-4 py-3 text-sm text-danger">
+              {errorMessage(del.error)}
+            </p>
+          )}
+          {hasPassword && (
+            <Field label="Confirm with your password" htmlFor="delpw">
+              <Input
+                id="delpw"
+                type="password"
+                autoComplete="current-password"
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                required
+              />
+            </Field>
+          )}
+          <div className="flex gap-2">
+            <Button type="submit" loading={del.isPending} disabled={hasPassword && !pw}>
+              Permanently delete account
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      )}
+    </section>
   );
 }

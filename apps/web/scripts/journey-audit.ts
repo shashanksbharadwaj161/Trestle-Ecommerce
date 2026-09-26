@@ -429,6 +429,18 @@ async function mutating(page: Page) {
       .waitFor({ timeout: NAV_TIMEOUT });
     await page.keyboard.press("Escape");
   });
+  await check("bag empties again (test data removed)", async () => {
+    await page.goto(BASE + "/bag", { waitUntil: "networkidle" });
+    for (let i = 0; i < 10 && !(await page.getByText(/bag is empty/i).isVisible()); i++) {
+      await page
+        .locator("main")
+        .getByRole("button", { name: /Remove/ })
+        .first()
+        .click();
+      await page.waitForTimeout(800);
+    }
+    await page.getByText(/bag is empty/i).waitFor({ timeout: NAV_TIMEOUT });
+  });
   await check("wishlist heart persists to /wishlist", async () => {
     await page.goto(BASE + "/women", { waitUntil: "networkidle" });
     const heart = page.getByRole("button", { name: /^Save .* to wishlist$/ }).first();
@@ -438,7 +450,8 @@ async function mutating(page: Page) {
     await page.getByText(label).first().waitFor({ timeout: NAV_TIMEOUT });
   });
   await resetLocalAuthRateLimits();
-  const email = `audit${Date.now()}@example.test`;
+  // clearly labelled, non-routable test address (RFC 2606) — deleted again at the end of this section
+  const email = `trestle-audit+${Date.now()}@example.test`;
   await check("register → account → profile → sign out → sign in", async () => {
     await page.goto(BASE + "/register", { waitUntil: "networkidle" });
     await page.getByLabel("Name").fill("Audit Shopper");
@@ -470,6 +483,23 @@ async function mutating(page: Page) {
     await page.goto(BASE + "/sign-in", { waitUntil: "networkidle" });
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill("definitely wrong 1");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.getByRole("alert").waitFor({ timeout: NAV_TIMEOUT });
+  });
+  await check("delete the test account from Profile, then it can no longer sign in", async () => {
+    await page.goto(BASE + "/sign-in", { waitUntil: "networkidle" });
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Password").fill("audit password 123");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.waitForURL(/\/account$/, { timeout: NAV_TIMEOUT });
+    await page.goto(BASE + "/account/profile", { waitUntil: "networkidle" });
+    await page.getByRole("button", { name: /Delete my account/ }).click();
+    await page.getByLabel("Confirm with your password").fill("audit password 123");
+    await page.getByRole("button", { name: "Permanently delete account" }).click();
+    await page.waitForURL((u) => u.pathname === "/", { timeout: NAV_TIMEOUT });
+    await page.goto(BASE + "/sign-in", { waitUntil: "networkidle" });
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Password").fill("audit password 123");
     await page.getByRole("button", { name: "Sign in" }).click();
     await page.getByRole("alert").waitFor({ timeout: NAV_TIMEOUT });
   });
