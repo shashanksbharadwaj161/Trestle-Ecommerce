@@ -6,6 +6,18 @@ fixes `cb4930f` … `7e27ceb`; Codex's `f750b3e` Supabase/PostgreSQL-KV work pre
 **nothing paid** (free tiers only); **card payments stay disabled** by the user's choice (checkout says so; live Stripe
 keys are refused); the crypto testnet deployment/relayer is not configured on production.
 
+## Customer-facing copy (`cba0430`, live)
+
+Demo/setup wording is gone from the public site (footer notice, "Demo storefront", hero "not a product" label,
+policy placeholder banners, Stripe/"not configured"/relayer notes). `src/server/payments.ts` decides which payment
+methods work; copy, footer links, home tile, PDP/bag/help lines and account wallet items follow it. On production
+(card and stablecoin both off): checkout says "Online checkout is temporarily unavailable … nothing has been
+charged", the stablecoin option, wallet/loyalty/seller/transparency links are hidden, `/transparency` is 404 and
+`/checkout/crypto` explains stablecoin payments aren't available. Wherever card payments run in Stripe test mode the
+test-mode notice still shows, and the escrow dashboard keeps its testnet disclosures when escrow is live. Live check:
+copy scan of 34 routes shows only the payment-provider and image-licence attributions; journey audit (mutating,
+self-cleaning) 76/76 functional checks passed (one transient Vercel image-optimizer 502, 3/3 × 200 on recheck).
+
 ## Live verification of `0278689` (real Chromium from this sandbox)
 
 | Check                                                                                                                                                                                                                                                                                                                                                                                                                        | Result                                                                                                                                                                                                                           |
