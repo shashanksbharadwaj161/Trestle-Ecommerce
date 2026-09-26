@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "@/components/link";
 import { Suspense } from "react";
 import { AuthForm } from "./auth-form";
+import { paymentAvailability } from "@/server/payments";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -21,13 +22,15 @@ export default function SignInPage() {
             Forgot your password?
           </Link>
         </p>
-        <p className="mt-3">
-          Paying with stablecoins? You can also{" "}
-          <Link href="/account/wallet" className="text-foreground underline underline-offset-4">
-            sign in with your wallet
-          </Link>
-          .
-        </p>
+        {paymentAvailability().crypto && (
+          <p className="mt-3">
+            Paying with stablecoins? You can also{" "}
+            <Link href="/account/wallet" className="text-foreground underline underline-offset-4">
+              sign in with your wallet
+            </Link>
+            .
+          </p>
+        )}
       </div>
     </div>
   );

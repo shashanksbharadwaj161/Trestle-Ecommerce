@@ -5,7 +5,7 @@ import { SiteHeader, type HeaderCollection } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { SegmentOutlet } from "@/components/segment-outlet";
 import { publicConfig } from "@/server/env";
-import { cardConfig } from "@/server/stripe";
+import { paymentAvailability } from "@/server/payments";
 import { listCollections } from "@/server/catalog";
 
 export const metadata: Metadata = {
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     template: "%s · Trestle",
   },
   description:
-    "Trestle: dresses, jersey tees, denim and knit hats for women and men. Pay by card, or with stablecoins held in escrow until delivery.",
+    "Trestle: dresses, shirting, jersey, denim and knitwear for women and men — considered pieces, made to be worn often.",
   icons: { icon: "/favicon.svg" },
 };
 
@@ -40,11 +40,7 @@ async function headerCollections(): Promise<HeaderCollection[]> {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const config = publicConfig();
-  const card = cardConfig();
-  const notice = card.enabled
-    ? "Demo store: card payments run in Stripe test mode — no real charges are made and nothing ships."
-    : "Demo store: card payments are not configured yet, so orders cannot be paid by card.";
+  const config = { ...publicConfig(), payments: paymentAvailability() };
   const collections = await headerCollections();
   return (
     <html lang="en" suppressHydrationWarning>
@@ -58,7 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <main id="main" className="flex-1">
               <SegmentOutlet>{children}</SegmentOutlet>
             </main>
-            <SiteFooter notice={notice} />
+            <SiteFooter crypto={config.payments.crypto} />
           </div>
         </Providers>
       </body>

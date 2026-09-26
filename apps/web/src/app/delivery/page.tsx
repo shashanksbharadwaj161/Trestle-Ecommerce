@@ -6,14 +6,24 @@ export const metadata: Metadata = { title: "Delivery" };
 
 export default function DeliveryPage() {
   return (
-    <ContentPage title="Delivery" current="/delivery" intro="Delivery options and prices, as charged at checkout." ownerContent>
+    <ContentPage
+      title="Delivery"
+      current="/delivery"
+      intro="Delivery options and prices, as charged at checkout."
+    >
       <table className="not-prose w-full border-collapse text-sm">
         <caption className="sr-only">Delivery options</caption>
         <thead>
           <tr className="border-b border-foreground text-left">
-            <th scope="col" className="py-2 pr-4 font-medium">Option</th>
-            <th scope="col" className="py-2 pr-4 font-medium">Estimated time</th>
-            <th scope="col" className="py-2 font-medium">Price</th>
+            <th scope="col" className="py-2 pr-4 font-medium">
+              Option
+            </th>
+            <th scope="col" className="py-2 pr-4 font-medium">
+              Estimated time
+            </th>
+            <th scope="col" className="py-2 font-medium">
+              Price
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -31,13 +41,14 @@ export default function DeliveryPage() {
       </table>
       <h2>Where we deliver</h2>
       <p>
-        You choose your country on the payment page. Delivery times are estimates from dispatch and are not guaranteed.
-        Taxes and import duties are not calculated by this demo store.
+        You choose your delivery country at checkout. Delivery times are estimates from dispatch.
+        Prices do not include local import duties or taxes, which may be charged by the carrier on
+        delivery.
       </p>
       <h2>Tracking</h2>
       <p>
-        When your order ships, its carrier and tracking number appear on your order page, with a link to the carrier’s
-        tracking.
+        When your order ships, its carrier and tracking number appear on your order page, with a
+        link to the carrier’s tracking.
       </p>
     </ContentPage>
   );

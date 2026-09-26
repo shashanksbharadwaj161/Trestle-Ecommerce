@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "@/components/link";
-import { ArrowRight, Box, CreditCard, LifeBuoy, RotateCcw } from "lucide-react";
+import { ArrowRight, Box, CreditCard, Heart, LifeBuoy, RotateCcw } from "lucide-react";
+import { paymentAvailability } from "@/server/payments";
+import { paymentSummary } from "@/lib/payment-copy";
 import { toJsonSafe } from "@trestle/db";
 import { listCollections, newArrivals, productCards } from "@/server/catalog";
 import type { CardData } from "@/components/product-card";
@@ -36,12 +38,6 @@ const SERVICES = [
     href: "/returns",
   },
   {
-    icon: CreditCard,
-    title: "Card or stablecoin",
-    body: "Pay by card, or pay in stablecoins held in escrow.",
-    href: "/payments",
-  },
-  {
     icon: LifeBuoy,
     title: "Help & sizing",
     body: "Size guides with measurements, care and contact.",
@@ -68,6 +64,29 @@ async function load() {
     console.error("[home] catalogue unavailable", (err as Error).message);
     return { ok: false as const };
   }
+}
+
+/** The third service tile advertises only payment methods that work; otherwise it promotes saving for later. */
+function paymentTile() {
+  const pay = paymentAvailability();
+  if (!pay.card && !pay.crypto)
+    return {
+      icon: Heart,
+      title: "Save for later",
+      body: "Keep favourites in your wishlist and bag, ready when you are.",
+      href: "/wishlist",
+    };
+  return {
+    icon: CreditCard,
+    title:
+      pay.card && pay.crypto
+        ? "Card or stablecoin"
+        : pay.card
+          ? "Secure card payment"
+          : "Stablecoin escrow",
+    body: paymentSummary(pay),
+    href: "/payments",
+  };
 }
 
 export default async function Home() {
@@ -141,10 +160,6 @@ export default async function Home() {
             sizes="(min-width: 1024px) 31vw, (min-width: 768px) 50vw, 100vw"
             className="hero-zoom object-cover object-[50%_55%] transition-transform duration-[1600ms] ease-out group-hover:scale-[1.02]"
           />
-          {/* the studio photo is light in both themes, so the label keeps dark ink */}
-          <span className="absolute left-3 top-3 text-[0.6875rem] text-[#171614]/75">
-            Editorial · not a product
-          </span>
           <span className="absolute bottom-4 left-4 inline-flex items-center gap-1.5 bg-background/90 px-3 py-2 text-[0.8125rem] backdrop-blur transition-transform duration-500 group-hover:-translate-y-0.5">
             New in{" "}
             <ArrowRight
@@ -372,7 +387,7 @@ export default async function Home() {
       {/* ---------------------------------------------------------------- services */}
       <section aria-label="Shopping with Trestle" className="reveal container-page mt-20 md:mt-28">
         <ul className="grid gap-px overflow-hidden border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
-          {SERVICES.map((s) => (
+          {[...SERVICES.slice(0, 2), paymentTile(), ...SERVICES.slice(2)].map((s) => (
             <li key={s.title} className="bg-background">
               <Link
                 href={s.href}

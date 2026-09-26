@@ -1,27 +1,25 @@
 import { SHIPPING_METHODS } from "@trestle/shared";
 import { route } from "@/server/http";
 import { cardConfig } from "@/server/stripe";
-import { chainProfiles, deployment } from "@/server/chain";
+import { cryptoChains as liveCryptoChains } from "@/server/payments";
 
 export const dynamic = "force-dynamic";
 
 /** Which payment rails are live. Each is independent: one being unconfigured never blocks the other. */
 export const GET = route({}, async () => {
   const card = cardConfig();
-  let cryptoChains: number[] = [];
-  try {
-    cryptoChains = chainProfiles()
-      .filter((p) => !!deployment(p.chain.id))
-      .map((p) => p.chain.id);
-  } catch {
-    cryptoChains = [];
-  }
+  const cryptoChains = liveCryptoChains();
   return {
-    card: { enabled: card.enabled, mode: card.mode, reason: card.reason ?? null },
+    // customer-facing reasons (setup details stay in server logs / docs)
+    card: {
+      enabled: card.enabled,
+      mode: card.mode,
+      reason: card.enabled ? null : "Card payments are temporarily unavailable.",
+    },
     crypto: {
       enabled: cryptoChains.length > 0,
       chains: cryptoChains,
-      reason: cryptoChains.length ? null : "Stablecoin checkout is not configured on this deployment.",
+      reason: cryptoChains.length ? null : "Stablecoin payments are not available.",
     },
     shippingMethods: Object.values(SHIPPING_METHODS),
   };

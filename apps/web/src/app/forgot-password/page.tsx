@@ -20,7 +20,7 @@ export default function ForgotPasswordPage() {
       <h1 className="text-[2rem] tracking-[-0.03em]">Reset your password</h1>
       {status.data && !status.data.available ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          Password reset by email isn’t available on this store yet.{" "}
+          Password reset by email is temporarily unavailable.{" "}
           <Link
             href="/contact?topic=Other"
             className="text-foreground underline underline-offset-4"

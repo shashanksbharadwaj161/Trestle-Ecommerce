@@ -9,14 +9,11 @@ export function ContentPage({
   intro,
   current,
   children,
-  ownerContent,
 }: {
   title: string;
   intro?: React.ReactNode;
   current: string;
   children: React.ReactNode;
-  /** marks pages whose wording must be replaced by the store owner */
-  ownerContent?: boolean;
 }) {
   return (
     <div className="container-page pt-6 md:pt-8">
@@ -48,12 +45,6 @@ export function ContentPage({
           <h1 className="text-[2rem] leading-tight tracking-[-0.03em] md:text-[2.5rem]">{title}</h1>
           {intro && (
             <div className="mt-3 max-w-[60ch] text-[0.9375rem] text-muted-foreground">{intro}</div>
-          )}
-          {ownerContent && (
-            <p className="mt-6 border border-warning/40 bg-warning-soft px-4 py-3 text-[0.8125rem] text-warning">
-              Placeholder policy for a demo store. The store owner must replace this text with their
-              own terms before selling.
-            </p>
           )}
           <div className="prose-trestle mt-8">{children}</div>
         </article>

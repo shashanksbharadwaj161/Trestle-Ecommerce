@@ -259,18 +259,21 @@ export function CheckoutView() {
                     : (opts?.card.reason ?? "Checking availability…")
                 }
               />
-              <PayOption
-                checked={method === "crypto"}
-                disabled={!opts?.crypto.enabled}
-                onSelect={() => setMethod("crypto")}
-                icon={<ShieldCheck className="size-5" strokeWidth={1.5} />}
-                title="Stablecoin escrow"
-                detail={
-                  opts?.crypto.enabled
-                    ? "Pay from a supported chain. Funds stay in escrow until you confirm delivery. Needs a wallet."
-                    : (opts?.crypto.reason ?? "Checking availability…")
-                }
-              />
+              {/* stablecoin payment is offered only where it is actually available */}
+              {(!opts || opts.crypto.enabled) && (
+                <PayOption
+                  checked={method === "crypto"}
+                  disabled={!opts?.crypto.enabled}
+                  onSelect={() => setMethod("crypto")}
+                  icon={<ShieldCheck className="size-5" strokeWidth={1.5} />}
+                  title="Stablecoin escrow"
+                  detail={
+                    opts?.crypto.enabled
+                      ? "Pay from a supported chain. Funds stay in escrow until you confirm delivery. Needs a wallet."
+                      : (opts?.crypto.reason ?? "Checking availability…")
+                  }
+                />
+              )}
             </div>
             {options.isError && (
               <Notice tone="danger" className="mt-4">
@@ -286,8 +289,8 @@ export function CheckoutView() {
             )}
             {opts && !opts.card.enabled && !opts.crypto.enabled && (
               <Notice tone="info" className="mt-4">
-                Checkout isn’t open yet: payments are switched off in this demo store, so orders
-                can’t be placed. Your bag is saved — nothing has been charged.
+                Online checkout is temporarily unavailable, so orders can’t be placed right now.
+                Your bag is saved and nothing has been charged.
               </Notice>
             )}
             {opts?.card.enabled && method === "card" && (
@@ -442,7 +445,7 @@ export function CheckoutView() {
                     <dd className="tabular">{formatCents(t.totalCents)}</dd>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Prices in USD. Taxes and duties are not calculated in this store.
+                    Prices in USD. Local import duties and taxes, if any, are not included.
                   </p>
                 </>
               )}

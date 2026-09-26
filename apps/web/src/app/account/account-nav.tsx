@@ -6,13 +6,14 @@ import { api } from "@/lib/api";
 import { useSession } from "@/hooks/use-session";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/cn";
+import { usePublicConfig } from "@/lib/public-config";
 
 const LINKS = [
   { href: "/account", label: "Orders" },
   { href: "/account/profile", label: "Profile & security" },
   { href: "/wishlist", label: "Wishlist" },
-  { href: "/account/wallet", label: "Wallet & escrow" },
-  { href: "/account/loyalty", label: "Loyalty" },
+  { href: "/account/wallet", label: "Wallet & escrow", crypto: true },
+  { href: "/account/loyalty", label: "Loyalty", crypto: true },
 ];
 
 export function AccountNav() {
@@ -22,6 +23,9 @@ export function AccountNav() {
   const user = hydrated ? session.user : null;
   const qc = useQueryClient();
   const router = useRouter();
+  const { payments } = usePublicConfig();
+  // wallet features are listed only where stablecoin payments are live (or the account already uses a wallet)
+  const links = LINKS.filter((l) => !l.crypto || payments.crypto || !!user?.walletAddress);
   if (!user) return null;
   return (
     <div className="border-b border-border">
@@ -29,7 +33,7 @@ export function AccountNav() {
         aria-label="Account"
         className="container-page no-scrollbar flex items-center gap-6 overflow-x-auto"
       >
-        {LINKS.map((l) => (
+        {links.map((l) => (
           <Link
             key={l.href}
             href={l.href}

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { publicStats } from "@/server/stats";
+import { paymentAvailability } from "@/server/payments";
 import { TransparencyView } from "./view";
 
 export const metadata: Metadata = {
@@ -9,6 +11,8 @@ export const metadata: Metadata = {
 };
 
 export default async function TransparencyPage() {
+  // an escrow dashboard is only meaningful where stablecoin escrow is live
+  if (!paymentAvailability().crypto) notFound();
   let initial: unknown = null;
   try {
     initial = JSON.parse(

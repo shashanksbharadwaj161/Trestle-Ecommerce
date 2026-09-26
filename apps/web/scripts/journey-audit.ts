@@ -104,6 +104,14 @@ async function desktop(ctx: BrowserContext) {
   const page = await ctx.newPage();
   await throttle(page);
   instrument(page, "desktop");
+  // escrow-only surfaces exist only where stablecoin payments are live on the deployment
+  const cryptoLive = await page.request
+    .get(BASE + "/api/checkout/options")
+    .then(
+      async (r) =>
+        ((await r.json()) as { crypto?: { enabled?: boolean } }).crypto?.enabled === true,
+    )
+    .catch(() => true);
   console.log("\n— routes (status, TTFB)");
   const routes = [
     "/",
@@ -139,7 +147,7 @@ async function desktop(ctx: BrowserContext) {
       const res = await page.goto(BASE + r, { waitUntil: "domcontentloaded", timeout: 30_000 });
       const ms = Date.now() - t;
       timings.push({ what: `load ${r}`, ms });
-      const want = r === "/does-not-exist" ? 404 : 200;
+      const want = r === "/does-not-exist" || (r === "/transparency" && !cryptoLive) ? 404 : 200;
       if (res?.status() !== want) throw new Error(`status ${res?.status()} (want ${want})`);
       await page.locator("h1").first().waitFor({ timeout: 10_000 });
     });

@@ -8,6 +8,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { POLICY } from "@/lib/policy";
+import { paymentAvailability } from "@/server/payments";
+import { paymentSummary } from "@/lib/payment-copy";
 
 export const metadata: Metadata = { title: "Help centre" };
 
@@ -16,7 +18,7 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
     q: "Do I need an account to order?",
     a: (
       <>
-        No. Card checkout works as a guest — your confirmation page gives you a private link to your
+        No. You can check out as a guest — your confirmation page gives you a private link to your
         order. An account keeps all your orders and your wishlist in one place.
       </>
     ),
@@ -47,15 +49,6 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
     ),
   },
   {
-    q: "What payment methods do you accept?",
-    a: (
-      <>
-        Card payments through Stripe’s hosted checkout, or stablecoins held in an escrow contract
-        until you confirm delivery. <Link href="/payments">Payment options</Link>.
-      </>
-    ),
-  },
-  {
     q: "I checked out as a guest and lost my order link.",
     a: (
       <>
@@ -76,7 +69,22 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
   },
 ];
 
+export const dynamic = "force-dynamic";
+
 export default function HelpPage() {
+  const pay = paymentAvailability();
+  const faq = [
+    ...FAQ.slice(0, 2),
+    {
+      q: "What payment methods do you accept?",
+      a: (
+        <>
+          {paymentSummary(pay)} <Link href="/payments">Payment options</Link>.
+        </>
+      ),
+    },
+    ...FAQ.slice(2),
+  ];
   return (
     <ContentPage
       title="Help centre"
@@ -84,7 +92,7 @@ export default function HelpPage() {
       intro="Answers to common questions. Can’t find yours? Contact us."
     >
       <Accordion type="multiple" className="not-prose border-t border-border">
-        {FAQ.map((f) => (
+        {faq.map((f) => (
           <AccordionItem key={f.q} value={f.q}>
             <AccordionTrigger>{f.q}</AccordionTrigger>
             <AccordionContent className="[&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4">

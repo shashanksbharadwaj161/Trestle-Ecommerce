@@ -10,6 +10,7 @@ import { Field, Input } from "@/components/ui/input";
 import { api, errorMessage } from "@/lib/api";
 import { shortAddress } from "@/lib/format";
 import type { SessionUser } from "@/hooks/use-session";
+import { usePublicConfig } from "@/lib/public-config";
 
 export default function ProfilePage() {
   return (
@@ -18,6 +19,7 @@ export default function ProfilePage() {
 }
 
 function Profile({ user }: { user: SessionUser }) {
+  const { payments } = usePublicConfig();
   const qc = useQueryClient();
   const [name, setName] = useState(user.displayName ?? "");
   const [email, setEmail] = useState(user.email ?? "");
@@ -138,25 +140,27 @@ function Profile({ user }: { user: SessionUser }) {
         </form>
       </section>
 
-      <section className="border-t border-border py-8">
-        <h2 className="text-[0.9375rem] font-medium">Wallet</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {user.walletAddress ? (
-            <>
-              Linked: <span className="font-mono">{shortAddress(user.walletAddress)}</span>. Used
-              for stablecoin escrow, reputation and loyalty.
-            </>
-          ) : (
-            "No wallet linked. You only need one to pay with stablecoins."
-          )}
-        </p>
-        <Link
-          href="/account/wallet"
-          className="mt-3 inline-block text-sm underline underline-offset-4"
-        >
-          {user.walletAddress ? "Wallet & escrow" : "Link a wallet"}
-        </Link>
-      </section>
+      {(payments.crypto || user.walletAddress) && (
+        <section className="border-t border-border py-8">
+          <h2 className="text-[0.9375rem] font-medium">Wallet</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {user.walletAddress ? (
+              <>
+                Linked: <span className="font-mono">{shortAddress(user.walletAddress)}</span>. Used
+                for stablecoin escrow, reputation and loyalty.
+              </>
+            ) : (
+              "No wallet linked. You only need one to pay with stablecoins."
+            )}
+          </p>
+          <Link
+            href="/account/wallet"
+            className="mt-3 inline-block text-sm underline underline-offset-4"
+          >
+            {user.walletAddress ? "Wallet & escrow" : "Link a wallet"}
+          </Link>
+        </section>
+      )}
 
       <DeleteAccount hasPassword={user.hasPassword} />
     </Container>

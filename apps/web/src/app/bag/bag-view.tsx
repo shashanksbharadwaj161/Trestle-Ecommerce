@@ -10,10 +10,13 @@ import { ErrorState } from "@/components/states";
 import { useCart } from "@/hooks/use-cart";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { FreeDeliveryMeter } from "@/components/free-delivery-meter";
+import { paymentSummary } from "@/lib/payment-copy";
+import { usePublicConfig } from "@/lib/public-config";
 
 const FREE_OVER_MICROS = BigInt(SHIPPING_METHODS.standard.freeOverCents) * 10_000n;
 
 export function BagView() {
+  const { payments } = usePublicConfig();
   const cart = useCart();
   const hydrated = useHydrated();
   const data = cart.data;
@@ -103,7 +106,7 @@ export function BagView() {
                 <Link href="/checkout">Continue to checkout</Link>
               </Button>
               <p className="mt-4 text-xs text-muted-foreground">
-                Pay by card (no account needed) or with stablecoins held in escrow.{" "}
+                {paymentSummary(payments)}{" "}
                 <Link href="/payments" className="underline underline-offset-2">
                   Payment options
                 </Link>

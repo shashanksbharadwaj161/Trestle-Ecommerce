@@ -414,8 +414,10 @@ export function PurchasePanel({
               <AccordionContent>
                 <p>
                   {product.cardEnabled
-                    ? "Pay by card on Stripe’s secure checkout — no account needed."
-                    : "Card payments are not configured on this deployment yet."}
+                    ? "Pay securely by card — no account needed."
+                    : product.stablecoin
+                      ? "Card payments are temporarily unavailable."
+                      : "Online checkout is temporarily unavailable. You can still add this piece to your bag or wishlist — both are saved for when it reopens."}
                 </p>
                 {product.stablecoin && (
                   <p className="mt-2">

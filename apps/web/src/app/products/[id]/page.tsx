@@ -10,7 +10,7 @@ import {
   type Department,
 } from "@trestle/shared";
 import { getProductDetail, provenanceFor, relatedProducts } from "@/server/catalog";
-import { cardConfig } from "@/server/stripe";
+import { paymentAvailability } from "@/server/payments";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { ProductShelf } from "@/components/product-shelf";
 import { RecentlyViewed } from "@/components/recently-viewed";
@@ -92,6 +92,7 @@ export default async function ProductPage({
   const chart = product.sizeChartKey ? (SIZE_CHARTS[product.sizeChartKey] ?? null) : null;
   const soldOut = product.status !== "ACTIVE";
 
+  const pay = paymentAvailability();
   const pdp: PdpProduct = {
     id: product.id,
     slug: product.slug ?? product.id,
@@ -117,10 +118,11 @@ export default async function ProductPage({
       sku: v.sku,
     })),
     chart,
-    certificates: certs.length,
+    certificates: pay.crypto ? certs.length : 0,
     rating: product.rating,
-    cardEnabled: cardConfig().enabled,
-    stablecoin: product.chainListingOptions.length > 0,
+    cardEnabled: pay.card,
+    // advertise stablecoin payment only where it actually works
+    stablecoin: pay.crypto && product.chainListingOptions.length > 0,
   };
 
   const jsonLd = {
@@ -188,7 +190,7 @@ export default async function ProductPage({
         </section>
       )}
 
-      {certs.length > 0 && (
+      {pay.crypto && certs.length > 0 && (
         <section aria-labelledby="provenance" className="container-page mt-20">
           <h2 id="provenance" className="text-xl">
             Provenance record

@@ -7,6 +7,8 @@ export interface ClientConfig {
   rpc: { chainARpcUrl?: string; chainBRpcUrl?: string };
   walletConnectProjectId: string;
   protocolFeeBps: number;
+  /** which payment methods work on this deployment (server-computed) */
+  payments: { card: boolean; crypto: boolean };
 }
 
 const Ctx = createContext<ClientConfig | null>(null);

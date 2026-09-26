@@ -6,7 +6,8 @@ import { emailProvider } from "@/server/email";
 import { requestPasswordReset } from "@/server/password-reset";
 import { env } from "@/server/env";
 
-const GENERIC = "If an account exists for that email, we’ve sent a link to reset the password. It expires in 30 minutes.";
+const GENERIC =
+  "If an account exists for that email, we’ve sent a link to reset the password. It expires in 30 minutes.";
 
 /**
  * Anti-enumeration: the response is identical whether or not the account exists, and the token + email work
@@ -17,7 +18,11 @@ export const POST = route(
   async ({ req }) => {
     const { email } = await parseBody(req, forgotInput);
     if (!emailProvider())
-      throw new ApiError(503, "email_unavailable", "Password reset by email isn’t available on this store yet. Contact us and we’ll help.");
+      throw new ApiError(
+        503,
+        "email_unavailable",
+        "Password reset by email is temporarily unavailable. Contact us and we’ll help.",
+      );
     const perEmail = await rateLimit("pw-forgot-email", email, 3, 3600);
     if (perEmail.ok) {
       const origin = env().APP_URL?.replace(/\/$/, "") ?? req.nextUrl.origin;

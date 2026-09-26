@@ -11,7 +11,6 @@ export default function SizeGuidePage() {
       title="Size guide"
       current="/size-guide"
       intro="Body measurements for each size. Compare with your own measurements; each product page also notes its fit."
-      ownerContent
     >
       <div className="not-prose space-y-14">
         {Object.values(SIZE_CHARTS).map((c) => (

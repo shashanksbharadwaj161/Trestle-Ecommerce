@@ -3,22 +3,17 @@ import { HELP_LINKS, NAV } from "@/lib/nav";
 import { Wordmark } from "./logo";
 import { ThemeToggle } from "./theme-toggle";
 
-export function SiteFooter({ notice }: { notice: string | null }) {
+/** `crypto`: stablecoin payments are live — only then are the wallet-based programmes linked. */
+export function SiteFooter({ crypto }: { crypto: boolean }) {
   return (
     <footer className="mt-24 border-t border-border">
       <div className="container-page grid gap-10 py-14 md:grid-cols-12">
         <div className="md:col-span-4">
           <Wordmark />
           <p className="mt-4 max-w-xs text-sm text-muted-foreground">
-            Dresses, jersey, denim and knits, made to be worn often. Pay by card, or with
-            stablecoins held in escrow until your order arrives.
+            Dresses, shirting, jersey and denim for women and men — considered pieces, made to be
+            worn often.
           </p>
-          {notice && (
-            <p className="mt-5 inline-flex max-w-sm items-start gap-2 border border-border px-3 py-2 text-xs text-muted-foreground">
-              <span className="mt-1 size-1.5 shrink-0 rounded-full bg-warning" aria-hidden />
-              {notice}
-            </p>
-          )}
         </div>
         <nav aria-label="Footer: shop" className="md:col-span-2">
           <h2 className="eyebrow mb-4 text-muted-foreground">Shop</h2>
@@ -68,20 +63,35 @@ export function SiteFooter({ notice }: { notice: string | null }) {
               </Link>
             </li>
             <li>
-              <Link href="/seller/onboarding" className="hover:underline hover:underline-offset-4">
-                Sell on Trestle
+              <Link href="/wishlist" className="hover:underline hover:underline-offset-4">
+                Wishlist
               </Link>
             </li>
-            <li>
-              <Link href="/transparency" className="hover:underline hover:underline-offset-4">
-                Escrow transparency
-              </Link>
-            </li>
-            <li>
-              <Link href="/account/loyalty" className="hover:underline hover:underline-offset-4">
-                Loyalty (TRST)
-              </Link>
-            </li>
+            {crypto && (
+              <>
+                <li>
+                  <Link
+                    href="/seller/onboarding"
+                    className="hover:underline hover:underline-offset-4"
+                  >
+                    Sell on Trestle
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/transparency" className="hover:underline hover:underline-offset-4">
+                    Escrow transparency
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/account/loyalty"
+                    className="hover:underline hover:underline-offset-4"
+                  >
+                    Loyalty (TRST)
+                  </Link>
+                </li>
+              </>
+            )}
           </ul>
         </nav>
         <div className="md:col-span-2 md:justify-self-end">
@@ -90,7 +100,7 @@ export function SiteFooter({ notice }: { notice: string | null }) {
       </div>
       <div className="border-t border-border">
         <div className="container-page flex flex-col gap-3 py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getUTCFullYear()} Trestle. Demo storefront.</p>
+          <p>© {new Date().getUTCFullYear()} Trestle. All rights reserved.</p>
           <ul className="flex flex-wrap gap-x-5 gap-y-2">
             <li>
               <Link href="/privacy" className="hover:text-foreground">
