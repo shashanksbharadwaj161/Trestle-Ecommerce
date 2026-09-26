@@ -19,10 +19,38 @@ export function TransparencyView({ initial }: { initial: Stats }) {
   const q = useQuery({
     queryKey: ["stats"],
     queryFn: () => api<Stats>("/api/admin/stats"),
-    initialData: initial,
-    refetchInterval: 8_000,
+    initialData: initial ?? undefined,
+    refetchInterval: 30_000,
+    retry: 2,
   });
   const s = q.data;
+  if (!s) {
+    return (
+      <Container>
+        <PageHeader eyebrow="Public · live" title="Protocol transparency" />
+        {q.isError ? (
+          <EmptyState
+            icon={<AlertTriangle className="size-5" strokeWidth={1.5} />}
+            title="Live figures are temporarily unavailable"
+            description="We couldn’t load the protocol figures just now. Nothing is wrong with your account or orders."
+            action={
+              <button
+                type="button"
+                onClick={() => q.refetch()}
+                className="h-10 border border-foreground px-5 text-sm transition-colors hover:bg-foreground hover:text-background"
+              >
+                Try again
+              </button>
+            }
+          />
+        ) : (
+          <p role="status" className="py-16 text-center text-sm text-muted-foreground">
+            Loading live figures…
+          </p>
+        )}
+      </Container>
+    );
+  }
   const orderStatus = Object.entries(s.ordersByStatus as Record<string, number>).map(([k, v]) => ({
     label: k.replace("_", " ").toLowerCase(),
     value: v,
@@ -35,7 +63,7 @@ export function TransparencyView({ initial }: { initial: Stats }) {
         description="Every number here is computed from indexed contract events or read live from the contracts — not hardcoded. Seeded demo records without on-chain transactions are excluded and counted separately."
         actions={
           <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-            <Radio className="size-3.5 text-success" aria-hidden /> refreshes every 8s · updated{" "}
+            <Radio className="size-3.5 text-success" aria-hidden /> refreshes every 30s · updated{" "}
             <RelativeTime date={s.generatedAt} />
           </span>
         }

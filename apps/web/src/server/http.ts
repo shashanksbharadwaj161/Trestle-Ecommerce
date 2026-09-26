@@ -71,6 +71,26 @@ export function errorResponse(err: unknown): NextResponse {
       { status: 400 },
     );
   }
+  // database unreachable / pool exhausted / connection dropped: a temporary outage, not a bug in the request
+  const prismaCode = (err as { code?: unknown } | null)?.code;
+  if (
+    typeof prismaCode === "string" &&
+    ["P1001", "P1002", "P1008", "P1017", "P2024"].includes(prismaCode)
+  ) {
+    console.error("[api] database unavailable", prismaCode);
+    const res = json(
+      {
+        error: {
+          code: "unavailable",
+          message: "The store is briefly unavailable. Please try again in a moment.",
+          ref: prismaCode,
+        },
+      },
+      { status: 503 },
+    );
+    res.headers.set("Retry-After", "5");
+    return res;
+  }
   console.error("[api] unhandled error", err);
   return json(
     {

@@ -5,6 +5,18 @@ import { findToken, pow10, USD_MICROS } from "@trestle/shared";
 import { entryPointAbi, trestlePaymentRouterAbi } from "@trestle/shared/abis";
 import { env } from "./env";
 import { chainProfiles, deployment, publicClient } from "./chain";
+import { unstable_cache } from "next/cache";
+import { decode, encode } from "./catalog-cache";
+
+/** Rejects after `ms` so one slow RPC endpoint cannot hold the whole request open. */
+function within<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms),
+    ),
+  ]);
+}
 
 function toUsdMicros(amount: bigint, chainId: number, token: string): bigint {
   const t = findToken(env().mode, chainId, token);
@@ -72,40 +84,53 @@ async function chainHealth() {
           contracts: null,
         };
       const client = publicClient(p.chain.id);
+      const d = dep;
       try {
+        return await within(readChain(), 5_000);
+      } catch {
+        return {
+          ...base,
+          online: false,
+          blockNumber: null,
+          liquidity: [],
+          paymasterDeposit: null,
+          contracts: null,
+        };
+      }
+      async function readChain() {
         const [blockNumber, usdcLiq, daiLiq, pmDeposit, checkpoint] = await Promise.all([
           client.getBlockNumber(),
           client.readContract({
-            address: dep.paymentRouter,
+            address: d.paymentRouter,
             abi: trestlePaymentRouterAbi,
             functionName: "totalLiquidity",
-            args: [dep.usdc],
+            args: [d.usdc],
           }),
           client.readContract({
-            address: dep.paymentRouter,
+            address: d.paymentRouter,
             abi: trestlePaymentRouterAbi,
             functionName: "totalLiquidity",
-            args: [dep.dai],
+            args: [d.dai],
           }),
           client.readContract({
-            address: dep.entryPoint,
+            address: d.entryPoint,
             abi: entryPointAbi,
             functionName: "balanceOf",
-            args: [dep.paymaster],
+            args: [d.paymaster],
           }),
           prisma.relayerCheckpoint.findUnique({ where: { id: String(p.chain.id) } }),
         ]);
         const escrowUsdc = await client.readContract({
-          address: dep.usdc,
+          address: d.usdc,
           abi: erc20Abi,
           functionName: "balanceOf",
-          args: [dep.escrow as Address],
+          args: [d.escrow as Address],
         });
         const escrowDai = await client.readContract({
-          address: dep.dai,
+          address: d.dai,
           abi: erc20Abi,
           functionName: "balanceOf",
-          args: [dep.escrow as Address],
+          args: [d.escrow as Address],
         });
         return {
           ...base,
@@ -122,23 +147,14 @@ async function chainHealth() {
           ],
           paymasterDeposit: (pmDeposit as bigint).toString(),
           contracts: {
-            escrow: dep.escrow,
-            paymentRouter: dep.paymentRouter,
-            relayerAdapter: dep.relayerAdapter,
-            paymaster: dep.paymaster,
-            reputation: dep.reputation,
-            loyalty: dep.loyalty,
-            authenticity: dep.authenticity,
+            escrow: d.escrow,
+            paymentRouter: d.paymentRouter,
+            relayerAdapter: d.relayerAdapter,
+            paymaster: d.paymaster,
+            reputation: d.reputation,
+            loyalty: d.loyalty,
+            authenticity: d.authenticity,
           },
-        };
-      } catch {
-        return {
-          ...base,
-          online: false,
-          blockNumber: null,
-          liquidity: [],
-          paymasterDeposit: null,
-          contracts: null,
         };
       }
     }),
@@ -265,4 +281,17 @@ export async function protocolStats() {
         "Cross-chain messages are authenticated by a trusted demo attestation committee, not a light client. Buyer funds on the source chain are always refundable after intent expiry + 30 min if no fulfilment is proven.",
     },
   };
+}
+
+/**
+ * The public transparency figures, shared by every visitor for 15 s (aggregates only — no personal data), so an
+ * open dashboard costs one set of queries per 15 s instead of one per viewer per poll.
+ */
+const cachedStats = unstable_cache(async () => encode(await protocolStats()), ["protocol-stats"], {
+  revalidate: 15,
+  tags: ["stats"],
+});
+export async function publicStats(): Promise<Awaited<ReturnType<typeof protocolStats>>> {
+  if (!process.env.NEXT_RUNTIME) return protocolStats();
+  return decode(await cachedStats());
 }

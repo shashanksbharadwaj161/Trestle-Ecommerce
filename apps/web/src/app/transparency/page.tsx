@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { protocolStats } from "@/server/stats";
+import { publicStats } from "@/server/stats";
 import { TransparencyView } from "./view";
 
 export const metadata: Metadata = {
@@ -9,8 +9,14 @@ export const metadata: Metadata = {
 };
 
 export default async function TransparencyPage() {
-  const initial = JSON.parse(
-    JSON.stringify(await protocolStats(), (_k, v) => (typeof v === "bigint" ? v.toString() : v)),
-  );
+  let initial: unknown = null;
+  try {
+    initial = JSON.parse(
+      JSON.stringify(await publicStats(), (_k, v) => (typeof v === "bigint" ? v.toString() : v)),
+    );
+  } catch (err) {
+    // render the page with a clear "temporarily unavailable" state (the client retries) instead of an error page
+    console.error("[transparency] stats unavailable", (err as Error).message);
+  }
   return <TransparencyView initial={initial} />;
 }
